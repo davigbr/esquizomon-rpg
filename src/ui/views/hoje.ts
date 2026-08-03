@@ -9,11 +9,11 @@ import {
   dataPorExtenso,
   diaDaSemana,
   diaDoMes,
+  diaSemanaPorExtenso,
   diasAte,
   diasDesde,
   dificuldadeDe,
   hojeISO,
-  hojePorExtenso,
   somarDias,
 } from '../../core/jogo'
 import { alternarRecorrenteHoje, alternarUnica, appStore, excluirTarefa, registrarHabito, reordenarTarefas, tagsEmUso } from '../../stores/app'
@@ -32,6 +32,8 @@ let handlerClique: ((e: Event) => void) | null = null
 export function montarHoje(raiz: HTMLElement, dados: AppData): void {
   const hojeReal = hojeISO()
   const ehHoje = dataVisivel === hojeReal
+  const ehOntem = dataVisivel === somarDias(hojeReal, -1)
+  const rotulo = ehHoje ? 'Hoje' : ehOntem ? 'Ontem' : diaSemanaPorExtenso(dataVisivel)
   const dia = diaDaSemana(new Date(dataVisivel + 'T12:00:00'))
   const diaMes = diaDoMes(new Date(dataVisivel + 'T12:00:00'))
   const tags = tagsEmUso(dados)
@@ -54,12 +56,10 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
     <header class="view-header">
       <div class="view-header-navegacao">
         <button class="btn btn-icon" data-dia-anterior aria-label="Dia anterior">◀</button>
-        <div class="view-header-titulo">
-          <h1>${ehHoje ? 'Hoje' : 'Dia anterior'}</h1>
-          <p class="view-sub">${escapar(ehHoje ? hojePorExtenso() : dataPorExtenso(dataVisivel))}</p>
-        </div>
+        <h1>${escapar(rotulo)}</h1>
         <button class="btn btn-icon" data-dia-seguinte aria-label="Dia seguinte" ${ehHoje ? 'disabled' : ''}>▶</button>
       </div>
+      <p class="view-sub">${escapar(dataPorExtenso(dataVisivel))}</p>
     </header>
 
     <div class="filtros">

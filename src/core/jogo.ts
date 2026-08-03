@@ -40,6 +40,12 @@ export function dataPorExtenso(iso: string): string {
   return d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+/** Nome do dia da semana por extenso (capitalizado), ex.: "Segunda-feira". */
+export function diaSemanaPorExtenso(iso: string): string {
+  const nome = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })
+  return nome.charAt(0).toUpperCase() + nome.slice(1)
+}
+
 /** Soma dias a uma data ISO (aceita negativos). */
 export function somarDias(iso: string, dias: number): string {
   const d = new Date(iso + 'T12:00:00')

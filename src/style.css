@@ -171,26 +171,22 @@ body {
 .view-header-navegacao {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
-.view-header-titulo {
-  flex: 1;
-  min-width: 0;
-}
-
-.view-header h1 {
+.view-header-navegacao h1 {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 26px;
-  margin: 0 0 4px;
+  margin: 0;
   letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .view-header .view-sub {
   color: var(--text-muted);
   font-size: 14px;
-  margin: 0;
+  margin: 4px 0 0;
 }
 
 .view-actions {
