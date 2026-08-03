@@ -2,7 +2,7 @@
 
 import { atom, computed } from 'nanostores'
 
-import type { AppData, Configuracao, Dificuldade, Tarefa, Tema, TipoTarefa } from '../core/tipos'
+import type { Agenda, AppData, Configuracao, Dificuldade, Tarefa, Tema, TipoTarefa } from '../core/tipos'
 import { hojeISO, novoId } from '../core/jogo'
 import { apagarTudo, carregar, normalizarDados, salvar, salvarTema } from '../db/storage'
 
@@ -36,9 +36,9 @@ export interface DadosTarefa {
   tipo: TipoTarefa
   dificuldade: Dificuldade
   tags: string[]
-  links: string[]
   notas?: string
-  agenda?: { dias: number[] }
+  dueDate?: string
+  agenda?: Agenda
   sinal?: 'positivo' | 'negativo' | 'ambos'
 }
 
@@ -51,9 +51,9 @@ export function criarTarefa(dados: DadosTarefa): Resultado {
     titulo,
     dificuldade: dados.dificuldade,
     tags: dados.tags,
-    links: dados.links,
     notas: dados.notas?.trim() || undefined,
-    agenda: dados.tipo === 'recorrente' ? { dias: dados.agenda?.dias ?? [] } : undefined,
+    dueDate: dados.tipo === 'unica' ? dados.dueDate : undefined,
+    agenda: dados.tipo === 'recorrente' ? { dias: dados.agenda?.dias ?? [], diasDoMes: dados.agenda?.diasDoMes } : undefined,
     sinal: dados.tipo === 'habito' ? dados.sinal ?? 'positivo' : undefined,
     contador:
       dados.tipo === 'habito'
@@ -78,16 +78,19 @@ export function atualizarTarefa(id: string, dados: Partial<DadosTarefa>): Result
     titulo: titulo ?? atual.titulo,
     dificuldade: dados.dificuldade ?? atual.dificuldade,
     tags: dados.tags ?? atual.tags,
-    links: dados.links ?? atual.links,
     notas: dados.notas?.trim() || undefined,
+    dueDate: dados.dueDate !== undefined ? dados.dueDate : atual.dueDate,
   }
   if (dados.tipo) {
     proxima.tipo = dados.tipo
-    if (dados.tipo === 'recorrente') proxima.agenda = { dias: dados.agenda?.dias ?? atual.agenda?.dias ?? [] }
+    if (dados.tipo === 'recorrente') {
+      proxima.agenda = { dias: dados.agenda?.dias ?? [], diasDoMes: dados.agenda?.diasDoMes ?? atual.agenda?.diasDoMes }
+    }
     if (dados.tipo === 'habito') {
       proxima.sinal = dados.sinal ?? atual.sinal ?? 'positivo'
       proxima.contador = atual.contador ?? { hoje: 0, totalPositivo: 0, totalNegativo: 0 }
     }
+    if (dados.tipo !== 'unica') proxima.dueDate = undefined
   }
   const tarefas = appStore.get().tarefas.map((t) => (t.id === id ? proxima : t))
   appStore.set({ ...appStore.get(), tarefas })
@@ -96,6 +99,20 @@ export function atualizarTarefa(id: string, dados: Partial<DadosTarefa>): Result
 
 export function excluirTarefa(id: string): void {
   appStore.set({ ...appStore.get(), tarefas: appStore.get().tarefas.filter((t) => t.id !== id) })
+}
+
+/** Reordena as tarefas (drag & drop): `ids` na nova ordem, dentro do mesmo tipo. */
+export function reordenarTarefas(ids: string[]): void {
+  const tarefas = appStore.get().tarefas
+  const mapa = new Map(tarefas.map((t) => [t.id, t]))
+  const conjunto = new Set(ids)
+  const reordenadas = ids.map((id) => mapa.get(id)).filter((t): t is Tarefa => t !== undefined)
+  if (reordenadas.length !== ids.length) return
+  const tipo = reordenadas[0]?.tipo
+  if (!tipo) return
+  const demais = tarefas.filter((t) => !conjunto.has(t.id) || t.tipo !== tipo)
+  const resultado = [...demais, ...reordenadas]
+  appStore.set({ ...appStore.get(), tarefas: resultado })
 }
 
 /** Recorrente: marca/desmarca o dia de hoje no histórico. */

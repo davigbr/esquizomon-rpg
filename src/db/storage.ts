@@ -54,7 +54,6 @@ function ehTarefa(v: unknown): v is Tarefa {
     typeof t.titulo === 'string' &&
     ['facil', 'media', 'dificil', 'extrema'].includes(String(t.dificuldade)) &&
     Array.isArray(t.tags) &&
-    Array.isArray(t.links) &&
     Array.isArray(t.historico)
   )
 }
@@ -64,7 +63,12 @@ function normalizarTarefa(v: unknown): Tarefa | null {
   const t = v
   const agenda =
     t.agenda && typeof t.agenda === 'object' && Array.isArray((t.agenda as { dias?: unknown }).dias)
-      ? { dias: ((t.agenda as { dias: unknown[] }).dias).filter((d): d is number => typeof d === 'number') }
+      ? {
+          dias: ((t.agenda as { dias: unknown[] }).dias).filter((d): d is number => typeof d === 'number'),
+          diasDoMes: Array.isArray((t.agenda as { diasDoMes?: unknown }).diasDoMes)
+            ? ((t.agenda as { diasDoMes: unknown[] }).diasDoMes).filter((d): d is number => typeof d === 'number' && d >= 1 && d <= 31)
+            : undefined,
+        }
       : undefined
   const contador =
     t.contador && typeof t.contador === 'object'
@@ -82,13 +86,15 @@ function normalizarTarefa(v: unknown): Tarefa | null {
       : undefined
   const sinal =
     t.sinal === 'positivo' || t.sinal === 'negativo' || t.sinal === 'ambos' ? t.sinal : t.tipo === 'habito' ? 'positivo' : undefined
+  const dueDate =
+    typeof t.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate) ? t.dueDate : undefined
   return {
     id: t.id,
     tipo: t.tipo,
     titulo: t.titulo,
     dificuldade: t.dificuldade,
     tags: t.tags.filter((x): x is string => typeof x === 'string'),
-    links: t.links.filter((x): x is string => typeof x === 'string'),
+    dueDate,
     notas: typeof t.notas === 'string' ? t.notas : undefined,
     agenda,
     sinal,

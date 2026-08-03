@@ -38,6 +38,25 @@ export function diaDaSemana(d: Date = new Date()): number {
   return d.getDay()
 }
 
+export function diaDoMes(d: Date = new Date()): number {
+  return d.getDate()
+}
+
+/** Dias (inteiros) até uma data futura; negativo = já venceu. */
+export function diasAte(dataISO: string, hoje = hojeISO()): number {
+  const a = new Date(hoje + 'T12:00:00')
+  const b = new Date(dataISO + 'T12:00:00')
+  return Math.round((b.getTime() - a.getTime()) / 86_400_000)
+}
+
+/** Dias desde uma data (aceita ISO completo ou só a data). */
+export function diasDesde(data: string, hoje = new Date()): number {
+  const d = new Date(data)
+  const inicioHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
+  const inicioCriacao = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  return Math.floor((inicioHoje.getTime() - inicioCriacao.getTime()) / 86_400_000)
+}
+
 /** Streak de dias consecutivos com repetição positiva, terminando em hoje ou ontem. */
 export function calcularStreak(historico: string[], hoje = hojeISO()): number {
   if (historico.length === 0) return 0

@@ -4,9 +4,12 @@ export type TipoTarefa = 'recorrente' | 'unica' | 'habito'
 export type Dificuldade = 'facil' | 'media' | 'dificil' | 'extrema'
 export type Tema = 'dark' | 'light'
 
-/** Agenda de uma tarefa recorrente: dias da semana 0-6 (domingo = 0). Vazio = todos os dias. */
+/** Agenda de uma tarefa recorrente.
+ *  `dias` = dias da semana 0-6 (domingo = 0); vazio = todos os dias.
+ *  `diasDoMes` = dias do mês 1-31; quando presente e não vazio, a tarefa vale nesses dias (mensal). */
 export interface Agenda {
   dias: number[]
+  diasDoMes?: number[]
 }
 
 /** Contador de um hábito. `hoje` = repetições positivas de hoje; streaks derivados do histórico. */
@@ -22,7 +25,8 @@ export interface Tarefa {
   titulo: string
   dificuldade: Dificuldade
   tags: string[]
-  links: string[]
+  /** Única: data de vencimento (YYYY-MM-DD). */
+  dueDate?: string
   notas?: string
   /** Recorrente: quais dias da semana vale (vazio = todos). */
   agenda?: Agenda

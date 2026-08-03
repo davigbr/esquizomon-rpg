@@ -287,8 +287,84 @@ body {
   color: var(--text-muted);
   font-size: 13px;
   margin: 4px 0 0;
-  white-space: pre-wrap;
+  white-space: normal;
   word-break: break-word;
+}
+
+.tarefa-notas a {
+  color: var(--accent-gold);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tarefa-notas strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.tarefa-notas em {
+  font-style: italic;
+}
+
+/* ========== Due date (vencimento) ========== */
+.badge--due {
+  border-style: solid;
+  color: var(--text-secondary);
+}
+
+.badge--due-proxima {
+  color: var(--accent-gold);
+  border-color: var(--border-gold);
+}
+
+.badge--due-urgente {
+  color: #e8a050;
+  border-color: #8a5a20;
+  background: rgba(232, 160, 80, 0.08);
+}
+
+.badge--due-vencida {
+  color: #ffd0d0;
+  border-color: var(--accent-captura);
+  background: var(--accent-red);
+  font-weight: 600;
+}
+
+/* ========== Envelhecimento por data de criação ========== */
+.tarefa-card.tarefa-velha {
+  border-color: var(--border-color);
+  opacity: 0.85;
+}
+
+.tarefa-card.tarefa-antiga {
+  border-style: dashed;
+  border-color: var(--border-gold);
+  opacity: 0.6;
+}
+
+.tarefa-card.tarefa-antiga .tarefa-titulo {
+  color: var(--text-secondary);
+}
+
+/* ========== Drag & drop ========== */
+.tarefa-card[data-id] {
+  cursor: grab;
+}
+
+.tarefa-card[data-id]:active {
+  cursor: grabbing;
+}
+
+.tarefa-card.arrastando {
+  opacity: 0.4;
+  border-style: dashed;
+  border-color: var(--accent-gold);
+}
+
+.tarefa-card.arrasto-alvo {
+  border-color: var(--accent-gold);
+  border-style: dashed;
+  box-shadow: 0 0 0 1px var(--accent-gold);
 }
 
 .tarefa-meta {
@@ -886,6 +962,89 @@ select.campo {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* ========== Colunas estilo Habitica ========== */
+.colunas {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.coluna {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px;
+  min-width: 0;
+}
+
+.coluna-cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.coluna-cabecalho h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent-gold);
+  margin: 0;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.coluna-contagem {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 1px 8px;
+  flex-shrink: 0;
+}
+
+.coluna-add {
+  flex-shrink: 0;
+}
+
+.coluna-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.coluna .tarefa-card {
+  margin-bottom: 0;
+}
+
+.vazio-coluna {
+  padding: 18px 14px;
+  font-size: 13px;
+}
+
+.coluna-sub {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin: 4px 0 2px;
+}
+
+@media (max-width: 900px) {
+  .colunas {
+    grid-template-columns: 1fr;
   }
 }
 

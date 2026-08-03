@@ -1,119 +1,212 @@
-/** Visão Hoje — recorrentes do dia, hábitos e únicas pendentes. */
+/** Visão inicial — 3 colunas estilo Habitica: Hábitos | Recorrentes | Tarefas.
+ *  Tudo é feito a partir desta tela: adicionar (modal com tipo pré-selecionado),
+ *  alternar, repetir hábito, editar, excluir e filtrar. */
 
-import type { AppData, Tarefa } from '../../core/tipos'
-import { diaDaSemana, hojeISO, hojePorExtenso, dificuldadeDe, calcularStreak } from '../../core/jogo'
-import { alternarRecorrenteHoje, alternarUnica, registrarHabito } from '../../stores/app'
+import type { AppData, Dificuldade, Tarefa, TipoTarefa } from '../../core/tipos'
+import { calcularStreak, diaDaSemana, diaDoMes, diasAte, diasDesde, dificuldadeDe, hojeISO, hojePorExtenso } from '../../core/jogo'
+import { alternarRecorrenteHoje, alternarUnica, appStore, excluirTarefa, registrarHabito, reordenarTarefas, tagsEmUso } from '../../stores/app'
 import { abrirFormTarefa, escapar } from '../formTarefa'
+import { renderizarNotas } from '../notas'
+import { confirmar } from '../modal'
 import { notificar } from '../toast'
+
+/* Estado de filtro em nível de módulo — sobrevive aos re-renders do subscribe. */
+let filtroTag: string | null = null
+let filtroDif: Dificuldade | '' = ''
 
 export function montarHoje(raiz: HTMLElement, dados: AppData): void {
   const hoje = hojeISO()
   const dia = diaDaSemana()
+  const diaMes = diaDoMes()
+  const tags = tagsEmUso(dados)
 
-  const recorrentes = dados.tarefas.filter((t) => t.tipo === 'recorrente' && valeHoje(t, dia))
-  const pendentes = dados.tarefas.filter((t) => t.tipo === 'unica' && !t.concluida)
-  const habitos = dados.tarefas.filter((t) => t.tipo === 'habito')
+  const passa = (t: Tarefa): boolean => {
+    if (filtroTag && !t.tags.includes(filtroTag)) return false
+    if (filtroDif && t.dificuldade !== filtroDif) return false
+    return true
+  }
+
+  const habitos = dados.tarefas.filter((t) => t.tipo === 'habito' && passa(t))
+  const recorrentes = dados.tarefas.filter((t) => t.tipo === 'recorrente' && valeHoje(t, dia, diaMes) && passa(t))
+  const unicas = dados.tarefas.filter((t) => t.tipo === 'unica' && passa(t))
+  const pendentes = unicas.filter((t) => !t.concluida)
+  const feitas = unicas.filter((t) => t.concluida)
+
+  const filtroAtivo = filtroTag !== null || filtroDif !== ''
 
   raiz.innerHTML = `
     <header class="view-header">
       <h1>Hoje</h1>
       <p class="view-sub">${escapar(hojePorExtenso())}</p>
     </header>
-    <div class="view-actions">
-      <button class="btn btn-primary" data-nova-tarefa>+ Nova tarefa</button>
+
+    <div class="filtros">
+      ${tags.length > 0
+        ? `<span class="filtros-rotulo">Tag:</span>${tags
+            .map((tag) => `<button class="filtro-chip${filtroTag === tag ? ' ativo' : ''}" data-filtro-tag="${escapar(tag)}">#${escapar(tag)}</button>`)
+            .join('')}`
+        : ''}
+      <select class="filtro-select" data-filtro-dificuldade>
+        <option value="">Todas as dificuldades</option>
+        ${(['facil', 'media', 'dificil', 'extrema'] as Dificuldade[])
+          .map((d) => `<option value="${d}" ${filtroDif === d ? 'selected' : ''}>${dificuldadeDe(d).rotulo}</option>`)
+          .join('')}
+      </select>
+      ${filtroAtivo ? '<button class="btn btn-icon" data-limpar-filtros aria-label="Limpar filtros">✕</button>' : ''}
     </div>
 
-    <section class="secao">
-      <h2 class="secao-titulo">Recorrentes de hoje <span class="secao-contagem">${recorrentes.length}</span></h2>
-      ${recorrentes.length === 0 ? vazio('Nada marcado para hoje.') : recorrentes.map((t) => cardRecorrente(t, hoje)).join('')}
-    </section>
+    <div class="colunas">
+      <section class="coluna">
+        <header class="coluna-cabecalho">
+          <h2>Hábitos</h2>
+          <span class="coluna-contagem">${habitos.length}</span>
+          <button class="btn btn-icon coluna-add" data-novo-tipo="habito" aria-label="Novo hábito">+</button>
+        </header>
+        <div class="coluna-cards">
+          ${habitos.length === 0 ? vazioColuna('Nada aqui. Use + para adicionar.') : habitos.map(cardHabito).join('')}
+        </div>
+      </section>
 
-    <section class="secao">
-      <h2 class="secao-titulo">Únicas pendentes <span class="secao-contagem">${pendentes.length}</span></h2>
-      ${pendentes.length === 0 ? vazio('Nenhuma tarefa única pendente.') : pendentes.map((t) => cardUnica(t)).join('')}
-    </section>
+      <section class="coluna">
+        <header class="coluna-cabecalho">
+          <h2>Recorrentes</h2>
+          <span class="coluna-contagem">${recorrentes.length}</span>
+          <button class="btn btn-icon coluna-add" data-novo-tipo="recorrente" aria-label="Nova recorrente">+</button>
+        </header>
+        <div class="coluna-cards">
+          ${recorrentes.length === 0 ? vazioColuna('Nada marcado para hoje.') : recorrentes.map((t) => cardRecorrente(t, hoje)).join('')}
+        </div>
+      </section>
 
-    <section class="secao">
-      <h2 class="secao-titulo">Hábitos</h2>
-      ${habitos.length === 0 ? vazio('Nenhum hábito cadastrado.') : habitos.map((t) => cardHabito(t)).join('')}
-    </section>
+      <section class="coluna">
+        <header class="coluna-cabecalho">
+          <h2>Tarefas</h2>
+          <span class="coluna-contagem">${pendentes.length}</span>
+          <button class="btn btn-icon coluna-add" data-novo-tipo="unica" aria-label="Nova tarefa">+</button>
+        </header>
+        <div class="coluna-cards">
+          ${pendentes.length === 0 && feitas.length === 0 ? vazioColuna('Nada aqui. Use + para adicionar.') : ''}
+          ${pendentes.map((t) => cardUnica(t, false)).join('')}
+          ${feitas.length > 0 ? `<div class="coluna-sub">Concluídas · ${feitas.length}</div>${feitas.map((t) => cardUnica(t, true)).join('')}` : ''}
+        </div>
+      </section>
+    </div>
   `
 
-  raiz.querySelector('[data-nova-tarefa]')!.addEventListener('click', () => abrirFormTarefa())
-
-  raiz.querySelectorAll('[data-alternar-rec]').forEach((el) => {
-    el.addEventListener('click', () => alternarRecorrenteHoje((el as HTMLElement).dataset.id!))
-  })
-  raiz.querySelectorAll('[data-alternar-unica]').forEach((el) => {
-    el.addEventListener('click', () => alternarUnica((el as HTMLElement).dataset.id!))
-  })
-  raiz.querySelectorAll('[data-habito]').forEach((el) => {
+  /* ---------- adicionar por coluna ---------- */
+  raiz.querySelectorAll('[data-novo-tipo]').forEach((el) => {
     el.addEventListener('click', () => {
-      const id = (el as HTMLElement).dataset.id!
-      const sinal = (el as HTMLElement).dataset.habito as 'positivo' | 'negativo'
-      registrarHabito(id, sinal)
-      if (sinal === 'positivo') notificar('Repetição registrada.')
+      abrirFormTarefa(undefined, el.getAttribute('data-novo-tipo') as TipoTarefa)
     })
   })
-  raiz.querySelectorAll('[data-editar]').forEach((el) => {
-    el.addEventListener('click', () => {
-      const t = dados.tarefas.find((x) => x.id === (el as HTMLElement).dataset.id)
+
+  /* ---------- filtros ---------- */
+  raiz.querySelectorAll('[data-filtro-tag]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const tag = chip.getAttribute('data-filtro-tag')!
+      filtroTag = filtroTag === tag ? null : tag
+      montarHoje(raiz, appStore.get())
+    })
+  })
+  raiz.querySelector('[data-filtro-dificuldade]')?.addEventListener('change', (e) => {
+    filtroDif = (e.target as HTMLSelectElement).value as Dificuldade | ''
+    montarHoje(raiz, appStore.get())
+  })
+  raiz.querySelector('[data-limpar-filtros]')?.addEventListener('click', () => {
+    filtroTag = null
+    filtroDif = ''
+    montarHoje(raiz, appStore.get())
+  })
+
+  /* ---------- drag & drop (reordenar dentro da coluna) ---------- */
+  let arrastandoId: string | null = null
+
+  raiz.querySelectorAll('.coluna-cards').forEach((cards) => {
+    cards.addEventListener('dragstart', (e) => {
+      const ev = e as DragEvent
+      const alvo = (ev.target as HTMLElement).closest<HTMLElement>('.tarefa-card[data-id]')
+      if (!alvo) return
+      arrastandoId = alvo.dataset.id ?? null
+      alvo.classList.add('arrastando')
+      if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move'
+    })
+    cards.addEventListener('dragend', () => {
+      arrastandoId = null
+      cards.querySelectorAll('.arrastando, .arrasto-alvo').forEach((el) => el.classList.remove('arrastando', 'arrasto-alvo'))
+    })
+    cards.addEventListener('dragover', (e) => {
+      const ev = e as DragEvent
+      ev.preventDefault()
+      if (!arrastandoId) return
+      const alvo = (ev.target as HTMLElement).closest<HTMLElement>('.tarefa-card[data-id]')
+      cards.querySelectorAll('.arrasto-alvo').forEach((el) => el.classList.remove('arrasto-alvo'))
+      if (alvo && alvo.dataset.id !== arrastandoId) alvo.classList.add('arrasto-alvo')
+      if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move'
+    })
+    cards.addEventListener('drop', (e) => {
+      const ev = e as DragEvent
+      ev.preventDefault()
+      if (!arrastandoId) return
+      const alvo = (ev.target as HTMLElement).closest<HTMLElement>('.tarefa-card[data-id]')
+      if (alvo && alvo.dataset.id !== arrastandoId) {
+        const ids = [...cards.querySelectorAll<HTMLElement>('.tarefa-card[data-id]')].map((c) => c.dataset.id!)
+        const origem = ids.indexOf(arrastandoId)
+        const destino = ids.indexOf(alvo.dataset.id!)
+        if (origem !== -1 && destino !== -1) {
+          ids.splice(origem, 1)
+          ids.splice(destino, 0, arrastandoId)
+          reordenarTarefas(ids)
+          notificar('Ordem atualizada.')
+        }
+      }
+      arrastandoId = null
+      cards.querySelectorAll('.arrastando, .arrasto-alvo').forEach((el) => el.classList.remove('arrastando', 'arrasto-alvo'))
+    })
+  })
+
+  /* ---------- ações nos cards (delegadas) ---------- */
+  raiz.addEventListener('click', (e) => {
+    const alvo = e.target as HTMLElement
+    const acao = alvo.closest<HTMLElement>('[data-alternar-rec],[data-alternar-unica],[data-habito],[data-editar],[data-excluir]')
+    if (!acao) return
+    const id = acao.dataset.id!
+
+    if (acao.dataset.alternarRec !== undefined) {
+      alternarRecorrenteHoje(id)
+      return
+    }
+    if (acao.dataset.alternarUnica !== undefined) {
+      alternarUnica(id)
+      return
+    }
+    if (acao.dataset.habito) {
+      registrarHabito(id, acao.dataset.habito as 'positivo' | 'negativo')
+      if (acao.dataset.habito === 'positivo') notificar('Repetição registrada.')
+      else notificar('Marcado como negativo.')
+      return
+    }
+    if (acao.dataset.editar !== undefined) {
+      const t = dados.tarefas.find((x) => x.id === id)
       if (t) abrirFormTarefa(t)
-    })
+      return
+    }
+    if (acao.dataset.excluir !== undefined) {
+      const t = dados.tarefas.find((x) => x.id === id)
+      if (t) {
+        void confirmar(`Excluir "${t.titulo}"?`, 'Excluir').then((ok) => {
+          if (ok) {
+            excluirTarefa(id)
+            notificar('Excluído.')
+          }
+        })
+      }
+    }
   })
 }
 
-function valeHoje(t: Tarefa, dia: number): boolean {
+function valeHoje(t: Tarefa, dia: number, diaMes: number): boolean {
+  if (t.agenda?.diasDoMes && t.agenda.diasDoMes.length > 0) return t.agenda.diasDoMes.includes(diaMes)
   return !t.agenda || t.agenda.dias.length === 0 || t.agenda.dias.includes(dia)
-}
-
-function cardRecorrente(t: Tarefa, hoje: string): string {
-  const feita = t.historico.includes(hoje)
-  const d = dificuldadeDe(t.dificuldade)
-  return `
-    <div class="tarefa-card${feita ? ' concluida' : ''}">
-      <button class="tarefa-check${feita ? ' marcado' : ''}" data-alternar-rec data-id="${t.id}" aria-label="Concluir hoje">✓</button>
-      <div class="tarefa-corpo">
-        <p class="tarefa-titulo">${escapar(t.titulo)}</p>
-        ${t.notas ? `<p class="tarefa-notas">${escapar(t.notas)}</p>` : ''}
-        <div class="tarefa-meta">
-          <span class="badge badge--${t.dificuldade}">${d.rotulo}</span>
-          ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
-          ${agendaRotulo(t)}
-        </div>
-      </div>
-      <div class="tarefa-acoes">
-        <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar">✎</button>
-      </div>
-    </div>
-  `
-}
-
-function agendaRotulo(t: Tarefa): string {
-  if (!t.agenda || t.agenda.dias.length === 0) return '<span class="badge badge--agenda">todos os dias</span>'
-  const nomes = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
-  const dias = [...t.agenda.dias].sort((a, b) => a - b).map((d) => nomes[d])
-  return `<span class="badge badge--agenda">${escapar(dias.join(', '))}</span>`
-}
-
-function cardUnica(t: Tarefa): string {
-  const d = dificuldadeDe(t.dificuldade)
-  return `
-    <div class="tarefa-card">
-      <button class="tarefa-check" data-alternar-unica data-id="${t.id}" aria-label="Concluir">✓</button>
-      <div class="tarefa-corpo">
-        <p class="tarefa-titulo">${escapar(t.titulo)}</p>
-        ${t.notas ? `<p class="tarefa-notas">${escapar(t.notas)}</p>` : ''}
-        <div class="tarefa-meta">
-          <span class="badge badge--${t.dificuldade}">${d.rotulo}</span>
-          ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
-        </div>
-      </div>
-      <div class="tarefa-acoes">
-        <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar">✎</button>
-      </div>
-    </div>
-  `
 }
 
 function cardHabito(t: Tarefa): string {
@@ -121,26 +214,116 @@ function cardHabito(t: Tarefa): string {
   const streak = calcularStreak(t.historico)
   const hoje = t.contador?.hoje ?? 0
   const sinal = t.sinal ?? 'positivo'
+  const antiga = classeAntiga(t)
   return `
-    <div class="tarefa-card">
+    <div class="tarefa-card${antiga}" draggable="true" data-id="${t.id}">
       <div class="tarefa-corpo">
         <p class="tarefa-titulo">${escapar(t.titulo)}</p>
+        ${t.notas ? `<p class="tarefa-notas">${renderizarNotas(t.notas)}</p>` : ''}
         <div class="tarefa-meta">
           <span class="badge badge--${t.dificuldade}">${d.rotulo}</span>
-          <span class="badge">hoje: ${hoje}</span>
-          <span class="badge">sequência: ${streak} dia${streak === 1 ? '' : 's'}</span>
+          <span class="badge">hoje ${hoje} · seq ${streak}</span>
           ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
+          ${badgeIdade(t)}
         </div>
       </div>
-      <div class="tarefa-acoes" style="gap:8px">
+      <div class="tarefa-acoes">
         ${sinal === 'positivo' || sinal === 'ambos' ? `<button class="btn btn--habito btn--habito-positivo" data-habito="positivo" data-id="${t.id}" aria-label="Repetição positiva">+</button>` : ''}
         ${sinal === 'negativo' || sinal === 'ambos' ? `<button class="btn btn--habito btn--habito-negativo" data-habito="negativo" data-id="${t.id}" aria-label="Repetição negativa">−</button>` : ''}
         <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar">✎</button>
+        <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir">🗑</button>
       </div>
     </div>
   `
 }
 
-function vazio(texto: string): string {
-  return `<div class="vazio"><strong>${escapar(texto)}</strong></div>`
+function cardRecorrente(t: Tarefa, hoje: string): string {
+  const feita = t.historico.includes(hoje)
+  const d = dificuldadeDe(t.dificuldade)
+  const agenda = agendaRotulo(t)
+  const antiga = classeAntiga(t)
+  return `
+    <div class="tarefa-card${feita ? ' concluida' : ''}${antiga}" draggable="true" data-id="${t.id}">
+      <button class="tarefa-check${feita ? ' marcado' : ''}" data-alternar-rec data-id="${t.id}" aria-label="Concluir hoje">✓</button>
+      <div class="tarefa-corpo">
+        <p class="tarefa-titulo">${escapar(t.titulo)}</p>
+        ${t.notas ? `<p class="tarefa-notas">${renderizarNotas(t.notas)}</p>` : ''}
+        <div class="tarefa-meta">
+          <span class="badge badge--${t.dificuldade}">${d.rotulo}</span>
+          ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
+          ${agenda}
+          ${badgeIdade(t)}
+        </div>
+      </div>
+      <div class="tarefa-acoes">
+        <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar">✎</button>
+        <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir">🗑</button>
+      </div>
+    </div>
+  `
+}
+
+function cardUnica(t: Tarefa, feita: boolean): string {
+  const d = dificuldadeDe(t.dificuldade)
+  const antiga = classeAntiga(t)
+  const due = badgeDueDate(t)
+  return `
+    <div class="tarefa-card${feita ? ' concluida' : ''}${antiga}" draggable="true" data-id="${t.id}">
+      <button class="tarefa-check${feita ? ' marcado' : ''}" data-alternar-unica data-id="${t.id}" aria-label="${feita ? 'Reabrir' : 'Concluir'}">${feita ? '↺' : '✓'}</button>
+      <div class="tarefa-corpo">
+        <p class="tarefa-titulo">${escapar(t.titulo)}</p>
+        ${t.notas ? `<p class="tarefa-notas">${renderizarNotas(t.notas)}</p>` : ''}
+        <div class="tarefa-meta">
+          <span class="badge badge--${t.dificuldade}">${d.rotulo}</span>
+          ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
+          ${due}
+          ${badgeIdade(t)}
+        </div>
+      </div>
+      <div class="tarefa-acoes">
+        <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar">✎</button>
+        <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir">🗑</button>
+      </div>
+    </div>
+  `
+}
+
+/** Badge de vencimento com cor por proximidade (só tarefas únicas com data). */
+function badgeDueDate(t: Tarefa): string {
+  if (t.tipo !== 'unica' || !t.dueDate) return ''
+  const dias = diasAte(t.dueDate)
+  const data = new Date(t.dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })
+  if (dias < 0) return `<span class="badge badge--due badge--due-vencida">venceu ${-dias}d · ${data}</span>`
+  if (dias === 0) return `<span class="badge badge--due badge--due-urgente">vence hoje · ${data}</span>`
+  if (dias <= 2) return `<span class="badge badge--due badge--due-urgente">${dias}d · ${data}</span>`
+  if (dias <= 7) return `<span class="badge badge--due badge--due-proxima">${dias}d · ${data}</span>`
+  return `<span class="badge badge--due">${dias}d · ${data}</span>`
+}
+
+/** Classe de envelhecimento baseada na data de criação. */
+function classeAntiga(t: Tarefa): string {
+  const dias = diasDesde(t.criadaEm)
+  if (dias > 30) return ' tarefa-antiga'
+  if (dias > 14) return ' tarefa-velha'
+  return ''
+}
+
+function badgeIdade(t: Tarefa): string {
+  const dias = diasDesde(t.criadaEm)
+  if (dias > 30) return `<span class="badge">criada há ${dias} dias</span>`
+  return ''
+}
+
+function agendaRotulo(t: Tarefa): string {
+  if (t.agenda?.diasDoMes && t.agenda.diasDoMes.length > 0) {
+    return `<span class="badge badge--agenda">dia ${t.agenda.diasDoMes.join(', ')}</span>`
+  }
+  if (!t.agenda || t.agenda.dias.length === 0) return ''
+  const nomes = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb']
+  const dias = [...t.agenda.dias].sort((a, b) => a - b).map((d) => nomes[d])
+  return `<span class="badge badge--agenda">${escapar(dias.join(', '))}</span>`
+}
+
+function vazioColuna(texto: string): string {
+  return `<div class="vazio vazio-coluna"><strong>${escapar(texto)}</strong></div>`
 }
