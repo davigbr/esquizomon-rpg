@@ -4,6 +4,7 @@ import './style.css'
 
 import { appStore, definirTema, renovarDia } from './stores/app'
 import { montarHoje } from './ui/views/hoje'
+import { montarFicha } from './ui/views/ficha'
 import { montarConfig } from './ui/views/config'
 import { storageGet } from './db/storage'
 import type { Tema } from './core/tipos'
@@ -11,11 +12,11 @@ import type { Tema } from './core/tipos'
 const raiz = document.getElementById('app')!
 const navLinks = document.querySelectorAll<HTMLAnchorElement>('[data-rota]')
 
-type Rota = 'hoje' | 'config'
+type Rota = 'hoje' | 'ficha' | 'config'
 
 function rotaAtual(): Rota {
   const hash = location.hash.replace(/^#\/?/, '')
-  if (hash === 'config') return 'config'
+  if (hash === 'ficha' || hash === 'config') return hash
   return 'hoje'
 }
 
@@ -24,6 +25,9 @@ function montarRota(rota: Rota): void {
   switch (rota) {
     case 'hoje':
       montarHoje(raiz, dados)
+      break
+    case 'ficha':
+      montarFicha(raiz, dados)
       break
     case 'config':
       montarConfig(raiz, dados)

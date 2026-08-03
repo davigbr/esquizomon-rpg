@@ -19,6 +19,23 @@ export interface ContadorHabito {
   totalNegativo: number
 }
 
+/** Personagem do jogador — nível, XP, HP, mana e esferas. */
+export interface Personagem {
+  nivel: number
+  xp: number
+  xpProximo: number
+  hp: number
+  hpMax: number
+  mana: number
+  manaMax: number
+  /** Morte não-destrutiva: HP ≤ 0 deixa o personagem esgotado até o próximo reset. */
+  esgotado: boolean
+  /** Data ISO do último reset diário processado (evita dano repetido no mesmo dia). */
+  ultimoDia: string
+  /** XP acumulado por esfera (perfil de onde a energia vai). */
+  esferas: Record<string, number>
+}
+
 export interface Tarefa {
   id: string
   tipo: TipoTarefa
@@ -27,6 +44,8 @@ export interface Tarefa {
   tags: string[]
   /** Única: data de vencimento (YYYY-MM-DD). */
   dueDate?: string
+  /** Esfera (domínio da vida) que a tarefa alimenta — fase 2. */
+  esfera?: string
   notas?: string
   /** Recorrente: quais dias da semana vale (vazio = todos). */
   agenda?: Agenda
@@ -42,11 +61,14 @@ export interface Tarefa {
 
 export interface Configuracao {
   tema: Tema
+  /** Modo relaxado: desliga o dano (jogo vira só bônus). */
+  modoRelaxado?: boolean
 }
 
 export interface AppData {
   versao: number
   tarefas: Tarefa[]
+  personagem: Personagem
   configuracao: Configuracao
 }
 

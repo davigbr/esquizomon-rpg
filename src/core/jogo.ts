@@ -17,6 +17,59 @@ export function dificuldadeDe(id: Dificuldade) {
   return DIFICULDADES.find((d) => d.id === id) ?? DIFICULDADES[1]
 }
 
+/** XP concedido por conclusão, conforme a dificuldade (base 10 × multiplicador). */
+export function xpDe(dificuldade: Dificuldade): number {
+  return Math.round(10 * dificuldadeDe(dificuldade).multiplicador)
+}
+
+/** Dano causado por uma recorrente perdida no reset diário, conforme a dificuldade. */
+export function danoDe(dificuldade: Dificuldade): number {
+  switch (dificuldade) {
+    case 'facil':
+      return 3
+    case 'media':
+      return 5
+    case 'dificil':
+      return 8
+    case 'extrema':
+      return 12
+  }
+}
+
+/** Dano de uma repetição negativa de hábito. */
+export const DANO_HABITO_NEGATIVO = 2
+
+/** XP necessário para subir do nível atual (curva suave: nível n exige n×100). */
+export function xpProximoDe(nivel: number): number {
+  return Math.max(100, nivel * 100)
+}
+
+/** HP máximo por nível: 50 + 5 por nível acima do 1º. */
+export function hpMaxDe(nivel: number): number {
+  return 50 + (nivel - 1) * 5
+}
+
+/** Mana máximo por nível: 20 + 2 por nível acima do 1º. */
+export function manaMaxDe(nivel: number): number {
+  return 20 + (nivel - 1) * 2
+}
+
+/** Personagem inicial (nível 1). */
+export function personagemInicial() {
+  return {
+    nivel: 1,
+    xp: 0,
+    xpProximo: xpProximoDe(1),
+    hp: hpMaxDe(1),
+    hpMax: hpMaxDe(1),
+    mana: manaMaxDe(1),
+    manaMax: manaMaxDe(1),
+    esgotado: false,
+    ultimoDia: '',
+    esferas: {},
+  }
+}
+
 export const DIAS_SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'] as const
 
 /** Data local em ISO (YYYY-MM-DD) — nunca toISOString (vira UTC e pode trocar o dia). */

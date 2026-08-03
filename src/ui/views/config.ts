@@ -1,12 +1,13 @@
 /** Visão Config — tema, export/import de dados e zona de perigo. */
 
 import type { AppData } from '../../core/tipos'
-import { apagarTodosDados, definirTema, exportarJSON, importarJSON } from '../../stores/app'
+import { apagarTodosDados, definirConfiguracao, definirTema, exportarJSON, importarJSON } from '../../stores/app'
 import { confirmar } from '../modal'
 import { notificar } from '../toast'
 
 export function montarConfig(raiz: HTMLElement, dados: AppData): void {
   const tema = dados.configuracao.tema
+  const modoRelaxado = dados.configuracao.modoRelaxado === true
   const total = dados.tarefas.length
 
   raiz.innerHTML = `
@@ -26,6 +27,21 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
         <select class="filtro-select" data-tema>
           <option value="dark" ${tema === 'dark' ? 'selected' : ''}>Escuro</option>
           <option value="light" ${tema === 'light' ? 'selected' : ''}>Claro</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="config-secao">
+      <h3>Jogo</h3>
+      <p>O modo relaxado desliga todo dano — recorrentes perdidas e hábitos negativos não machucam o personagem.</p>
+      <div class="config-linha">
+        <div>
+          <div class="config-rotulo">Modo relaxado</div>
+          <div class="config-dica">Jogo sem punição — só bônus</div>
+        </div>
+        <select class="filtro-select" data-modo-relaxado>
+          <option value="off" ${!modoRelaxado ? 'selected' : ''}>Desligado</option>
+          <option value="on" ${modoRelaxado ? 'selected' : ''}>Ligado</option>
         </select>
       </div>
     </div>
@@ -52,6 +68,12 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
   raiz.querySelector('[data-tema]')!.addEventListener('change', (e) => {
     const valor = (e.target as HTMLSelectElement).value as 'dark' | 'light'
     definirTema(valor)
+  })
+
+  raiz.querySelector('[data-modo-relaxado]')!.addEventListener('change', (e) => {
+    const valor = (e.target as HTMLSelectElement).value === 'on'
+    definirConfiguracao({ modoRelaxado: valor })
+    notificar(valor ? 'Modo relaxado ligado — sem dano.' : 'Modo relaxado desligado.')
   })
 
   raiz.querySelector('[data-exportar]')!.addEventListener('click', () => {

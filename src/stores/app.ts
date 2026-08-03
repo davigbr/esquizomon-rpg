@@ -2,8 +2,8 @@
 
 import { atom, computed } from 'nanostores'
 
-import type { Agenda, AppData, Configuracao, Dificuldade, Tarefa, Tema, TipoTarefa } from '../core/tipos'
-import { hojeISO, novoId } from '../core/jogo'
+import type { Agenda, AppData, Configuracao, Dificuldade, Personagem, Tarefa, Tema, TipoTarefa } from '../core/tipos'
+import { DANO_HABITO_NEGATIVO, danoDe, diaDaSemana, diaDoMes, hojeISO, novoId, somarDias, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../core/jogo'
 import { apagarTudo, carregar, normalizarDados, salvar, salvarTema } from '../db/storage'
 
 export const appStore = atom<AppData>(carregar())
@@ -38,6 +38,7 @@ export interface DadosTarefa {
   tags: string[]
   notas?: string
   dueDate?: string
+  esfera?: string
   agenda?: Agenda
   sinal?: 'positivo' | 'negativo' | 'ambos'
 }
@@ -53,6 +54,7 @@ export function criarTarefa(dados: DadosTarefa): Resultado {
     tags: dados.tags,
     notas: dados.notas?.trim() || undefined,
     dueDate: dados.tipo === 'unica' ? dados.dueDate : undefined,
+    esfera: dados.esfera?.trim() || undefined,
     agenda: dados.tipo === 'recorrente' ? { dias: dados.agenda?.dias ?? [], diasDoMes: dados.agenda?.diasDoMes } : undefined,
     sinal: dados.tipo === 'habito' ? dados.sinal ?? 'positivo' : undefined,
     contador:
@@ -80,6 +82,7 @@ export function atualizarTarefa(id: string, dados: Partial<DadosTarefa>): Result
     tags: dados.tags ?? atual.tags,
     notas: dados.notas?.trim() || undefined,
     dueDate: dados.dueDate !== undefined ? dados.dueDate : atual.dueDate,
+    esfera: dados.esfera !== undefined ? (dados.esfera.trim() || undefined) : atual.esfera,
   }
   if (dados.tipo) {
     proxima.tipo = dados.tipo
@@ -115,6 +118,60 @@ export function reordenarTarefas(ids: string[]): void {
   appStore.set({ ...appStore.get(), tarefas: resultado })
 }
 
+/* ---------- mecânica de jogo ---------- */
+
+/** Aplica XP ao personagem (com esfera se houver); retorna se subiu de nível. */
+export function ganharXP(quantidade: number, esfera?: string): { subiu: boolean; nivel: number } {
+  const p = appStore.get().personagem
+  let xp = p.xp + quantidade
+  const esferas = { ...p.esferas }
+  if (esfera && esfera.trim()) {
+    const nome = esfera.trim()
+    esferas[nome] = (esferas[nome] ?? 0) + quantidade
+  }
+  let { nivel } = p
+  let xpProximo = p.xpProximo
+  let subiu = false
+  while (xp >= xpProximo) {
+    xp -= xpProximo
+    nivel += 1
+    xpProximo = xpProximoDe(nivel)
+    subiu = true
+  }
+  const personagem: Personagem = {
+    ...p,
+    xp,
+    xpProximo,
+    nivel,
+    esferas,
+    hpMax: hpMaxDe(nivel),
+    manaMax: manaMaxDe(nivel),
+  }
+  if (subiu) {
+    // subir de nível restaura HP e mana
+    personagem.hp = personagem.hpMax
+    personagem.mana = personagem.manaMax
+    personagem.esgotado = false
+  }
+  appStore.set({ ...appStore.get(), personagem })
+  return { subiu, nivel }
+}
+
+/** Aplica dano ao personagem (no-op no modo relaxado). Retorna se esgotou. */
+export function aplicarDano(quantidade: number): { esgotou: boolean } {
+  const dados = appStore.get()
+  if (dados.configuracao.modoRelaxado) return { esgotou: false }
+  const p = dados.personagem
+  if (p.esgotado) return { esgotou: true }
+  const hp = Math.max(0, p.hp - quantidade)
+  const esgotou = hp <= 0
+  appStore.set({
+    ...dados,
+    personagem: { ...p, hp, esgotado: p.esgotado || esgotou },
+  })
+  return { esgotou }
+}
+
 /** Recorrente: marca/desmarca o dia no histórico (data = dia visível; default hoje). */
 export function alternarRecorrenteHoje(id: string, data: string = hojeISO()): void {
   const tarefas = appStore.get().tarefas.map((t) => {
@@ -126,6 +183,11 @@ export function alternarRecorrenteHoje(id: string, data: string = hojeISO()): vo
     }
   })
   appStore.set({ ...appStore.get(), tarefas })
+  const tarefa = tarefas.find((t) => t.id === id)
+  if (tarefa) {
+    const marcada = tarefa.historico.includes(data)
+    if (marcada) ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera)
+  }
 }
 
 /** Única: alterna concluída e registra a data (data = dia visível; default hoje). */
@@ -142,6 +204,8 @@ export function alternarUnica(id: string, data: string = hojeISO()): void {
     }
   })
   appStore.set({ ...appStore.get(), tarefas })
+  const tarefa = tarefas.find((t) => t.id === id)
+  if (tarefa && tarefa.concluida) ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera)
 }
 
 /** Hábito: registra uma repetição positiva (+) ou negativa (−). */
@@ -163,18 +227,65 @@ export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data
     }
   })
   appStore.set({ ...appStore.get(), tarefas })
+  const tarefa = tarefas.find((t) => t.id === id)
+  if (tarefa) {
+    if (sinal === 'positivo') ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera)
+    else aplicarDano(DANO_HABITO_NEGATIVO)
+  }
 }
 
-/** Zera o contador de "hoje" dos hábitos quando o dia vira. */
+/** Reset diário (uma vez por dia): cobra dano das recorrentes perdidas de ontem e regenera mana. */
 export function renovarDia(): void {
+  const dados = appStore.get()
   const hoje = hojeISO()
-  const tarefas = appStore.get().tarefas.map((t) => {
+  if (dados.personagem.ultimoDia === hoje) return
+
+  const ontem = somarDias(hoje, -1)
+  const diaOntem = diaDaSemana(new Date(ontem + 'T12:00:00'))
+  const diaMesOntem = diaDoMes(new Date(ontem + 'T12:00:00'))
+
+  // 1. zera contador de "hoje" dos hábitos
+  const tarefas = dados.tarefas.map((t) => {
     if (t.tipo !== 'habito') return t
     const contador = t.contador ?? { hoje: 0, totalPositivo: 0, totalNegativo: 0 }
-    const zerar = contador.hoje > 0 && !t.historico.includes(hoje)
-    return zerar ? { ...t, contador: { ...contador, hoje: 0 } } : t
+    return contador.hoje > 0 && !t.historico.includes(hoje) ? { ...t, contador: { ...contador, hoje: 0 } } : t
   })
-  appStore.set({ ...appStore.get(), tarefas })
+  appStore.set({ ...dados, tarefas })
+
+  // 2. dano das recorrentes de ontem não concluídas (primeira vez que roda hoje)
+  const p = appStore.get().personagem
+  const primeiraVez = p.ultimoDia === ''
+  if (!primeiraVez && !p.esgotado && !dados.configuracao.modoRelaxado) {
+    const perdidas = dados.tarefas.filter((t) => {
+      if (t.tipo !== 'recorrente') return false
+      if (!valeNaData(t, diaOntem, diaMesOntem)) return false
+      return !t.historico.includes(ontem)
+    })
+    if (perdidas.length > 0) {
+      const danoTotal = perdidas.reduce((soma, t) => soma + danoDe(t.dificuldade), 0)
+      const hp = Math.max(0, p.hp - danoTotal)
+      appStore.set({
+        ...appStore.get(),
+        personagem: { ...appStore.get().personagem, hp, esgotado: hp <= 0, ultimoDia: hoje },
+      })
+    }
+  }
+
+  // 3. regenera mana (se não estiver esgotado) e marca o dia processado
+  const atual = appStore.get().personagem
+  appStore.set({
+    ...appStore.get(),
+    personagem: {
+      ...atual,
+      ultimoDia: hoje,
+      mana: !atual.esgotado ? atual.manaMax : atual.mana,
+    },
+  })
+}
+
+function valeNaData(t: Tarefa, dia: number, diaMes: number): boolean {
+  if (t.agenda?.diasDoMes && t.agenda.diasDoMes.length > 0) return t.agenda.diasDoMes.includes(diaMes)
+  return !t.agenda || t.agenda.dias.length === 0 || t.agenda.dias.includes(dia)
 }
 
 /* ---------- config ---------- */
@@ -215,6 +326,7 @@ export function apagarTodosDados(): void {
   appStore.set({
     versao: appStore.get().versao,
     tarefas: [],
+    personagem: appStore.get().personagem,
     configuracao: appStore.get().configuracao,
   })
 }

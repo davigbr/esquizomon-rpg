@@ -1,7 +1,8 @@
 /** Persistência versionada + wrapper seguro (fallback em memória quando localStorage é bloqueado). */
 
-import type { AppData, Configuracao, Tarefa, Tema } from '../core/tipos'
+import type { AppData, Configuracao, Personagem, Tarefa, Tema } from '../core/tipos'
 import { STORAGE_KEY, TEMA_KEY, VERSAO_DADOS } from '../core/tipos'
+import { hpMaxDe, manaMaxDe, personagemInicial, xpProximoDe } from '../core/jogo'
 
 const memory = new Map<string, string>()
 
@@ -88,6 +89,7 @@ function normalizarTarefa(v: unknown): Tarefa | null {
     t.sinal === 'positivo' || t.sinal === 'negativo' || t.sinal === 'ambos' ? t.sinal : t.tipo === 'habito' ? 'positivo' : undefined
   const dueDate =
     typeof t.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate) ? t.dueDate : undefined
+  const esfera = typeof t.esfera === 'string' && t.esfera.trim() ? t.esfera.trim() : undefined
   return {
     id: t.id,
     tipo: t.tipo,
@@ -95,6 +97,7 @@ function normalizarTarefa(v: unknown): Tarefa | null {
     dificuldade: t.dificuldade,
     tags: t.tags.filter((x): x is string => typeof x === 'string'),
     dueDate,
+    esfera,
     notas: typeof t.notas === 'string' ? t.notas : undefined,
     agenda,
     sinal,
@@ -105,9 +108,37 @@ function normalizarTarefa(v: unknown): Tarefa | null {
   }
 }
 
+function normalizarPersonagem(v: unknown): Personagem {
+  const inicial = personagemInicial()
+  if (!ehObjeto(v)) return inicial
+  const p = v as Record<string, unknown>
+  const nivel = typeof p.nivel === 'number' && p.nivel >= 1 ? Math.floor(p.nivel) : inicial.nivel
+  const hpMax = hpMaxDe(nivel)
+  const manaMax = manaMaxDe(nivel)
+  const esferas: Record<string, number> = {}
+  if (ehObjeto(p.esferas)) {
+    for (const [k, val] of Object.entries(p.esferas as Record<string, unknown>)) {
+      if (typeof k === 'string' && typeof val === 'number') esferas[k] = val
+    }
+  }
+  return {
+    nivel,
+    xp: typeof p.xp === 'number' && p.xp >= 0 ? Math.floor(p.xp) : 0,
+    xpProximo: typeof p.xpProximo === 'number' && p.xpProximo > 0 ? p.xpProximo : xpProximoDe(nivel),
+    hp: typeof p.hp === 'number' ? Math.min(Math.max(0, Math.floor(p.hp)), hpMax) : hpMax,
+    hpMax,
+    mana: typeof p.mana === 'number' ? Math.min(Math.max(0, Math.floor(p.mana)), manaMax) : manaMax,
+    manaMax,
+    esgotado: p.esgotado === true,
+    ultimoDia: typeof p.ultimoDia === 'string' ? p.ultimoDia : '',
+    esferas,
+  }
+}
+
 function normalizarConfiguracao(v: unknown): Configuracao {
   const tema = ehObjeto(v) && (v.tema === 'light' || v.tema === 'dark') ? v.tema : 'dark'
-  return { tema }
+  const modoRelaxado = ehObjeto(v) && v.modoRelaxado === true
+  return { tema, modoRelaxado }
 }
 
 /** Valida e normaliza um dado bruto (de localStorage ou import). Null se irreparável. */
@@ -123,13 +154,14 @@ export function normalizarDados(bruto: unknown): AppData | null {
   return {
     versao: VERSAO_DADOS,
     tarefas,
+    personagem: normalizarPersonagem(b.personagem),
     configuracao: normalizarConfiguracao(b.configuracao),
   }
 }
 
 /** Estado padrão de primeira execução. */
 export function estadoVazio(): AppData {
-  return { versao: VERSAO_DADOS, tarefas: [], configuracao: { tema: temaInicial() } }
+  return { versao: VERSAO_DADOS, tarefas: [], personagem: personagemInicial(), configuracao: { tema: temaInicial() } }
 }
 
 export function carregar(): AppData {

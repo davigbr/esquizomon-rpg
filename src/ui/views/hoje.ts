@@ -51,6 +51,10 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
   const feitas = mostrarConcluidas ? unicas.filter((t) => t.concluida && t.historico.includes(dataVisivel)) : []
 
   const filtroAtivo = filtroTag !== null || filtroDif !== ''
+  const p = dados.personagem
+  const pctHp = Math.round((p.hp / p.hpMax) * 100)
+  const pctMana = Math.round((p.mana / p.manaMax) * 100)
+  const pctXp = Math.round((p.xp / p.xpProximo) * 100)
 
   raiz.innerHTML = `
     <header class="view-header">
@@ -61,6 +65,26 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
       </div>
       <p class="view-sub">${escapar(dataPorExtenso(dataVisivel))}</p>
     </header>
+
+    <div class="ficha-compacta">
+      <div class="ficha-nivel">Nv <b>${p.nivel}</b></div>
+      <div class="ficha-barra" title="HP">
+        <span class="ficha-barra-rotulo">HP</span>
+        <div class="ficha-barra-trilho"><div class="ficha-barra-preenchimento ficha-barra--hp" style="width:${pctHp}%"></div></div>
+        <span class="ficha-barra-valor">${p.hp}/${p.hpMax}</span>
+      </div>
+      <div class="ficha-barra" title="Mana">
+        <span class="ficha-barra-rotulo">MANA</span>
+        <div class="ficha-barra-trilho"><div class="ficha-barra-preenchimento ficha-barra--mana" style="width:${pctMana}%"></div></div>
+        <span class="ficha-barra-valor">${p.mana}/${p.manaMax}</span>
+      </div>
+      <div class="ficha-barra" title="XP">
+        <span class="ficha-barra-rotulo">XP</span>
+        <div class="ficha-barra-trilho"><div class="ficha-barra-preenchimento ficha-barra--xp" style="width:${pctXp}%"></div></div>
+        <span class="ficha-barra-valor">${p.xp}/${p.xpProximo}</span>
+      </div>
+      ${p.esgotado ? '<div class="ficha-esgotado">⚠ Esgotado — sem regeneração de mana até o próximo dia. Conclua tarefas para se recuperar.</div>' : ''}
+    </div>
 
     <div class="filtros">
       ${tags.length > 0
@@ -268,6 +292,7 @@ function cardHabito(t: Tarefa, ehHoje: boolean): string {
         <div class="tarefa-meta">
           <span class="badge badge--${t.dificuldade}">${d.rotulo}</span>
           <span class="badge">hoje ${hoje} · seq ${streak}</span>
+          ${t.esfera ? `<span class="badge badge--esfera">◈ ${escapar(t.esfera)}</span>` : ''}
           ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
           ${badgeIdade(t)}
         </div>
@@ -295,6 +320,7 @@ function cardRecorrente(t: Tarefa, data: string): string {
         ${t.notas ? `<p class="tarefa-notas">${renderizarNotas(t.notas)}</p>` : ''}
         <div class="tarefa-meta">
           <span class="badge badge--${t.dificuldade}">${d.rotulo}</span>
+          ${t.esfera ? `<span class="badge badge--esfera">◈ ${escapar(t.esfera)}</span>` : ''}
           ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
           ${agenda}
           ${badgeIdade(t)}
@@ -320,6 +346,7 @@ function cardUnica(t: Tarefa, feita: boolean): string {
         ${t.notas ? `<p class="tarefa-notas">${renderizarNotas(t.notas)}</p>` : ''}
         <div class="tarefa-meta">
           <span class="badge badge--${t.dificuldade}">${d.rotulo}</span>
+          ${t.esfera ? `<span class="badge badge--esfera">◈ ${escapar(t.esfera)}</span>` : ''}
           ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
           ${due}
           ${badgeIdade(t)}
