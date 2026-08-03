@@ -237,12 +237,12 @@ body {
 .tarefa-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 12px 14px;
-  margin-bottom: 8px;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 8px;
   transition: border-color var(--transition);
 }
 
@@ -260,15 +260,15 @@ body {
 
 .tarefa-check {
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  margin-top: 2px;
-  border-radius: 6px;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 5px;
   border: 1.5px solid var(--border-gold);
   background: transparent;
   color: transparent;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
   display: grid;
   place-items: center;
@@ -295,16 +295,16 @@ body {
 }
 
 .tarefa-titulo {
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 400;
   margin: 0 0 2px;
   word-break: break-word;
 }
 
 .tarefa-notas {
   color: var(--text-muted);
-  font-size: 13px;
-  margin: 4px 0 0;
+  font-size: 12px;
+  margin: 2px 0 0;
   white-space: normal;
   word-break: break-word;
 }
@@ -388,15 +388,15 @@ body {
 .tarefa-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 4px;
+  margin-top: 4px;
   align-items: center;
 }
 
 .tarefa-acoes {
   flex-shrink: 0;
   display: flex;
-  gap: 4px;
+  gap: 3px;
 }
 
 /* ========== Badges ========== */
@@ -404,9 +404,9 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: 999px;
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
