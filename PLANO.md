@@ -1,10 +1,10 @@
-# Esquizomon App — App de Tarefas RPG (Plano de Ideação)
+# Esquizomon RPG — Crônicas Monstruosas Cotidianas (Plano de Ideação)
 
 > **Status:** ideação (Fase 0)
 > **Data:** 2026-08-03
-> **Nome de trabalho:** `esquizomon-app` (pasta do repo). Título narrativo a decidir (sugestões na seção 11).
+> **Nome de trabalho:** `esquizomon-rpg` (pasta do repo). Subtítulo: **"Crônicas Monstruosas Cotidianas"** (decidido em 2026-08-03).
 > **Convenção do doc:** `[REC]` = recomendação minha · `[ABERTO]` = decisão pendente, com alternativa.
-> **Repositório:** `~/Projetos/esquizomon-app` (iniciado em 2026-08-03)
+> **Repositório:** `~/Projetos/esquizomon-rpg` (iniciado em 2026-08-03)
 
 ---
 
@@ -161,7 +161,7 @@ A tese de fundo: **a ficção não é fuga da realidade, é uma dobra que dá ou
 
 ### 7.2 Estrutura do repo (previsão)
 ```
-esquizomon-app/
+esquizomon-rpg/
 ├── PLANO.md
 ├── index.html
 ├── src/
@@ -287,7 +287,7 @@ Cada fase termina com **build utilizável** (nada de metade de feature pendurada
 
 | # | Pergunta | [REC] | Alternativa |
 |---|---|---|---|
-| 1 | Nome do app | Pasta `esquizomon-app`; títulos sugeridos: **"Esquizomon: Crônicas do Cotidiano"**, "Ascensão", "Devir Diário" | outro nome |
+| 1 | Nome do app | **DECIDIDO** (2026-08-03): pasta `esquizomon-rpg`; título "Esquizomon RPG"; subtítulo "Crônicas Monstruosas Cotidianas" | — |
 | 2 | HP? | Sim, simples, morte não-destrutiva | sem HP (só XP) |
 | 3 | Mana? | Sim — recurso de invocação do baralho | sem mana (invocação por nível) |
 | 4 | Atributos? | Fase 2, "esferas" opcionais (Mago: A Ascensão simplificado) | atributos numéricos clássicos / nenhum |
