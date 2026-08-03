@@ -238,6 +238,18 @@ interface ConfigIA { provider: 'gemini'|'openai'|'deepseek'|'opencode'; modelo: 
 
 O JSON não some — ele é o formato canônico; a planilha é uma *janela* sobre ele.
 
+### 8.1 Multi-dispositivo (web + celular) — [REC: local-first + ponte de sync opcional]
+
+**Resposta direta à pergunta "funciona se eu usar na web E no celular?":** sim, mas **só com uma estratégia de sincronização**. Local-first puro significa uma cópia por dispositivo — o celular não enxerga o que foi feito no desktop e vice-versa. O app funciona em qualquer dispositivo desde a Fase 1; a pergunta real é como os dados viajam entre eles.
+
+| Cenário | Como | Quando |
+|---|---|---|
+| **Manual** | Export JSON num dispositivo → importa no outro | Desde a Fase 1; zero infra; ok para uso majoritariamente num aparelho só |
+| **Sync automático via Sheets (ponte)** — [REC] | A planilha vira o *barramento*: o app **empurra** mudanças (Apps Script `doPost` no-cors, padrão já usado no site) com `updatedAt`, e **puxa** ao abrir (Sheets API v4 com API key, planilha "qualquer pessoa com link pode ver"). Conflito = last-write-wins por `updatedAt` (aceitável para usuário único) | Fase 5, opcional — sem ela o app continua 100% funcional |
+| **Backend de verdade** (Supabase/Firebase) | Sync robusto com auth | [REC: não por ora] — quebra o princípio "sem backend obrigatório" e adiciona custo |
+
+**Pitfall honesto:** Apps Script não devolve CORS para leitura no browser (o `doPost` no-cors serve para escrever, não para ler a resposta) — por isso o *pull* usa a Sheets API v4 (leitura pública com API key) e o *push* usa Apps Script. Assimetria conhecida, custo zero. Quando o *pull* trouxer mudanças externas, o app avisa ("dados atualizados de outro dispositivo").
+
 ---
 
 ## 9. Visões (telas)
@@ -287,6 +299,7 @@ Cada fase termina com **build utilizável** (nada de metade de feature pendurada
 | 10 | Stack | Vite 8 + TS strict + nanostores + Dexie + PWA + Tauri | Electron, React + backend |
 | 11 | Voz | Web Speech API (browser/PWA); texto primeiro no desktop | plugin nativo Tauri |
 | 12 | Ouro/loja de recompensas | Fase 2+, só se fizer sentido | nunca |
+| 13 | Sync web ↔ celular | Fase 5: ponte Sheets (push Apps Script + pull Sheets API v4, last-write-wins) | só manual (export/import JSON) |
 
 ---
 
