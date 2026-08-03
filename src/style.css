@@ -76,7 +76,7 @@ body {
 }
 
 .navbar-inner {
-  max-width: 960px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 0 20px;
   height: 56px;
@@ -159,7 +159,7 @@ body {
 
 /* ========== Layout ========== */
 .container {
-  max-width: 960px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 28px 20px 80px;
 }
@@ -763,6 +763,70 @@ select.campo {
 
 .tag-entrada .campo {
   flex: 1;
+}
+
+/* seletor de tags vertical (uma por linha) */
+.tag-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px;
+  background: var(--bg-secondary);
+}
+
+.tag-linha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+
+.tag-linha:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.tag-linha.ativo {
+  background: var(--bg-tertiary);
+  border-color: var(--border-gold);
+  color: var(--text-primary);
+}
+
+.tag-linha-check {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  border: 1.5px solid var(--border-color);
+  font-size: 12px;
+  color: transparent;
+  transition: all var(--transition);
+}
+
+.tag-linha.ativo .tag-linha-check {
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+  color: #0a0a0a;
+}
+
+[data-theme='light'] .tag-linha.ativo .tag-linha-check {
+  color: #f5f2ed;
 }
 
 /* opções de tipo de tarefa (radio em cards) */

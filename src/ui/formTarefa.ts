@@ -107,15 +107,16 @@ export function abrirFormTarefa(tarefa?: Tarefa, tipoInicial?: TipoTarefa): void
 
       <div class="form-grupo">
         <label>Tags</label>
-        <div class="chips" data-tags-chips>
-          ${tags.map((t) => `<button type="button" class="chip${tagsAtuais.includes(t) ? ' ativo' : ''}" data-tag="${escapar(t)}">#${escapar(t)}</button>`).join('')}
-          ${tagsAtuais.filter((t) => !tags.includes(t)).map((t) => `<button type="button" class="chip ativo" data-tag="${escapar(t)}">#${escapar(t)}</button>`).join('')}
+        <div class="tag-lista" data-tags-chips>
+          ${tags.map((t) => `<button type="button" class="tag-linha${tagsAtuais.includes(t) ? ' ativo' : ''}" data-tag="${escapar(t)}"><span class="tag-linha-check">✓</span><span class="tag-linha-nome">#${escapar(t)}</span></button>`).join('')}
+          ${tagsAtuais.filter((t) => !tags.includes(t)).map((t) => `<button type="button" class="tag-linha ativo" data-tag="${escapar(t)}"><span class="tag-linha-check">✓</span><span class="tag-linha-nome">#${escapar(t)}</span></button>`).join('')}
         </div>
         <div class="tag-entrada">
-          <input class="campo" name="tag-nova" placeholder="Nova tag" list="tags-sugeridas" />
+          <input class="campo" name="tag-nova" placeholder="Nova tag (Enter para adicionar)" list="tags-sugeridas" />
           <datalist id="tags-sugeridas">${tags.map((t) => `<option value="${escapar(t)}"></option>`).join('')}</datalist>
           <button type="button" class="btn" data-add-tag>+</button>
         </div>
+        <small>Clique para marcar; Enter no campo adiciona a tag.</small>
       </div>
 
       <div class="form-grupo">
@@ -172,25 +173,38 @@ export function abrirFormTarefa(tarefa?: Tarefa, tipoInicial?: TipoTarefa): void
 
   const tagsChips = form.querySelector('[data-tags-chips]') as HTMLElement
   function tagsSelecionadas(): string[] {
-    return [...tagsChips.querySelectorAll('.chip.ativo')].map((c) => c.getAttribute('data-tag')!)
+    return [...tagsChips.querySelectorAll('.tag-linha.ativo')].map((c) => c.getAttribute('data-tag')!)
   }
-  tagsChips.addEventListener('click', (e) => {
-    const chip = (e.target as HTMLElement).closest('[data-tag]') as HTMLElement | null
-    if (chip) chip.classList.toggle('ativo')
-  })
-  form.querySelector('[data-add-tag]')!.addEventListener('click', () => {
-    const input = form.querySelector<HTMLInputElement>('input[name="tag-nova"]')!
-    const nome = input.value.trim().replace(/^#/, '')
-    if (!nome) return
-    if (!tagsChips.querySelector(`[data-tag="${CSS.escape(nome)}"]`)) {
+  function adicionarTagChip(nome: string): void {
+    const limpo = nome.trim().replace(/^#/, '')
+    if (!limpo) return
+    if (!tagsChips.querySelector(`[data-tag="${CSS.escape(limpo)}"]`)) {
       const b = document.createElement('button')
       b.type = 'button'
-      b.className = 'chip ativo'
-      b.dataset.tag = nome
-      b.textContent = `#${nome}`
+      b.className = 'tag-linha ativo'
+      b.dataset.tag = limpo
+      b.innerHTML = `<span class="tag-linha-check">✓</span><span class="tag-linha-nome">#${escapar(limpo)}</span>`
       tagsChips.appendChild(b)
     }
-    input.value = ''
+  }
+  tagsChips.addEventListener('click', (e) => {
+    const linha = (e.target as HTMLElement).closest('[data-tag]') as HTMLElement | null
+    if (linha) linha.classList.toggle('ativo')
+  })
+  const inputTagNova = form.querySelector<HTMLInputElement>('input[name="tag-nova"]')!
+  form.querySelector('[data-add-tag]')!.addEventListener('click', () => {
+    adicionarTagChip(inputTagNova.value)
+    inputTagNova.value = ''
+    inputTagNova.focus()
+  })
+  // Enter no campo de tag adiciona a tag em vez de submeter a tarefa
+  inputTagNova.addEventListener('keydown', (e) => {
+    const ev = e as KeyboardEvent
+    if (ev.key === 'Enter') {
+      ev.preventDefault()
+      adicionarTagChip(inputTagNova.value)
+      inputTagNova.value = ''
+    }
   })
 
   diasChips.addEventListener('click', (e) => {

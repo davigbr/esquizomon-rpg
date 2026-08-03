@@ -13,6 +13,8 @@ import { notificar } from '../toast'
 /* Estado de filtro em nível de módulo — sobrevive aos re-renders do subscribe. */
 let filtroTag: string | null = null
 let filtroDif: Dificuldade | '' = ''
+let mostrarConcluidas = false
+let handlerClique: ((e: Event) => void) | null = null
 
 export function montarHoje(raiz: HTMLElement, dados: AppData): void {
   const hoje = hojeISO()
@@ -30,7 +32,7 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
   const recorrentes = dados.tarefas.filter((t) => t.tipo === 'recorrente' && valeHoje(t, dia, diaMes) && passa(t))
   const unicas = dados.tarefas.filter((t) => t.tipo === 'unica' && passa(t))
   const pendentes = unicas.filter((t) => !t.concluida)
-  const feitas = unicas.filter((t) => t.concluida)
+  const feitas = mostrarConcluidas ? unicas.filter((t) => t.concluida) : []
 
   const filtroAtivo = filtroTag !== null || filtroDif !== ''
 
@@ -52,6 +54,7 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
           .map((d) => `<option value="${d}" ${filtroDif === d ? 'selected' : ''}>${dificuldadeDe(d).rotulo}</option>`)
           .join('')}
       </select>
+      <button class="filtro-chip${mostrarConcluidas ? ' ativo' : ''}" data-filtro-concluidas>✓ Concluídas</button>
       ${filtroAtivo ? '<button class="btn btn-icon" data-limpar-filtros aria-label="Limpar filtros">✕</button>' : ''}
     </div>
 
@@ -112,9 +115,14 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
     filtroDif = (e.target as HTMLSelectElement).value as Dificuldade | ''
     montarHoje(raiz, appStore.get())
   })
+  raiz.querySelector('[data-filtro-concluidas]')?.addEventListener('click', () => {
+    mostrarConcluidas = !mostrarConcluidas
+    montarHoje(raiz, appStore.get())
+  })
   raiz.querySelector('[data-limpar-filtros]')?.addEventListener('click', () => {
     filtroTag = null
     filtroDif = ''
+    mostrarConcluidas = false
     montarHoje(raiz, appStore.get())
   })
 
@@ -165,7 +173,8 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
   })
 
   /* ---------- ações nos cards (delegadas) ---------- */
-  raiz.addEventListener('click', (e) => {
+  if (handlerClique) raiz.removeEventListener('click', handlerClique)
+  handlerClique = (e: Event) => {
     const alvo = e.target as HTMLElement
     const acao = alvo.closest<HTMLElement>('[data-alternar-rec],[data-alternar-unica],[data-habito],[data-editar],[data-excluir]')
     if (!acao) return
@@ -201,7 +210,8 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
         })
       }
     }
-  })
+  }
+  raiz.addEventListener('click', handlerClique)
 }
 
 function valeHoje(t: Tarefa, dia: number, diaMes: number): boolean {
