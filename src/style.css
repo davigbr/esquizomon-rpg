@@ -1,5 +1,43 @@
 /* ========== CSS Variables / Theme (mesmo esquema do site Esquizomon) ========== */
+@font-face {
+  font-family: 'Font Awesome 7 Free';
+  font-style: normal;
+  font-weight: 900;
+  font-display: block;
+  src: url('./assets/fa-solid-900.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Font Awesome 7 Brands';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('./assets/fa-brands-400.woff2') format('woff2');
+}
+
+/* Garante as classes de família do FA (o CSS do pacote usa .fas/.far/.fab) */
+.fa-solid,
+.fa-regular {
+  font-family: 'Font Awesome 7 Free';
+  font-style: normal;
+}
+
+.fa-solid {
+  font-weight: 900;
+}
+
+.fa-regular {
+  font-weight: 400;
+}
+
+.fa-brands {
+  font-family: 'Font Awesome 7 Brands';
+  font-style: normal;
+  font-weight: 400;
+}
+
 :root {
+  color-scheme: dark;
   --bg-primary: #0a0a0a;
   --bg-secondary: #111111;
   --bg-tertiary: #1a1a1a;
@@ -526,32 +564,63 @@ body {
   background: var(--bg-tertiary);
 }
 
-.btn--habito {
-  width: 30px;
-  height: 30px;
-  min-width: 0;
+/* Botões +/− dos hábitos colados às bordas do card (estilo Habitica) */
+.habito-card {
+  align-items: stretch;
   padding: 0;
-  justify-content: center;
-  font-size: 16px;
-  border-radius: 6px;
+  gap: 0;
+  overflow: hidden;
 }
 
-.btn--habito-positivo {
-  border-color: #3a523a;
-  color: #7ab57a;
+.habito-card .tarefa-corpo {
+  padding: 8px 8px 8px 10px;
 }
 
-.btn--habito-positivo:hover {
-  background: #2a4a2a;
+.habito-card .tarefa-acoes {
+  align-self: center;
+  padding: 0 4px 0 0;
 }
 
-.btn--habito-negativo {
-  border-color: #5a2020;
-  color: var(--accent-captura);
+.habito-lado {
+  flex-shrink: 0;
+  width: 36px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  transition: opacity var(--transition);
 }
 
-.btn--habito-negativo:hover {
-  background: #4a1a1a;
+.habito-lado--neg {
+  background: #8b2020;
+  color: #ffd0d0;
+  border-radius: 6px 0 0 6px;
+}
+
+.habito-lado--pos {
+  background: #2a6e2a;
+  color: #d0ffd0;
+  border-radius: 0 6px 6px 0;
+}
+
+.habito-lado:hover:not(:disabled) {
+  filter: brightness(1.2);
+}
+
+.habito-lado:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+[data-theme='light'] .habito-lado--neg {
+  background: #c44;
+  color: #fff;
+}
+
+[data-theme='light'] .habito-lado--pos {
+  background: #4a8a4a;
+  color: #fff;
 }
 
 .btn[disabled] {
@@ -565,64 +634,6 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 10px;
-}
-
-.habito-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition: border-color var(--transition);
-}
-
-.habito-card:hover {
-  border-color: var(--border-gold);
-}
-
-.habito-card-cabecalho {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.habito-card-titulo {
-  font-size: 15px;
-  font-weight: 500;
-  margin: 0;
-  word-break: break-word;
-}
-
-.habito-card-acoes {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.habito-card-botoes {
-  display: flex;
-  gap: 8px;
-}
-
-.habito-card-stats {
-  display: flex;
-  gap: 14px;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-.habito-card-stats b {
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.habito-card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 /* ========== Filtros ========== */

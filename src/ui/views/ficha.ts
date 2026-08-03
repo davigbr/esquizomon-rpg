@@ -16,7 +16,7 @@ export function montarFicha(raiz: HTMLElement, dados: AppData): void {
   raiz.innerHTML = `
     <header class="view-header">
       <h1>Ficha</h1>
-      <p class="view-sub">Nível ${p.nivel}${p.esgotado ? ' — ⚠ esgotado' : ''}</p>
+      <p class="view-sub">Nível ${p.nivel}${p.esgotado ? ' — <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> esgotado' : ''}</p>
     </header>
 
     <div class="ficha-card">
@@ -51,7 +51,7 @@ export function montarFicha(raiz: HTMLElement, dados: AppData): void {
               const pct = totalEsferas > 0 ? Math.round((valor / totalEsferas) * 100) : 0
               return `
                 <div class="esfera-item">
-                  <span class="esfera-nome">◈ ${escapar(nome)}</span>
+                  <span class="esfera-nome"><i class="fa-solid fa-atom" aria-hidden="true"></i> ${escapar(nome)}</span>
                   <div class="esfera-trilho"><div class="esfera-preenchimento" style="width:${pct}%"></div></div>
                   <span class="esfera-valor">${valor} XP · ${pct}%</span>
                 </div>

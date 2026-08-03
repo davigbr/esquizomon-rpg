@@ -1,5 +1,6 @@
 /** Bootstrap — router por hash, tema, nav e registro do service worker. */
 
+import '@fortawesome/fontawesome-free/css/fontawesome.min.css'
 import './style.css'
 
 import { appStore, definirTema, renovarDia } from './stores/app'
@@ -45,7 +46,10 @@ function aplicarTemaInicial(): void {
 
 document.getElementById('theme-toggle')!.addEventListener('click', () => {
   const atual = appStore.get().configuracao.tema
-  definirTema(atual === 'dark' ? 'light' : 'dark')
+  const proximo = atual === 'dark' ? 'light' : 'dark'
+  definirTema(proximo)
+  const icone = document.querySelector('#theme-toggle i')
+  if (icone) icone.className = `fa-solid ${proximo === 'dark' ? 'fa-moon' : 'fa-sun'}`
 })
 
 /* ---------- router ---------- */

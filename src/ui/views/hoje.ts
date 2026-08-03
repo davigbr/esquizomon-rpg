@@ -59,9 +59,9 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
   raiz.innerHTML = `
     <header class="view-header">
       <div class="view-header-navegacao">
-        <button class="btn btn-icon" data-dia-anterior aria-label="Dia anterior">◀</button>
+        <button class="btn btn-icon" data-dia-anterior aria-label="Dia anterior"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
         <h1>${escapar(rotulo)}</h1>
-        <button class="btn btn-icon" data-dia-seguinte aria-label="Dia seguinte" ${ehHoje ? 'disabled' : ''}>▶</button>
+        <button class="btn btn-icon" data-dia-seguinte aria-label="Dia seguinte" ${ehHoje ? 'disabled' : ''}><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
       </div>
       <p class="view-sub">${escapar(dataPorExtenso(dataVisivel))}</p>
     </header>
@@ -83,7 +83,7 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
         <div class="ficha-barra-trilho"><div class="ficha-barra-preenchimento ficha-barra--xp" style="width:${pctXp}%"></div></div>
         <span class="ficha-barra-valor">${p.xp}/${p.xpProximo}</span>
       </div>
-      ${p.esgotado ? '<div class="ficha-esgotado">⚠ Esgotado — sem regeneração de mana até o próximo dia. Conclua tarefas para se recuperar.</div>' : ''}
+      ${p.esgotado ? '<div class="ficha-esgotado"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Esgotado — sem regeneração de mana até o próximo dia. Conclua tarefas para se recuperar.</div>' : ''}
     </div>
 
     <div class="filtros">
@@ -98,8 +98,8 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
           .map((d) => `<option value="${d}" ${filtroDif === d ? 'selected' : ''}>${dificuldadeDe(d).rotulo}</option>`)
           .join('')}
       </select>
-      <button class="filtro-chip${mostrarConcluidas ? ' ativo' : ''}" data-filtro-concluidas>✓ Concluídas</button>
-      ${filtroAtivo ? '<button class="btn btn-icon" data-limpar-filtros aria-label="Limpar filtros">✕</button>' : ''}
+      <button class="filtro-chip${mostrarConcluidas ? ' ativo' : ''}" data-filtro-concluidas><i class="fa-solid fa-check" aria-hidden="true"></i> Concluídas</button>
+      ${filtroAtivo ? '<button class="btn btn-icon" data-limpar-filtros aria-label="Limpar filtros"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>' : ''}
     </div>
 
     <div class="colunas">
@@ -107,7 +107,7 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
         <header class="coluna-cabecalho">
           <h2>Hábitos</h2>
           <span class="coluna-contagem">${habitos.length}</span>
-          <button class="btn btn-icon coluna-add" data-novo-tipo="habito" aria-label="Novo hábito">+</button>
+          <button class="btn btn-icon coluna-add" data-novo-tipo="habito" aria-label="Novo hábito"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
         </header>
         <div class="coluna-cards">
           ${habitos.length === 0 ? vazioColuna('Nada aqui. Use + para adicionar.') : habitos.map((t) => cardHabito(t, ehHoje)).join('')}
@@ -118,7 +118,7 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
         <header class="coluna-cabecalho">
           <h2>Recorrentes</h2>
           <span class="coluna-contagem">${recorrentes.length}</span>
-          <button class="btn btn-icon coluna-add" data-novo-tipo="recorrente" aria-label="Nova recorrente">+</button>
+          <button class="btn btn-icon coluna-add" data-novo-tipo="recorrente" aria-label="Nova recorrente"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
         </header>
         <div class="coluna-cards">
           ${recorrentes.length === 0 ? vazioColuna('Nada marcado para este dia.') : recorrentes.map((t) => cardRecorrente(t, dataVisivel)).join('')}
@@ -129,7 +129,7 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
         <header class="coluna-cabecalho">
           <h2>Tarefas</h2>
           <span class="coluna-contagem">${pendentes.length}</span>
-          <button class="btn btn-icon coluna-add" data-novo-tipo="unica" aria-label="Nova tarefa">+</button>
+          <button class="btn btn-icon coluna-add" data-novo-tipo="unica" aria-label="Nova tarefa"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
         </header>
         <div class="coluna-cards">
           ${pendentes.length === 0 && feitas.length === 0 ? vazioColuna('Nada aqui. Use + para adicionar.') : ''}
@@ -281,28 +281,28 @@ function cardHabito(t: Tarefa, ehHoje: boolean): string {
   const hoje = ehHoje ? (t.contador?.hoje ?? 0) : 0
   const sinal = t.sinal ?? 'positivo'
   const antiga = classeAntiga(t)
-  // botões sempre visíveis; desabilitados quando o hábito não tem aquele sinal
+  // botões sempre visíveis, colados às bordas (estilo Habitica); desabilitados quando o hábito não tem aquele sinal
   const podePositivo = sinal === 'positivo' || sinal === 'ambos'
   const podeNegativo = sinal === 'negativo' || sinal === 'ambos'
   return `
-    <div class="tarefa-card${antiga}" draggable="true" data-id="${t.id}">
+    <div class="tarefa-card habito-card${antiga}" draggable="true" data-id="${t.id}">
+      <button class="habito-lado habito-lado--neg" data-habito="negativo" data-id="${t.id}" aria-label="Repetição negativa" ${!podeNegativo || !ehHoje ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
       <div class="tarefa-corpo">
         <p class="tarefa-titulo">${escapar(t.titulo)}</p>
         ${t.notas ? `<p class="tarefa-notas">${renderizarNotas(t.notas)}</p>` : ''}
         <div class="tarefa-meta">
           <span class="badge badge--${t.dificuldade}">${d.rotulo}</span>
           <span class="badge">hoje ${hoje} · seq ${streak}</span>
-          ${t.esfera ? `<span class="badge badge--esfera">◈ ${escapar(t.esfera)}</span>` : ''}
+          ${t.esfera ? `<span class="badge badge--esfera"><i class="fa-solid fa-atom" aria-hidden="true"></i> ${escapar(t.esfera)}</span>` : ''}
           ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
           ${badgeIdade(t)}
         </div>
       </div>
       <div class="tarefa-acoes">
-        <button class="btn btn--habito btn--habito-positivo" data-habito="positivo" data-id="${t.id}" aria-label="Repetição positiva" ${!podePositivo || !ehHoje ? 'disabled' : ''}>+</button>
-        <button class="btn btn--habito btn--habito-negativo" data-habito="negativo" data-id="${t.id}" aria-label="Repetição negativa" ${!podeNegativo || !ehHoje ? 'disabled' : ''}>−</button>
-        <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar">✎</button>
-        <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir">🗑</button>
+        <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       </div>
+      <button class="habito-lado habito-lado--pos" data-habito="positivo" data-id="${t.id}" aria-label="Repetição positiva" ${!podePositivo || !ehHoje ? 'disabled' : ''}><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
     </div>
   `
 }
@@ -314,21 +314,21 @@ function cardRecorrente(t: Tarefa, data: string): string {
   const antiga = classeAntiga(t)
   return `
     <div class="tarefa-card${feita ? ' concluida' : ''}${antiga}" draggable="true" data-id="${t.id}">
-      <button class="tarefa-check${feita ? ' marcado' : ''}" data-alternar-rec data-id="${t.id}" aria-label="Concluir neste dia">✓</button>
+      <button class="tarefa-check${feita ? ' marcado' : ''}" data-alternar-rec data-id="${t.id}" aria-label="Concluir neste dia"><i class="fa-solid fa-check" aria-hidden="true"></i></button>
       <div class="tarefa-corpo">
         <p class="tarefa-titulo">${escapar(t.titulo)}</p>
         ${t.notas ? `<p class="tarefa-notas">${renderizarNotas(t.notas)}</p>` : ''}
         <div class="tarefa-meta">
           <span class="badge badge--${t.dificuldade}">${d.rotulo}</span>
-          ${t.esfera ? `<span class="badge badge--esfera">◈ ${escapar(t.esfera)}</span>` : ''}
+          ${t.esfera ? `<span class="badge badge--esfera"><i class="fa-solid fa-atom" aria-hidden="true"></i> ${escapar(t.esfera)}</span>` : ''}
           ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
           ${agenda}
           ${badgeIdade(t)}
         </div>
       </div>
       <div class="tarefa-acoes">
-        <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar">✎</button>
-        <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir">🗑</button>
+        <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       </div>
     </div>
   `
@@ -340,21 +340,21 @@ function cardUnica(t: Tarefa, feita: boolean): string {
   const due = badgeDueDate(t)
   return `
     <div class="tarefa-card${feita ? ' concluida' : ''}${antiga}" draggable="true" data-id="${t.id}">
-      <button class="tarefa-check${feita ? ' marcado' : ''}" data-alternar-unica data-id="${t.id}" aria-label="${feita ? 'Reabrir' : 'Concluir'}">${feita ? '↺' : '✓'}</button>
+      <button class="tarefa-check${feita ? ' marcado' : ''}" data-alternar-unica data-id="${t.id}" aria-label="${feita ? 'Reabrir' : 'Concluir'}"><i class="fa-solid ${feita ? 'fa-rotate-left' : 'fa-check'}" aria-hidden="true"></i></button>
       <div class="tarefa-corpo">
         <p class="tarefa-titulo">${escapar(t.titulo)}</p>
         ${t.notas ? `<p class="tarefa-notas">${renderizarNotas(t.notas)}</p>` : ''}
         <div class="tarefa-meta">
           <span class="badge badge--${t.dificuldade}">${d.rotulo}</span>
-          ${t.esfera ? `<span class="badge badge--esfera">◈ ${escapar(t.esfera)}</span>` : ''}
+          ${t.esfera ? `<span class="badge badge--esfera"><i class="fa-solid fa-atom" aria-hidden="true"></i> ${escapar(t.esfera)}</span>` : ''}
           ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
           ${due}
           ${badgeIdade(t)}
         </div>
       </div>
       <div class="tarefa-acoes">
-        <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar">✎</button>
-        <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir">🗑</button>
+        <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       </div>
     </div>
   `
