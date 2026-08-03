@@ -181,12 +181,23 @@ body {
   margin: 0;
   letter-spacing: 0.03em;
   white-space: nowrap;
+  /* largura fixa que comporta qualquer dia da semana (ex.: "Quarta-feira")
+     — mantém o botão ▶ sempre no mesmo lugar, independente do texto */
+  min-width: 210px;
+  text-align: center;
 }
 
 .view-header .view-sub {
   color: var(--text-muted);
   font-size: 14px;
   margin: 4px 0 0;
+}
+
+@media (max-width: 640px) {
+  .view-header-navegacao h1 {
+    min-width: 150px;
+    font-size: 20px;
+  }
 }
 
 .view-actions {

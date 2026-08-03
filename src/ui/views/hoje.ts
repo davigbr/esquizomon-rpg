@@ -257,6 +257,9 @@ function cardHabito(t: Tarefa, ehHoje: boolean): string {
   const hoje = ehHoje ? (t.contador?.hoje ?? 0) : 0
   const sinal = t.sinal ?? 'positivo'
   const antiga = classeAntiga(t)
+  // botões sempre visíveis; desabilitados quando o hábito não tem aquele sinal
+  const podePositivo = sinal === 'positivo' || sinal === 'ambos'
+  const podeNegativo = sinal === 'negativo' || sinal === 'ambos'
   return `
     <div class="tarefa-card${antiga}" draggable="true" data-id="${t.id}">
       <div class="tarefa-corpo">
@@ -270,8 +273,8 @@ function cardHabito(t: Tarefa, ehHoje: boolean): string {
         </div>
       </div>
       <div class="tarefa-acoes">
-        ${sinal === 'positivo' || sinal === 'ambos' ? `<button class="btn btn--habito btn--habito-positivo" data-habito="positivo" data-id="${t.id}" aria-label="Repetição positiva" ${ehHoje ? '' : 'disabled'}>+</button>` : ''}
-        ${sinal === 'negativo' || sinal === 'ambos' ? `<button class="btn btn--habito btn--habito-negativo" data-habito="negativo" data-id="${t.id}" aria-label="Repetição negativa" ${ehHoje ? '' : 'disabled'}>−</button>` : ''}
+        <button class="btn btn--habito btn--habito-positivo" data-habito="positivo" data-id="${t.id}" aria-label="Repetição positiva" ${!podePositivo || !ehHoje ? 'disabled' : ''}>+</button>
+        <button class="btn btn--habito btn--habito-negativo" data-habito="negativo" data-id="${t.id}" aria-label="Repetição negativa" ${!podeNegativo || !ehHoje ? 'disabled' : ''}>−</button>
         <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar">✎</button>
         <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir">🗑</button>
       </div>
