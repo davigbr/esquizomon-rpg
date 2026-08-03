@@ -34,6 +34,19 @@ export function hojePorExtenso(): string {
   })
 }
 
+/** Data ISO por extenso em pt-BR (sem o dia da semana), ex.: "3 de agosto de 2026". */
+export function dataPorExtenso(iso: string): string {
+  const d = new Date(iso + 'T12:00:00')
+  return d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+/** Soma dias a uma data ISO (aceita negativos). */
+export function somarDias(iso: string, dias: number): string {
+  const d = new Date(iso + 'T12:00:00')
+  d.setDate(d.getDate() + dias)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export function diaDaSemana(d: Date = new Date()): number {
   return d.getDay()
 }

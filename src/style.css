@@ -168,6 +168,17 @@ body {
   margin-bottom: 24px;
 }
 
+.view-header-navegacao {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.view-header-titulo {
+  flex: 1;
+  min-width: 0;
+}
+
 .view-header h1 {
   font-family: var(--font-display);
   font-weight: 700;

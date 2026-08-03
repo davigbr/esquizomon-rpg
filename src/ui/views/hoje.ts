@@ -1,9 +1,21 @@
 /** Visão inicial — 3 colunas estilo Habitica: Hábitos | Recorrentes | Tarefas.
  *  Tudo é feito a partir desta tela: adicionar (modal com tipo pré-selecionado),
- *  alternar, repetir hábito, editar, excluir e filtrar. */
+ *  alternar, repetir hábito, editar, excluir e filtrar.
+ *  A data visível pode ser navegada (◀ ▶, máximo hoje) — tudo passa a refletir o dia selecionado. */
 
 import type { AppData, Dificuldade, Tarefa, TipoTarefa } from '../../core/tipos'
-import { calcularStreak, diaDaSemana, diaDoMes, diasAte, diasDesde, dificuldadeDe, hojeISO, hojePorExtenso } from '../../core/jogo'
+import {
+  calcularStreak,
+  dataPorExtenso,
+  diaDaSemana,
+  diaDoMes,
+  diasAte,
+  diasDesde,
+  dificuldadeDe,
+  hojeISO,
+  hojePorExtenso,
+  somarDias,
+} from '../../core/jogo'
 import { alternarRecorrenteHoje, alternarUnica, appStore, excluirTarefa, registrarHabito, reordenarTarefas, tagsEmUso } from '../../stores/app'
 import { abrirFormTarefa, escapar } from '../formTarefa'
 import { renderizarNotas } from '../notas'
@@ -14,12 +26,14 @@ import { notificar } from '../toast'
 let filtroTag: string | null = null
 let filtroDif: Dificuldade | '' = ''
 let mostrarConcluidas = false
+let dataVisivel = hojeISO()
 let handlerClique: ((e: Event) => void) | null = null
 
 export function montarHoje(raiz: HTMLElement, dados: AppData): void {
-  const hoje = hojeISO()
-  const dia = diaDaSemana()
-  const diaMes = diaDoMes()
+  const hojeReal = hojeISO()
+  const ehHoje = dataVisivel === hojeReal
+  const dia = diaDaSemana(new Date(dataVisivel + 'T12:00:00'))
+  const diaMes = diaDoMes(new Date(dataVisivel + 'T12:00:00'))
   const tags = tagsEmUso(dados)
 
   const passa = (t: Tarefa): boolean => {
@@ -32,14 +46,20 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
   const recorrentes = dados.tarefas.filter((t) => t.tipo === 'recorrente' && valeHoje(t, dia, diaMes) && passa(t))
   const unicas = dados.tarefas.filter((t) => t.tipo === 'unica' && passa(t))
   const pendentes = unicas.filter((t) => !t.concluida)
-  const feitas = mostrarConcluidas ? unicas.filter((t) => t.concluida) : []
+  const feitas = mostrarConcluidas ? unicas.filter((t) => t.concluida && t.historico.includes(dataVisivel)) : []
 
   const filtroAtivo = filtroTag !== null || filtroDif !== ''
 
   raiz.innerHTML = `
     <header class="view-header">
-      <h1>Hoje</h1>
-      <p class="view-sub">${escapar(hojePorExtenso())}</p>
+      <div class="view-header-navegacao">
+        <button class="btn btn-icon" data-dia-anterior aria-label="Dia anterior">◀</button>
+        <div class="view-header-titulo">
+          <h1>${ehHoje ? 'Hoje' : 'Dia anterior'}</h1>
+          <p class="view-sub">${escapar(ehHoje ? hojePorExtenso() : dataPorExtenso(dataVisivel))}</p>
+        </div>
+        <button class="btn btn-icon" data-dia-seguinte aria-label="Dia seguinte" ${ehHoje ? 'disabled' : ''}>▶</button>
+      </div>
     </header>
 
     <div class="filtros">
@@ -66,7 +86,7 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
           <button class="btn btn-icon coluna-add" data-novo-tipo="habito" aria-label="Novo hábito">+</button>
         </header>
         <div class="coluna-cards">
-          ${habitos.length === 0 ? vazioColuna('Nada aqui. Use + para adicionar.') : habitos.map(cardHabito).join('')}
+          ${habitos.length === 0 ? vazioColuna('Nada aqui. Use + para adicionar.') : habitos.map((t) => cardHabito(t, ehHoje)).join('')}
         </div>
       </section>
 
@@ -77,7 +97,7 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
           <button class="btn btn-icon coluna-add" data-novo-tipo="recorrente" aria-label="Nova recorrente">+</button>
         </header>
         <div class="coluna-cards">
-          ${recorrentes.length === 0 ? vazioColuna('Nada marcado para hoje.') : recorrentes.map((t) => cardRecorrente(t, hoje)).join('')}
+          ${recorrentes.length === 0 ? vazioColuna('Nada marcado para este dia.') : recorrentes.map((t) => cardRecorrente(t, dataVisivel)).join('')}
         </div>
       </section>
 
@@ -95,6 +115,18 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
       </section>
     </div>
   `
+
+  /* ---------- navegação de data ---------- */
+  raiz.querySelector('[data-dia-anterior]')!.addEventListener('click', () => {
+    dataVisivel = somarDias(dataVisivel, -1)
+    montarHoje(raiz, appStore.get())
+  })
+  raiz.querySelector('[data-dia-seguinte]')!.addEventListener('click', () => {
+    if (dataVisivel < hojeReal) {
+      dataVisivel = somarDias(dataVisivel, 1)
+      montarHoje(raiz, appStore.get())
+    }
+  })
 
   /* ---------- adicionar por coluna ---------- */
   raiz.querySelectorAll('[data-novo-tipo]').forEach((el) => {
@@ -181,15 +213,15 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
     const id = acao.dataset.id!
 
     if (acao.dataset.alternarRec !== undefined) {
-      alternarRecorrenteHoje(id)
+      alternarRecorrenteHoje(id, dataVisivel)
       return
     }
     if (acao.dataset.alternarUnica !== undefined) {
-      alternarUnica(id)
+      alternarUnica(id, dataVisivel)
       return
     }
     if (acao.dataset.habito) {
-      registrarHabito(id, acao.dataset.habito as 'positivo' | 'negativo')
+      registrarHabito(id, acao.dataset.habito as 'positivo' | 'negativo', dataVisivel)
       if (acao.dataset.habito === 'positivo') notificar('Repetição registrada.')
       else notificar('Marcado como negativo.')
       return
@@ -219,10 +251,10 @@ function valeHoje(t: Tarefa, dia: number, diaMes: number): boolean {
   return !t.agenda || t.agenda.dias.length === 0 || t.agenda.dias.includes(dia)
 }
 
-function cardHabito(t: Tarefa): string {
+function cardHabito(t: Tarefa, ehHoje: boolean): string {
   const d = dificuldadeDe(t.dificuldade)
-  const streak = calcularStreak(t.historico)
-  const hoje = t.contador?.hoje ?? 0
+  const streak = calcularStreak(t.historico, dataVisivel)
+  const hoje = ehHoje ? (t.contador?.hoje ?? 0) : 0
   const sinal = t.sinal ?? 'positivo'
   const antiga = classeAntiga(t)
   return `
@@ -238,8 +270,8 @@ function cardHabito(t: Tarefa): string {
         </div>
       </div>
       <div class="tarefa-acoes">
-        ${sinal === 'positivo' || sinal === 'ambos' ? `<button class="btn btn--habito btn--habito-positivo" data-habito="positivo" data-id="${t.id}" aria-label="Repetição positiva">+</button>` : ''}
-        ${sinal === 'negativo' || sinal === 'ambos' ? `<button class="btn btn--habito btn--habito-negativo" data-habito="negativo" data-id="${t.id}" aria-label="Repetição negativa">−</button>` : ''}
+        ${sinal === 'positivo' || sinal === 'ambos' ? `<button class="btn btn--habito btn--habito-positivo" data-habito="positivo" data-id="${t.id}" aria-label="Repetição positiva" ${ehHoje ? '' : 'disabled'}>+</button>` : ''}
+        ${sinal === 'negativo' || sinal === 'ambos' ? `<button class="btn btn--habito btn--habito-negativo" data-habito="negativo" data-id="${t.id}" aria-label="Repetição negativa" ${ehHoje ? '' : 'disabled'}>−</button>` : ''}
         <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar">✎</button>
         <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir">🗑</button>
       </div>
@@ -247,14 +279,14 @@ function cardHabito(t: Tarefa): string {
   `
 }
 
-function cardRecorrente(t: Tarefa, hoje: string): string {
-  const feita = t.historico.includes(hoje)
+function cardRecorrente(t: Tarefa, data: string): string {
+  const feita = t.historico.includes(data)
   const d = dificuldadeDe(t.dificuldade)
   const agenda = agendaRotulo(t)
   const antiga = classeAntiga(t)
   return `
     <div class="tarefa-card${feita ? ' concluida' : ''}${antiga}" draggable="true" data-id="${t.id}">
-      <button class="tarefa-check${feita ? ' marcado' : ''}" data-alternar-rec data-id="${t.id}" aria-label="Concluir hoje">✓</button>
+      <button class="tarefa-check${feita ? ' marcado' : ''}" data-alternar-rec data-id="${t.id}" aria-label="Concluir neste dia">✓</button>
       <div class="tarefa-corpo">
         <p class="tarefa-titulo">${escapar(t.titulo)}</p>
         ${t.notas ? `<p class="tarefa-notas">${renderizarNotas(t.notas)}</p>` : ''}
@@ -301,10 +333,10 @@ function cardUnica(t: Tarefa, feita: boolean): string {
 /** Badge de vencimento com cor por proximidade (só tarefas únicas com data). */
 function badgeDueDate(t: Tarefa): string {
   if (t.tipo !== 'unica' || !t.dueDate) return ''
-  const dias = diasAte(t.dueDate)
+  const dias = diasAte(t.dueDate, dataVisivel)
   const data = new Date(t.dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })
   if (dias < 0) return `<span class="badge badge--due badge--due-vencida">venceu ${-dias}d · ${data}</span>`
-  if (dias === 0) return `<span class="badge badge--due badge--due-urgente">vence hoje · ${data}</span>`
+  if (dias === 0) return `<span class="badge badge--due badge--due-urgente">vence neste dia · ${data}</span>`
   if (dias <= 2) return `<span class="badge badge--due badge--due-urgente">${dias}d · ${data}</span>`
   if (dias <= 7) return `<span class="badge badge--due badge--due-proxima">${dias}d · ${data}</span>`
   return `<span class="badge badge--due">${dias}d · ${data}</span>`

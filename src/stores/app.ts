@@ -115,45 +115,42 @@ export function reordenarTarefas(ids: string[]): void {
   appStore.set({ ...appStore.get(), tarefas: resultado })
 }
 
-/** Recorrente: marca/desmarca o dia de hoje no histórico. */
-export function alternarRecorrenteHoje(id: string): void {
+/** Recorrente: marca/desmarca o dia no histórico (data = dia visível; default hoje). */
+export function alternarRecorrenteHoje(id: string, data: string = hojeISO()): void {
   const tarefas = appStore.get().tarefas.map((t) => {
     if (t.id !== id || t.tipo !== 'recorrente') return t
-    const hoje = hojeISO()
-    const tem = t.historico.includes(hoje)
+    const tem = t.historico.includes(data)
     return {
       ...t,
-      historico: tem ? t.historico.filter((d) => d !== hoje) : [...t.historico, hoje],
+      historico: tem ? t.historico.filter((d) => d !== data) : [...t.historico, data],
     }
   })
   appStore.set({ ...appStore.get(), tarefas })
 }
 
-/** Única: alterna concluída e registra a data. */
-export function alternarUnica(id: string): void {
+/** Única: alterna concluída e registra a data (data = dia visível; default hoje). */
+export function alternarUnica(id: string, data: string = hojeISO()): void {
   const tarefas = appStore.get().tarefas.map((t) => {
     if (t.id !== id || t.tipo !== 'unica') return t
     const concluida = !t.concluida
-    const hoje = hojeISO()
     return {
       ...t,
       concluida,
       historico: concluida
-        ? [...new Set([...t.historico, hoje])]
-        : t.historico.filter((d) => d !== hoje),
+        ? [...new Set([...t.historico, data])]
+        : t.historico.filter((d) => d !== data),
     }
   })
   appStore.set({ ...appStore.get(), tarefas })
 }
 
 /** Hábito: registra uma repetição positiva (+) ou negativa (−). */
-export function registrarHabito(id: string, sinal: 'positivo' | 'negativo'): void {
+export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data: string = hojeISO()): void {
   const tarefas = appStore.get().tarefas.map((t) => {
     if (t.id !== id || t.tipo !== 'habito') return t
-    const hoje = hojeISO()
     const contador = t.contador ?? { hoje: 0, totalPositivo: 0, totalNegativo: 0 }
     if (sinal === 'positivo') {
-      const historico = t.historico.includes(hoje) ? t.historico : [...t.historico, hoje]
+      const historico = t.historico.includes(data) ? t.historico : [...t.historico, data]
       return {
         ...t,
         historico,
