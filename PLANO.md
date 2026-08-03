@@ -275,7 +275,7 @@ O JSON não some — ele é o formato canônico; a planilha é uma *janela* sobr
 |---|---|---|
 | **0 — Ideação** | Este documento | Decisões marcadas resolvidas (ou conscientemente adiadas) |
 | **1 — MVP tarefas** | CRUD 3 tipos, dificuldade, tags, links; visões Hoje/Tarefas/Hábitos; persistência versionada; export/import JSON; PWA básico | ✅ **Feito (2026-08-03)** — build limpo, E2E validado (CRUD, toggles, filtros, streak, tema, export/import) |
-| **2 — Jogo** | XP/nível, HP, mana, dano diário, morte não-destrutiva, ficha; esferas (opcional) | Concluir tarefas move barras e o personagem "vive" |
+| **2 — Jogo** | XP/nível, HP, mana, dano diário, morte não-destrutiva, ficha; esferas (opcional) | ✅ **Feito (2026-08-03)** — XP/nível com restauração, HP + dano de recorrentes perdidas/hábitos negativos, esgotado sem reset, mana, esferas, modo relaxado, visão Ficha |
 | **3 — Baralho** | `deck.json` (script do vault), desbloqueio ~25%, carta do dia, invocação, combate leve | Um dia real tem missão de carta e recompensas |
 | **4 — IA** | BYOK multi-provider, contexto, narrador (abertura/eventos/fechamento), comandos texto/voz, parser de intenção | "Concluí a academia" conclui a tarefa e o narrador reage |
 | **5 — Distribuição** | Tauri desktop, ponte Sheets (Apps Script), polish, testes E2E | Usável nos 3 alvos com dados exportáveis |
@@ -323,4 +323,5 @@ Cada fase termina com **build utilizável** (nada de metade de feature pendurada
 2. [x] Decidir o nome/título do app
 3. [x] Fase 1: scaffold Vite + TS + nanostores + persistência versionada + CRUD de tarefas
 4. [x] Fase 1: visões Hoje/Tarefas/Hábitos + export/import JSON + PWA
-5. [ ] Fase 2: XP/nível, HP, mana, dano diário, ficha
+5. [x] Fase 2: XP/nível, HP, mana, dano diário, ficha
+6. [ ] Fase 3: baralho — `deck.json` (script do vault), desbloqueio ~25%, carta do dia, invocação, combate leve
