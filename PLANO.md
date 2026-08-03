@@ -159,22 +159,25 @@ A tese de fundo: **a ficção não é fuga da realidade, é uma dobra que dá ou
 - **Desktop:** Tauri 2 (leve, usa o webview do sistema) — Electron como alternativa mais pesada
 - UI: dark/ouro, limpa, sem gradients (suas preferências visuais)
 
-### 7.2 Estrutura do repo (previsão)
+### 7.2 Estrutura do repo (Fase 1 — vigente)
 ```
 esquizomon-rpg/
 ├── PLANO.md
 ├── index.html
+├── public/
+│   ├── manifest.webmanifest     # PWA
+│   ├── sw.js                    # service worker (cache do shell, produção)
+│   ├── favicon.svg/png, apple-touch-icon.png
+│   └── images/logo-esquizomon*.svg   # mesmo logo do site
 ├── src/
-│   ├── core/        # domínio puro (tarefas, jogo, cartas) — testável sem UI
-│   ├── stores/      # nanostores (tarefas, personagem, baralho, narrativa, config)
-│   ├── db/          # persistência versionada (localStorage + Dexie)
-│   ├── ai/          # adapters de provider + parser de intenção
-│   ├── narrativa/   # contexto, prompt builder, log narrativo
-│   ├── ui/          # telas e componentes
-│   └── main.ts
+│   ├── core/        # domínio puro: tipos.ts (modelo) + jogo.ts (dificuldade/XP/datas)
+│   ├── stores/      # app.ts — nanostores + ações + import/export
+│   ├── db/          # storage.ts — persistência versionada + wrapper seguro
+│   ├── ui/          # toast.ts, modal.ts, formTarefa.ts + views/ (hoje, tarefas, habitos, config)
+│   └── main.ts      # router hash + tema + SW
 ├── scripts/
-│   ├── exportar-baralho.mjs   # vault → deck.json (idempotente)
-│   └── sheets-bridge/         # Apps Script (cola no Google)
+│   ├── exportar-baralho.mjs   # fase 3: vault → deck.json (idempotente)
+│   └── sheets-bridge/         # fase 5: Apps Script (cola no Google)
 └── tauri/           # fase 5
 ```
 
@@ -271,7 +274,7 @@ O JSON não some — ele é o formato canônico; a planilha é uma *janela* sobr
 | Fase | Conteúdo | "Pronto quando" |
 |---|---|---|
 | **0 — Ideação** | Este documento | Decisões marcadas resolvidas (ou conscientemente adiadas) |
-| **1 — MVP tarefas** | CRUD 3 tipos, dificuldade, tags, links; visões Hoje/Tarefas/Hábitos; persistência versionada; export/import JSON; PWA básico | Dá pra organizar a semana real sem jogo nenhum |
+| **1 — MVP tarefas** | CRUD 3 tipos, dificuldade, tags, links; visões Hoje/Tarefas/Hábitos; persistência versionada; export/import JSON; PWA básico | ✅ **Feito (2026-08-03)** — build limpo, E2E validado (CRUD, toggles, filtros, streak, tema, export/import) |
 | **2 — Jogo** | XP/nível, HP, mana, dano diário, morte não-destrutiva, ficha; esferas (opcional) | Concluir tarefas move barras e o personagem "vive" |
 | **3 — Baralho** | `deck.json` (script do vault), desbloqueio ~25%, carta do dia, invocação, combate leve | Um dia real tem missão de carta e recompensas |
 | **4 — IA** | BYOK multi-provider, contexto, narrador (abertura/eventos/fechamento), comandos texto/voz, parser de intenção | "Concluí a academia" conclui a tarefa e o narrador reage |
@@ -316,7 +319,8 @@ Cada fase termina com **build utilizável** (nada de metade de feature pendurada
 
 ## 13. Próximos passos
 
-1. [ ] Resolver (ou adiar conscientemente) as decisões da seção 11
-2. [ ] Decidir o nome/título do app
-3. [ ] Fase 1: scaffold Vite + TS + nanostores + Dexie + persistência versionada + CRUD de tarefas
-4. [ ] Fase 1: visões Hoje/Tarefas/Hábitos + export/import JSON + PWA
+1. [x] Resolver (ou adiar conscientemente) as decisões da seção 11
+2. [x] Decidir o nome/título do app
+3. [x] Fase 1: scaffold Vite + TS + nanostores + persistência versionada + CRUD de tarefas
+4. [x] Fase 1: visões Hoje/Tarefas/Hábitos + export/import JSON + PWA
+5. [ ] Fase 2: XP/nível, HP, mana, dano diário, ficha

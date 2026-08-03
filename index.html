@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Esquizomon RPG — Crônicas Monstruosas Cotidianas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Aplica o tema antes do primeiro paint (evita flash).
+      try {
+        var tema = localStorage.getItem('esquizomon-rpg:tema')
+        if (tema === 'light') document.documentElement.dataset.theme = 'light'
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <nav class="navbar" id="navbar">
+      <div class="navbar-inner">
+        <a href="#/hoje" class="navbar-logo">
+          <img class="navbar-logo-img" src="/images/logo-esquizomon.svg" alt="" />
+          ESQUIZOMON <span class="navbar-logo-sufixo">RPG</span>
+        </a>
+        <div class="navbar-links" id="nav-links">
+          <a href="#/hoje" data-rota="hoje">Hoje</a>
+          <a href="#/tarefas" data-rota="tarefas">Tarefas</a>
+          <a href="#/habitos" data-rota="habitos">Hábitos</a>
+          <a href="#/config" data-rota="config">Config</a>
+          <button class="nav-theme" id="theme-toggle" aria-label="Alternar tema">🌙</button>
+        </div>
+      </div>
+    </nav>
+    <main class="container" id="app"></main>
+
+    <!-- Modal genérico -->
+    <div class="modal-overlay" id="modal" hidden>
+      <div class="modal-content" role="dialog" aria-modal="true">
+        <button class="modal-close" id="modal-close" aria-label="Fechar">&times;</button>
+        <div class="modal-body" id="modal-body"></div>
+      </div>
+    </div>
+
+    <!-- Toasts -->
+    <div class="toast-container" id="toast-container" role="status" aria-live="polite"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
