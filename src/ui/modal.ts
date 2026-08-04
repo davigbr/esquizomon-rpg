@@ -1,20 +1,20 @@
 /** Modal genérico prometido — Escape/backdrop fecham; foco devolvido a quem abriu. */
 
 const overlay = document.getElementById('modal')!
-const body = document.getElementById('modal-body')!
+export const modalBody = document.getElementById('modal-body')!
 const closeBtn = document.getElementById('modal-close')!
 const botaoOriginal = document.activeElement as HTMLElement | null
 
 export function abrirModal(html: string): void {
-  body.innerHTML = html
+  modalBody.innerHTML = html
   overlay.hidden = false
-  const primeiro = body.querySelector<HTMLElement>('[autofocus], input, select, textarea, button')
+  const primeiro = modalBody.querySelector<HTMLElement>('[autofocus], input, select, textarea, button')
   primeiro?.focus()
 }
 
 export function fecharModal(): void {
   overlay.hidden = true
-  body.innerHTML = ''
+  modalBody.innerHTML = ''
   botaoOriginal?.focus()
 }
 
@@ -45,12 +45,12 @@ export function confirmar(msg: string, rotulo = 'Confirmar'): Promise<boolean> {
         <button class="btn btn-primary" data-modal-confirmar>${rotulo}</button>
       </div>
     `)
-    body.querySelector('[data-modal-confirmar]')!.addEventListener('click', () => {
+    modalBody.querySelector('[data-modal-confirmar]')!.addEventListener('click', () => {
       document.removeEventListener('keydown', handler)
       fecharModal()
       resolve(true)
     })
-    body.querySelector('[data-modal-cancelar]')!.addEventListener('click', onFechar)
+    modalBody.querySelector('[data-modal-cancelar]')!.addEventListener('click', onFechar)
     document.addEventListener('keydown', handler)
   })
 }

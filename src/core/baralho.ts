@@ -26,6 +26,15 @@ export function sortearIds(cartas: Carta[], n: number, excluir: string[] = []): 
   return embaralhado.slice(0, Math.min(n, embaralhado.length))
 }
 
+/** Sorteia as cartas iniciais: exatamente 5 monstros + 1 captura + 1 aliança. */
+export function sortearIniciais(cartas: Carta[]): string[] {
+  const de = (tipo: TipoCarta) => cartas.filter((c) => c.type === tipo)
+  const monstros = sortearIds(de('monstro'), 5)
+  const capturas = sortearIds(de('captura'), 1)
+  const aliancas = sortearIds(de('alianca'), 1)
+  return [...monstros, ...capturas, ...aliancas]
+}
+
 export function tipoDe(carta: Carta | undefined): TipoCarta {
   return carta?.type ?? 'monstro'
 }

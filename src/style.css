@@ -1432,6 +1432,54 @@ select.campo {
   border-color: #1a4a55;
 }
 
+/* ========== Modal de carta ========== */
+.carta-modal {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.carta-modal-img {
+  width: 260px;
+  max-width: 40vw;
+  border-radius: 10px;
+  border: 1px solid var(--border-gold);
+}
+
+.carta-modal-info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.carta-modal-info h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.carta-modal-custo {
+  color: var(--text-secondary);
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.carta-modal-custo i {
+  color: #2868d0;
+}
+
+@media (max-width: 640px) {
+  .carta-modal {
+    grid-template-columns: 1fr;
+  }
+  .carta-modal-img {
+    width: 100%;
+    max-width: none;
+  }
+}
+
 /* ========== Responsivo ========== */
 @media (max-width: 640px) {
   .navbar-inner {

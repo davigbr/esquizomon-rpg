@@ -3,9 +3,9 @@
 import { atom, computed } from 'nanostores'
 
 import type { Agenda, AppData, Configuracao, Dificuldade, Personagem, Tarefa, Tema, TipoTarefa } from '../core/tipos'
-import { DANO_HABITO_NEGATIVO, CARTAS_INICIAIS, cartasPorNivel, custoInvocacao, danoDe, diaDaSemana, diaDoMes, hojeISO, novoId, somarDias, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../core/jogo'
+import { DANO_HABITO_NEGATIVO, cartasPorNivel, custoInvocacao, danoDe, diaDaSemana, diaDoMes, hojeISO, novoId, somarDias, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../core/jogo'
 import type { Carta } from '../core/baralho'
-import { sortearIds } from '../core/baralho'
+import { sortearIds, sortearIniciais } from '../core/baralho'
 import { apagarTudo, carregar, normalizarDados, salvar, salvarTema } from '../db/storage'
 
 export const appStore = atom<AppData>(carregar())
@@ -132,8 +132,8 @@ export function registrarDeck(cartas: Carta[]): void {
   const dados = appStore.get()
   const p = dados.personagem
   if (p.cartas.length === 0 && !p.esgotado) {
-    // primeira execução: sorteia ~10% do baralho
-    const iniciais = sortearIds(cartas, CARTAS_INICIAIS)
+    // primeira execução: 5 monstros + 1 captura + 1 aliança
+    const iniciais = sortearIniciais(cartas)
     appStore.set({ ...appStore.get(), personagem: { ...p, cartas: iniciais } })
   }
   if (desbloqueioPendente > 0) {

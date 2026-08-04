@@ -1,14 +1,18 @@
-/** Visão Cartas — galeria do baralho Esquizomon com desbloqueio por nível e invocação com mana. */
+/** Visão Cartas — galeria do baralho Esquizomon com desbloqueio por nível, modal e invocação com mana. */
 
 import type { AppData } from '../../core/tipos'
 import { carregarDeck, rotuloTipo, tipoDe, type Carta, type TipoCarta } from '../../core/baralho'
 import { custoInvocacao, nivelBaralhoCompleto } from '../../core/jogo'
-import { invocarCarta } from '../../stores/app'
+import { appStore, invocarCarta } from '../../stores/app'
+import { abrirModal, fecharModal, modalBody } from '../modal'
 import { notificar } from '../toast'
 import { escapar } from '../formTarefa'
 
 let deckCache: Carta[] | null = null
 let filtroTipo: TipoCarta | '' = ''
+
+/** Ordem dos tipos na galeria: monstros primeiro, depois capturas, por fim alianças. */
+const ORDEM_TIPO: Record<TipoCarta, number> = { monstro: 0, captura: 1, alianca: 2 }
 
 export async function montarCartas(raiz: HTMLElement, dados: AppData): Promise<void> {
   if (!deckCache) {
@@ -18,13 +22,16 @@ export async function montarCartas(raiz: HTMLElement, dados: AppData): Promise<v
       raiz.innerHTML = '<div class="vazio"><strong>Não consegui carregar o baralho.</strong></div>'
       return
     }
+    // o deck acabou de chegar — o store pode ter mudado (sorteio inicial) enquanto esperávamos
+    dados = appStore.get()
   }
   const deck = deckCache
   const desbloqueadas = new Set(dados.personagem.cartas)
   const mana = dados.personagem.mana
   const total = deck.length
 
-  const lista = filtroTipo ? deck.filter((c) => c.type === filtroTipo) : deck
+  const lista = (filtroTipo ? deck.filter((c) => c.type === filtroTipo) : deck)
+    .sort((a, b) => ORDEM_TIPO[a.type] - ORDEM_TIPO[b.type])
 
   raiz.innerHTML = `
     <header class="view-header">
@@ -41,46 +48,78 @@ export async function montarCartas(raiz: HTMLElement, dados: AppData): Promise<v
     </div>
 
     <div class="cartas-grade">
-      ${lista.map((c) => cardCarta(c, desbloqueadas.has(c.id), dados.personagem.invocacoes[c.id] ?? 0, mana)).join('')}
+      ${lista.map((c) => cardCarta(c, desbloqueadas.has(c.id))).join('')}
     </div>
   `
 
   raiz.querySelectorAll('[data-filtro-tipo]').forEach((chip) => {
     chip.addEventListener('click', () => {
       filtroTipo = (chip.getAttribute('data-filtro-tipo') ?? '') as TipoCarta | ''
-      void montarCartas(raiz, dados)
+      void montarCartas(raiz, appStore.get())
     })
   })
 
-  raiz.querySelectorAll('[data-invocar]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-invocar')!
-      const resultado = invocarCarta(id)
-      notificar(resultado.ok ? `🜏 Carta invocada (${resultado.motivo ?? ''})`.trim() : resultado.motivo ?? 'Não deu para invocar.', resultado.ok ? 'ok' : 'erro')
+  raiz.querySelectorAll('[data-carta]').forEach((item) => {
+    item.addEventListener('click', (e) => {
+      const alvo = e.target as HTMLElement
+      if (alvo.closest('[data-invocar]')) return // o botão invocar trata o clique dele
+      const id = item.getAttribute('data-carta')!
+      abrirModalCarta(id)
     })
   })
 }
 
-function cardCarta(c: Carta, desbloqueada: boolean, invocacoes: number, mana: number): string {
+function cardCarta(c: Carta, desbloqueada: boolean): string {
+  const invocacoes = appStore.get().personagem.invocacoes[c.id] ?? 0
   const custo = custoInvocacao(tipoDe(c), invocacoes)
+  const mana = appStore.get().personagem.mana
   const pode = desbloqueada && mana >= custo
   return `
-    <div class="carta-item${desbloqueada ? '' : ' carta-item--bloqueada'}">
+    <div class="carta-item${desbloqueada ? '' : ' carta-item--bloqueada'}" data-carta="${escapar(c.id)}" title="${escapar(c.name)}">
       ${desbloqueada
         ? `<img class="carta-img" src="/images/cards/${escapar(c.id)}.png" alt="${escapar(c.name)}" loading="lazy" />`
         : `<div class="carta-lock"><i class="fa-solid fa-lock" aria-hidden="true"></i><span>Bloqueada</span></div>`}
-      <div class="carta-nome">
-        <span class="badge badge--${c.type}">${rotuloTipo(c.type)}</span>
-        <span class="carta-titulo">${escapar(c.name)}</span>
-      </div>
       <div class="carta-rodape">
-        <span class="carta-custo" title="Custo de invocação (cresce com o uso até um teto)">
-          <i class="fa-solid fa-droplet" aria-hidden="true"></i> ${custo}${invocacoes > 0 ? ` · ${invocacoes}×` : ''}
-        </span>
+        <span class="badge badge--${c.type}">${rotuloTipo(c.type)}</span>
         ${desbloqueada
           ? `<button class="btn btn-icon" data-invocar="${escapar(c.id)}" aria-label="Invocar ${escapar(c.name)}" ${pode ? '' : 'disabled'} title="${pode ? 'Invocar' : 'Mana insuficiente'}"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></button>`
           : ''}
       </div>
     </div>
   `
+}
+
+function abrirModalCarta(id: string): void {
+  const deck = deckCache ?? []
+  const carta = deck.find((c) => c.id === id)
+  if (!carta) return
+  const dados = appStore.get()
+  const desbloqueada = dados.personagem.cartas.includes(id)
+  const invocacoes = dados.personagem.invocacoes[id] ?? 0
+  const custo = custoInvocacao(tipoDe(carta), invocacoes)
+
+  abrirModal(`
+    <div class="carta-modal">
+      <img class="carta-modal-img" src="/images/cards/${escapar(id)}.png" alt="${escapar(carta.name)}" />
+      <div class="carta-modal-info">
+        <span class="badge badge--${carta.type}">${rotuloTipo(carta.type)}</span>
+        <h2>${escapar(carta.name)}</h2>
+        <p class="carta-modal-custo"><i class="fa-solid fa-droplet" aria-hidden="true"></i> ${custo} mana${invocacoes > 0 ? ` · invocada ${invocacoes}×` : ''}</p>
+        ${desbloqueada
+          ? `<button class="btn btn-primary" data-modal-invocar>Invocar</button>`
+          : `<p class="config-dica">Carta bloqueada — suba de nível para desbloquear.</p>`}
+      </div>
+    </div>
+  `)
+
+  modalBody.querySelector('[data-modal-invocar]')?.addEventListener('click', () => {
+    const resultado = invocarCarta(id)
+    if (resultado.ok) {
+      notificar(`🜏 ${carta.name} invocada.`)
+      fecharModal()
+      void montarCartas(document.getElementById('app')!, appStore.get())
+    } else {
+      notificar(resultado.motivo ?? 'Não deu para invocar.', 'erro')
+    }
+  })
 }
