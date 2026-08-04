@@ -63,6 +63,7 @@ const statusBar = document.getElementById('status-bar')!
 
 function montarStatusBar(): void {
   const p = appStore.get().personagem
+  const pctHp = Math.round((p.hp / p.hpMax) * 100)
   const pctXp = Math.min(100, Math.round((p.xp / p.xpProximo) * 100))
   const pctMana = Math.round((p.mana / p.manaMax) * 100)
   const esgotado = p.esgotado
@@ -70,6 +71,11 @@ function montarStatusBar(): void {
     <div class="status-item status-item--nivel" title="Nível">
       <i class="fa-solid fa-arrow-trend-up" aria-hidden="true"></i>
       <span>Nv ${p.nivel}</span>
+    </div>
+    <div class="status-item status-item--hp" title="Vida ${p.hp}/${p.hpMax}">
+      <i class="fa-solid fa-heart" aria-hidden="true"></i>
+      <span>${p.hp}/${p.hpMax}</span>
+      <div class="status-trilho"><div class="status-preenchimento status-preenchimento--hp" style="width:${pctHp}%"></div></div>
     </div>
     <div class="status-item status-item--xp" title="Experiência ${p.xp}/${p.xpProximo}">
       <i class="fa-solid fa-star" aria-hidden="true"></i>

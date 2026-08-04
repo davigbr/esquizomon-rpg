@@ -1530,7 +1530,7 @@ select.campo {
   }
 }
 
-/* ========== Barra de status fixa (nível, XP, mana) ========== */
+/* ========== Barra de status fixa (nível, HP, XP, mana) ========== */
 .status-bar {
   position: sticky;
   /* abaixo do navbar (56px), sem colidir com ele */
@@ -1538,8 +1538,10 @@ select.campo {
   z-index: 30;
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 6px 24px;
+  gap: 24px;
+  /* conteúdo inicia na coluna do logo: centraliza num container de 1280px + 20px */
+  padding: 6px max(20px, calc((100% - 1280px) / 2 + 20px));
+  box-sizing: border-box;
   background: var(--bg-header, var(--bg-secondary));
   border-bottom: 1px solid var(--border-color);
   font-size: 12px;
@@ -1568,6 +1570,10 @@ select.campo {
   color: var(--accent-gold);
 }
 
+.status-item--hp i {
+  color: #c83030;
+}
+
 .status-item--xp i {
   color: var(--accent-gold);
 }
@@ -1593,6 +1599,10 @@ select.campo {
 .status-preenchimento {
   height: 100%;
   border-radius: 3px;
+}
+
+.status-preenchimento--hp {
+  background: #c83030;
 }
 
 .status-preenchimento--xp {
