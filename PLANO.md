@@ -1,4 +1,6 @@
-# Esquizomon RPG — Crônicas Monstruosas Cotidianas (Plano de Ideação)
+# Esquizomon RPG — Crônicas Monstruosas Cotidianas
+
+> **Narrativa oficial em [`NARRATIVA.md`](./NARRATIVA.md)** — objetivo do jogo, "o Mesmo", "o Sempre Mais", a Cronista e o ciclo do dia, em linguagem acessível. Este plano trata de estrutura, mecânica e roadmap; a narrativa é a fonte do sentido. (Plano de Ideação)
 
 > **Status:** ideação (Fase 0)
 > **Data:** 2026-08-03
