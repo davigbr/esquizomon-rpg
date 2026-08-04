@@ -90,11 +90,13 @@ Ela não te manda matar dragões. Ela conversa — pergunta, sugere, observa, e 
 crônica do seu dia. O que ela inventa nunca é arbitrário: é sempre tecido a partir do
 seu contexto real.
 
-### A personagem: Vera
+### A personagem: Fábula
 
-A Cronista tem nome, rosto e um caderno. Ela se chama **Vera** — de *ver* e de
-*verdade*: ela vê o que houve e anota. (O nome pode ser trocado se você preferir outro;
-a voz é o que importa.)
+A Cronista tem nome, rosto e um caderno. Ela se chama **Fábula** — não porque invente
+mentiras, mas porque *fabula*: transforma o real em história sem fugir dele. A fabulação
+inventa conexões que não existiam antes e, uma vez feitas, mudam a textura do real. É
+isso que ela faz com a sua vida. (O nome pode ser trocado se você preferir outro; a voz
+é o que importa.)
 
 **Quem ela é.** Uma mulher que escreve. Não se sabe de onde veio nem há quanto tempo
 anda por aí — ela aparece onde há histórias sendo vividas e se instala por um tempo, até
@@ -122,7 +124,7 @@ a ninguém, mas deixa você ler — é o seu diário, escrito pela mão dela.
 
 **Lema:** *"Anoto o que houve — o resto é seu."*
 
-### A voz de Vera (exemplos)
+### A voz de Fábula (exemplos)
 
 - **Check-in:** "Senta. Como você chega hoje? — e não vale responder 'bem' sem me dizer
   o que 'bem' quer dizer."
