@@ -125,6 +125,31 @@ export function reordenarTarefas(ids: string[]): void {
 /* Deck carregado + fila de desbloqueio (o deck chega assíncrono no boot). */
 let deckCarregado: Carta[] | null = null
 let desbloqueioPendente = 0
+/** Evento de morte pendente de ser exibido pela UI (carta perdida). */
+let mortePendente: { cartaId: string; cartaNome: string } | null = null
+
+/** Consome o evento de morte (uma vez) — a UI mostra a tela de esgotado e a carta perdida. */
+export function consumirMorte(): { cartaId: string; cartaNome: string } | null {
+  const m = mortePendente
+  mortePendente = null
+  return m
+}
+
+/** Registra a morte (esgotou agora) e perde 1 carta da coleção.
+ *  A ordem importa: `mortePendente` é setada ANTES do set das cartas, para o
+ *  subscribe disparado pela remoção já encontrar o evento e mostrar o overlay. */
+function registrarMorte(): void {
+  const dados = appStore.get()
+  const p = dados.personagem
+  if (p.cartas.length > 0) {
+    const perdida = p.cartas[Math.floor(Math.random() * p.cartas.length)]
+    const carta = deckCarregado?.find((c) => c.id === perdida)
+    mortePendente = { cartaId: perdida, cartaNome: carta?.name ?? perdida }
+    appStore.set({ ...dados, personagem: { ...p, cartas: p.cartas.filter((id) => id !== perdida) } })
+  } else {
+    mortePendente = { cartaId: '', cartaNome: '' }
+  }
+}
 
 /** Registra o deck carregado; sorteia as cartas iniciais e processa desbloqueios pendentes. */
 export function registrarDeck(cartas: Carta[]): void {
@@ -232,6 +257,7 @@ export function aplicarDano(quantidade: number): { esgotou: boolean } {
     ...dados,
     personagem: { ...p, hp, esgotado: p.esgotado || esgotou },
   })
+  if (esgotou) registrarMorte()
   return { esgotou }
 }
 
@@ -330,10 +356,12 @@ export function renovarDia(): void {
     if (perdidas.length > 0) {
       const danoTotal = perdidas.reduce((soma, t) => soma + danoDe(t.dificuldade), 0)
       const hp = Math.max(0, p.hp - danoTotal)
+      const esgotou = hp <= 0
       appStore.set({
         ...appStore.get(),
-        personagem: { ...appStore.get().personagem, hp, esgotado: hp <= 0, ultimoDia: hoje },
+        personagem: { ...appStore.get().personagem, hp, esgotado: esgotou, ultimoDia: hoje },
       })
+      if (esgotou) registrarMorte()
     }
   }
 

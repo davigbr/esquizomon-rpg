@@ -53,6 +53,18 @@
     <!-- Toasts -->
     <div class="toast-container" id="toast-container" role="status" aria-live="polite"></div>
 
+    <!-- Tela de morte (esgotado completo) -->
+    <div class="morte-overlay" id="morte-overlay" hidden>
+      <div class="morte-card">
+        <i class="fa-solid fa-skull morte-icone" aria-hidden="true"></i>
+        <h2>Você está completamente esgotado</h2>
+        <p class="morte-texto">A exaustão tomou conta do território. Uma carta do seu baralho se perdeu na queda.</p>
+        <div class="morte-carta" id="morte-carta"></div>
+        <p class="morte-dica">Conclua tarefas amanhã para se recuperar — e não deixe as recorrentes para trás.</p>
+        <button class="btn btn-primary" id="morte-continuar">Continuar</button>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
