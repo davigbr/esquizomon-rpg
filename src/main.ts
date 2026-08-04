@@ -7,6 +7,7 @@ import { appStore, consumirMorte, definirTema, registrarDeck, renovarDia } from 
 import { montarHoje } from './ui/views/hoje'
 import { montarFicha } from './ui/views/ficha'
 import { montarCartas } from './ui/views/cartas'
+import { montarHistorico } from './ui/views/historico'
 import { montarConfig } from './ui/views/config'
 import { carregarDeck } from './core/baralho'
 import { storageGet } from './db/storage'
@@ -15,11 +16,11 @@ import type { Tema } from './core/tipos'
 const raiz = document.getElementById('app')!
 const navLinks = document.querySelectorAll<HTMLAnchorElement>('[data-rota]')
 
-type Rota = 'hoje' | 'ficha' | 'cartas' | 'config'
+type Rota = 'hoje' | 'ficha' | 'cartas' | 'historico' | 'config'
 
 function rotaAtual(): Rota {
   const hash = location.hash.replace(/^#\/?/, '')
-  if (hash === 'ficha' || hash === 'cartas' || hash === 'config') return hash
+  if (hash === 'ficha' || hash === 'cartas' || hash === 'historico' || hash === 'config') return hash
   return 'hoje'
 }
 
@@ -34,6 +35,9 @@ function montarRota(rota: Rota): void {
       break
     case 'cartas':
       montarCartas(raiz, dados)
+      break
+    case 'historico':
+      montarHistorico(raiz, dados)
       break
     case 'config':
       montarConfig(raiz, dados)

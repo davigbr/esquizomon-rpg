@@ -2,11 +2,11 @@
 
 import { atom, computed } from 'nanostores'
 
-import type { Agenda, AppData, Configuracao, Dificuldade, Personagem, Tarefa, Tema, TipoTarefa } from '../core/tipos'
+import type { Agenda, AppData, Configuracao, Dificuldade, Personagem, Tarefa, Tema, TipoLog, TipoTarefa } from '../core/tipos'
 import { DANO_HABITO_NEGATIVO, cartasPorNivel, custoInvocacao, danoDe, diaDaSemana, diaDoMes, hojeISO, novoId, personagemInicial, somarDias, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../core/jogo'
 import type { Carta } from '../core/baralho'
 import { sortearIds, sortearIniciais } from '../core/baralho'
-import { apagarTudo, carregar, normalizarDados, salvar, salvarTema } from '../db/storage'
+import { MAX_LOG, apagarTudo, carregar, normalizarDados, salvar, salvarTema } from '../db/storage'
 
 export const appStore = atom<AppData>(carregar())
 
@@ -15,6 +15,13 @@ appStore.subscribe((dados) => {
 })
 
 /* ---------- helpers ---------- */
+
+/** Registra um evento no histórico (mais recente primeiro, limitado a MAX_LOG). */
+export function registrarLog(tipo: TipoLog, texto: string): void {
+  const dados = appStore.get()
+  const evento = { id: novoId(), ts: new Date().toISOString(), tipo, texto }
+  appStore.set({ ...dados, log: [evento, ...dados.log].slice(0, MAX_LOG) })
+}
 
 export function tarefaPorId(id: string): Tarefa | undefined {
   return appStore.get().tarefas.find((t) => t.id === id)
@@ -68,7 +75,20 @@ export function criarTarefa(dados: DadosTarefa): Resultado {
     criadaEm: new Date().toISOString(),
   }
   appStore.set({ ...appStore.get(), tarefas: [...appStore.get().tarefas, tarefa] })
+  registrarLog('tarefa', `Criou: ${titulo} (${rotuloTipoTarefa(dados.tipo)})`)
   return { ok: true }
+}
+
+/** Rótulo pt-BR do tipo de tarefa para o histórico. */
+function rotuloTipoTarefa(tipo: TipoTarefa): string {
+  switch (tipo) {
+    case 'recorrente':
+      return 'recorrente'
+    case 'unica':
+      return 'única'
+    case 'habito':
+      return 'hábito'
+  }
 }
 
 export function atualizarTarefa(id: string, dados: Partial<DadosTarefa>): Resultado {
@@ -99,11 +119,14 @@ export function atualizarTarefa(id: string, dados: Partial<DadosTarefa>): Result
   }
   const tarefas = appStore.get().tarefas.map((t) => (t.id === id ? proxima : t))
   appStore.set({ ...appStore.get(), tarefas })
+  registrarLog('tarefa', `Editou: ${proxima.titulo}`)
   return { ok: true }
 }
 
 export function excluirTarefa(id: string): void {
+  const tarefa = tarefaPorId(id)
   appStore.set({ ...appStore.get(), tarefas: appStore.get().tarefas.filter((t) => t.id !== id) })
+  if (tarefa) registrarLog('tarefa', `Excluiu: ${tarefa.titulo}`)
 }
 
 /** Reordena as tarefas (drag & drop): `ids` na nova ordem, dentro do mesmo tipo. */
@@ -146,9 +169,12 @@ function registrarMorte(): void {
     const carta = deckCarregado?.find((c) => c.id === perdida)
     mortePendente = { cartaId: perdida, cartaNome: carta?.name ?? perdida }
     appStore.set({ ...dados, personagem: { ...p, cartas: p.cartas.filter((id) => id !== perdida) } })
+    registrarLog('carta', `Esgotou — perdeu a carta: ${carta?.name ?? perdida}`)
   } else {
     mortePendente = { cartaId: '', cartaNome: '' }
+    registrarLog('dano', 'Esgotou — sem cartas para perder')
   }
+  registrarLog('dano', 'Ficou esgotado (vida zerada)')
 }
 
 /** Registra o deck carregado; sorteia as cartas iniciais e processa desbloqueios pendentes. */
@@ -160,6 +186,8 @@ export function registrarDeck(cartas: Carta[]): void {
     // primeira execução: 5 monstros + 1 captura + 1 aliança
     const iniciais = sortearIniciais(cartas)
     appStore.set({ ...appStore.get(), personagem: { ...p, cartas: iniciais } })
+    const nomes = cartas.filter((c) => iniciais.includes(c.id)).map((c) => c.name)
+    registrarLog('carta', `Começou o jogo com ${iniciais.length} cartas: ${nomes.join(', ')}`)
   }
   if (desbloqueioPendente > 0) {
     const n = desbloqueioPendente
@@ -182,6 +210,8 @@ function desbloquearCartas(n: number): string[] {
     ...dados,
     personagem: { ...p, cartas: [...p.cartas, ...novos] },
   })
+  const nomes = deckCarregado.filter((c) => novos.includes(c.id)).map((c) => c.name)
+  registrarLog('carta', `Desbloqueou: ${nomes.join(', ')}`)
   return novos
 }
 
@@ -222,6 +252,7 @@ export function ganharXP(quantidade: number, esfera?: string): { subiu: boolean;
   }
   appStore.set({ ...appStore.get(), personagem })
   const novasCartas = subiu ? desbloquearCartas(niveis * cartasPorNivel()) : []
+  if (subiu) registrarLog('nivel', `Subiu para o nível ${nivel} (máximos restaurados)`)
   return { subiu, nivel, novasCartas }
 }
 
@@ -242,6 +273,7 @@ export function invocarCarta(id: string): Resultado {
       invocacoes: { ...p.invocacoes, [id]: (p.invocacoes[id] ?? 0) + 1 },
     },
   })
+  registrarLog('invocacao', `Invocou: ${carta.name} (−${custo} mana)`)
   return { ok: true }
 }
 
@@ -275,7 +307,11 @@ export function alternarRecorrenteHoje(id: string, data: string = hojeISO()): st
   const tarefa = tarefas.find((t) => t.id === id)
   if (tarefa) {
     const marcada = tarefa.historico.includes(data)
-    if (marcada) return ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera).novasCartas
+    if (marcada) {
+      registrarLog('tarefa', `Concluiu recorrente: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP)`)
+      return ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera).novasCartas
+    }
+    registrarLog('tarefa', `Desfez recorrente: ${tarefa.titulo}`)
   }
   return []
 }
@@ -295,7 +331,11 @@ export function alternarUnica(id: string, data: string = hojeISO()): string[] {
   })
   appStore.set({ ...appStore.get(), tarefas })
   const tarefa = tarefas.find((t) => t.id === id)
-  if (tarefa && tarefa.concluida) return ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera).novasCartas
+  if (tarefa && tarefa.concluida) {
+    registrarLog('tarefa', `Concluiu: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP)`)
+    return ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera).novasCartas
+  }
+  if (tarefa) registrarLog('tarefa', `Desfez conclusão: ${tarefa.titulo}`)
   return []
 }
 
@@ -320,8 +360,12 @@ export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data
   appStore.set({ ...appStore.get(), tarefas })
   const tarefa = tarefas.find((t) => t.id === id)
   if (tarefa) {
-    if (sinal === 'positivo') return ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera).novasCartas
+    if (sinal === 'positivo') {
+      registrarLog('habito', `Hábito positivo: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP)`)
+      return ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera).novasCartas
+    }
     aplicarDano(DANO_HABITO_NEGATIVO)
+    registrarLog('habito', `Hábito negativo: ${tarefa.titulo} (−${DANO_HABITO_NEGATIVO} vida)`)
   }
   return []
 }
@@ -361,6 +405,7 @@ export function renovarDia(): void {
         ...appStore.get(),
         personagem: { ...appStore.get().personagem, hp, esgotado: esgotou, ultimoDia: hoje },
       })
+      registrarLog('dano', `Dano diário: ${perdidas.length} recorrente(s) perdida(s) (−${danoTotal} vida)`)
       if (esgotou) registrarMorte()
     }
   }
@@ -422,12 +467,14 @@ export function apagarTodosDados(): void {
     tarefas: [],
     personagem: personagemInicial(),
     configuracao: appStore.get().configuracao,
+    log: [],
   })
   // o deck já carregou no boot — re-sorteia as cartas iniciais do baralho zerado
   if (deckCarregado) {
     const iniciais = sortearIniciais(deckCarregado)
     appStore.set({ ...appStore.get(), personagem: { ...appStore.get().personagem, cartas: iniciais } })
   }
+  registrarLog('sistema', 'Dados apagados — novo território')
 }
 
 /* ---------- derivados ---------- */

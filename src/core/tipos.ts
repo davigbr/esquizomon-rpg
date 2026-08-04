@@ -69,11 +69,25 @@ export interface Configuracao {
   modoRelaxado?: boolean
 }
 
+/** Tipo de evento do histórico (define ícone e cor na listagem). */
+export type TipoLog = 'tarefa' | 'habito' | 'invocacao' | 'carta' | 'nivel' | 'dano' | 'sistema'
+
+/** Evento do histórico de ações do jogo. */
+export interface LogEvento {
+  id: string
+  /** Data/hora ISO (com tempo). */
+  ts: string
+  tipo: TipoLog
+  texto: string
+}
+
 export interface AppData {
   versao: number
   tarefas: Tarefa[]
   personagem: Personagem
   configuracao: Configuracao
+  /** Histórico extensivo de ações (mais recente primeiro). */
+  log: LogEvento[]
 }
 
 export const VERSAO_DADOS = 1

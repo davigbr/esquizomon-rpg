@@ -62,6 +62,15 @@ export async function montarCartas(raiz: HTMLElement, dados: AppData): Promise<v
     })
   })
 
+  raiz.querySelectorAll('[data-invocar]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const id = btn.getAttribute('data-invocar')!
+      const resultado = invocarCarta(id)
+      notificar(resultado.ok ? `🜏 Carta invocada.` : resultado.motivo ?? 'Não deu para invocar.', resultado.ok ? 'ok' : 'erro')
+    })
+  })
+
   raiz.querySelectorAll('[data-carta]').forEach((item) => {
     item.addEventListener('click', (e) => {
       const alvo = e.target as HTMLElement

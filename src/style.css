@@ -1760,8 +1760,14 @@ select.campo {
 }
 
 /* ========== Gráficos de progressão ========== */
+.grafico-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px 28px;
+}
+
 .grafico-bloco {
-  margin: 18px 0;
+  min-width: 0;
 }
 
 .grafico-titulo {
@@ -1807,9 +1813,21 @@ select.campo {
   opacity: 0.9;
 }
 
-.grafico-ponto-atual {
+/* pontos discretos: um por nível, com cursor e tooltip */
+.grafico-ponto {
+  cursor: pointer;
   stroke: var(--bg-primary);
-  stroke-width: 1.5;
+  stroke-width: 1.2;
+  transition: r 0.15s ease;
+}
+
+.grafico-ponto:hover {
+  r: 6;
+}
+
+.grafico-ponto--atual {
+  stroke: var(--text-primary);
+  stroke-width: 2;
 }
 
 .grafico-rotulo-y {
@@ -1833,6 +1851,100 @@ select.campo {
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .grafico-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========== Histórico ========== */
+.historico-filtros {
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.historico-dia {
+  margin-bottom: 24px;
+}
+
+.historico-dia-titulo {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 6px;
+  margin: 0 0 8px;
+}
+
+.historico-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.historico-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.historico-item:last-child {
+  border-bottom: none;
+}
+
+.historico-icone {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.historico-icone--tarefa {
+  color: var(--accent-gold);
+}
+
+.historico-icone--habito {
+  color: #9fd17c;
+}
+
+.historico-icone--invocacao {
+  color: #2868d0;
+}
+
+.historico-icone--carta {
+  color: #a86ae0;
+}
+
+.historico-icone--nivel {
+  color: var(--accent-gold);
+}
+
+.historico-icone--dano {
+  color: var(--accent-red);
+}
+
+.historico-texto {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.historico-hora {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 
 /* ========== Responsivo ========== */

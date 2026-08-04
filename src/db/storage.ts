@@ -1,6 +1,6 @@
 /** Persistência versionada + wrapper seguro (fallback em memória quando localStorage é bloqueado). */
 
-import type { AppData, Configuracao, Personagem, Tarefa, Tema } from '../core/tipos'
+import type { AppData, Configuracao, LogEvento, Personagem, Tarefa, Tema, TipoLog } from '../core/tipos'
 import { STORAGE_KEY, TEMA_KEY, VERSAO_DADOS } from '../core/tipos'
 import { hpMaxDe, manaMaxDe, personagemInicial, xpProximoDe } from '../core/jogo'
 
@@ -160,17 +160,47 @@ export function normalizarDados(bruto: unknown): AppData | null {
     const ok = normalizarTarefa(t)
     if (ok) tarefas.push(ok)
   }
+  const log = normalizarLog(b.log)
   return {
     versao: VERSAO_DADOS,
     tarefas,
     personagem: normalizarPersonagem(b.personagem),
     configuracao: normalizarConfiguracao(b.configuracao),
+    log,
   }
+}
+
+/** Limite de eventos guardados no histórico (evita inchar o localStorage). */
+export const MAX_LOG = 400
+
+const TIPOS_LOG: ReadonlySet<string> = new Set(['tarefa', 'habito', 'invocacao', 'carta', 'nivel', 'dano', 'sistema'])
+
+function normalizarLog(v: unknown): LogEvento[] {
+  if (!Array.isArray(v)) return []
+  const log: LogEvento[] = []
+  for (const item of v) {
+    if (!ehObjeto(item)) continue
+    const tipo: TipoLog = typeof item.tipo === 'string' && TIPOS_LOG.has(item.tipo) ? (item.tipo as TipoLog) : 'sistema'
+    if (typeof item.texto !== 'string' || !item.texto) continue
+    log.push({
+      id: typeof item.id === 'string' ? item.id : String(Math.random()).slice(2),
+      ts: typeof item.ts === 'string' ? item.ts : new Date().toISOString(),
+      tipo,
+      texto: item.texto,
+    })
+  }
+  return log.slice(0, MAX_LOG)
 }
 
 /** Estado padrão de primeira execução. */
 export function estadoVazio(): AppData {
-  return { versao: VERSAO_DADOS, tarefas: [], personagem: personagemInicial(), configuracao: { tema: temaInicial() } }
+  return {
+    versao: VERSAO_DADOS,
+    tarefas: [],
+    personagem: personagemInicial(),
+    configuracao: { tema: temaInicial() },
+    log: [],
+  }
 }
 
 export function carregar(): AppData {
