@@ -1,6 +1,7 @@
 /** Visão Ficha — nível, XP, HP, mana, esferas e regras do jogo. */
 
 import type { AppData } from '../../core/tipos'
+import { nivelBaralhoCompleto } from '../../core/jogo'
 import { escapar } from '../formTarefa'
 
 export function montarFicha(raiz: HTMLElement, dados: AppData): void {
@@ -8,6 +9,7 @@ export function montarFicha(raiz: HTMLElement, dados: AppData): void {
   const pctHp = Math.round((p.hp / p.hpMax) * 100)
   const pctMana = Math.round((p.mana / p.manaMax) * 100)
   const pctXp = Math.round((p.xp / p.xpProximo) * 100)
+  const pctColecao = Math.round((p.cartas.length / 65) * 100)
 
   const esferas = Object.entries(p.esferas).sort((a, b) => b[1] - a[1])
   const totalEsferas = esferas.reduce((soma, [, v]) => soma + v, 0)
@@ -60,6 +62,17 @@ export function montarFicha(raiz: HTMLElement, dados: AppData): void {
             .join('')}
         </div>`
       }
+    </div>
+
+    <div class="config-secao">
+      <h3>Baralho</h3>
+      <p>Coleção desbloqueada conforme você sobe de nível — 2 cartas por nível, a partir de 7 iniciais (~10%).</p>
+      <div class="ficha-barra" title="Coleção">
+        <span class="ficha-barra-rotulo">BAL.</span>
+        <div class="ficha-barra-trilho"><div class="ficha-barra-preenchimento ficha-barra--xp" style="width:${pctColecao}%"></div></div>
+        <span class="ficha-barra-valor">${p.cartas.length}/65</span>
+      </div>
+      <p class="config-dica">Nível ${nivelBaralhoCompleto()} completa o baralho. A mana é o recurso de invocação: monstros custam menos, alianças custam mais; reusar a mesma carta encarece até um teto.</p>
     </div>
 
     <div class="config-secao">

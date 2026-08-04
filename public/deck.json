@@ -1,0 +1,327 @@
+[
+  {
+    "id": "ninho-enclausurado",
+    "name": "Ninho Enclausurado",
+    "type": "captura"
+  },
+  {
+    "id": "internato-de-ferro",
+    "name": "Internato de Ferro",
+    "type": "captura"
+  },
+  {
+    "id": "engenho-alienante",
+    "name": "Engenho Alienante",
+    "type": "captura"
+  },
+  {
+    "id": "cartorio-da-eternidade",
+    "name": "Cartório da Eternidade",
+    "type": "captura"
+  },
+  {
+    "id": "ideal-dourado",
+    "name": "Ideal Dourado",
+    "type": "captura"
+  },
+  {
+    "id": "verdade-ceifadora",
+    "name": "Verdade Ceifadora",
+    "type": "captura"
+  },
+  {
+    "id": "paraiso-prometido",
+    "name": "Paraíso Prometido",
+    "type": "captura"
+  },
+  {
+    "id": "buraco-negro",
+    "name": "Buraco Negro",
+    "type": "captura"
+  },
+  {
+    "id": "teia-de-signos",
+    "name": "Teia de Signos",
+    "type": "captura"
+  },
+  {
+    "id": "divida-de-sangue",
+    "name": "Dívida de Sangue",
+    "type": "captura"
+  },
+  {
+    "id": "moenda-do-passado",
+    "name": "Moenda do Passado",
+    "type": "captura"
+  },
+  {
+    "id": "muro-branco",
+    "name": "Muro Branco",
+    "type": "captura"
+  },
+  {
+    "id": "rotulo-humano",
+    "name": "Rótulo Humano",
+    "type": "captura"
+  },
+  {
+    "id": "falta-existencial",
+    "name": "Falta Existencial",
+    "type": "captura"
+  },
+  {
+    "id": "migalhas-do-poder",
+    "name": "Migalhas do Poder",
+    "type": "captura"
+  },
+  {
+    "id": "coroa-de-brasa",
+    "name": "Coroa de Brasa",
+    "type": "captura"
+  },
+  {
+    "id": "superficie-hipnotizante",
+    "name": "Superfície Hipnotizante",
+    "type": "captura"
+  },
+  {
+    "id": "fascinio-ao-soberano",
+    "name": "Fascínio ao Soberano",
+    "type": "captura"
+  },
+  {
+    "id": "repeticao-encarnada",
+    "name": "Repetição Encarnada",
+    "type": "captura"
+  },
+  {
+    "id": "bando-nomade",
+    "name": "Bando Nômade",
+    "type": "alianca"
+  },
+  {
+    "id": "portal-de-passagem",
+    "name": "Portal de Passagem",
+    "type": "alianca"
+  },
+  {
+    "id": "prefiro-nao",
+    "name": "Prefiro Não",
+    "type": "alianca"
+  },
+  {
+    "id": "espreita-animal",
+    "name": "Espreita Animal",
+    "type": "alianca"
+  },
+  {
+    "id": "solidao-alegre",
+    "name": "Solidão Alegre",
+    "type": "alianca"
+  },
+  {
+    "id": "digestao-dos-afetos",
+    "name": "Digestão dos Afetos",
+    "type": "alianca"
+  },
+  {
+    "id": "terceiro-olho",
+    "name": "Terceiro Olho",
+    "type": "alianca"
+  },
+  {
+    "id": "mil-dancarinas",
+    "name": "Mil Dançarinas",
+    "type": "alianca"
+  },
+  {
+    "id": "inocencia-do-segredo",
+    "name": "Inocência do Segredo",
+    "type": "alianca"
+  },
+  {
+    "id": "poeira-cosmica",
+    "name": "Poeira Cósmica",
+    "type": "alianca"
+  },
+  {
+    "id": "simulacro-vivo",
+    "name": "Simulacro Vivo",
+    "type": "alianca"
+  },
+  {
+    "id": "flecha-da-fabulacao",
+    "name": "Flecha da Fabulação",
+    "type": "alianca"
+  },
+  {
+    "id": "acontecimento",
+    "name": "Acontecimento",
+    "type": "alianca"
+  },
+  {
+    "id": "asas-da-infancia",
+    "name": "Asas da Infância",
+    "type": "alianca"
+  },
+  {
+    "id": "amizade-filosofica",
+    "name": "Amizade Filosófica",
+    "type": "alianca"
+  },
+  {
+    "id": "asas-de-seda",
+    "name": "Asas de Seda",
+    "type": "monstro"
+  },
+  {
+    "id": "propulsores-de-mercurio",
+    "name": "Propulsores de Mercúrio",
+    "type": "monstro"
+  },
+  {
+    "id": "barbatanas-sedutoras",
+    "name": "Barbatanas Sedutoras",
+    "type": "monstro"
+  },
+  {
+    "id": "descarga-espinhal",
+    "name": "Descarga Espinhal",
+    "type": "monstro"
+  },
+  {
+    "id": "pele-lamelar",
+    "name": "Pele Lamelar",
+    "type": "monstro"
+  },
+  {
+    "id": "patas-de-veludo",
+    "name": "Patas de Veludo",
+    "type": "monstro"
+  },
+  {
+    "id": "cascos-de-ferro",
+    "name": "Cascos de Ferro",
+    "type": "monstro"
+  },
+  {
+    "id": "garras-de-obsidiana",
+    "name": "Garras de Obsidiana",
+    "type": "monstro"
+  },
+  {
+    "id": "manto-de-brasa",
+    "name": "Manto de Brasa",
+    "type": "monstro"
+  },
+  {
+    "id": "placas-de-couro",
+    "name": "Placas de Couro",
+    "type": "monstro"
+  },
+  {
+    "id": "concha-melancolica",
+    "name": "Concha Melancólica",
+    "type": "monstro"
+  },
+  {
+    "id": "la-oleosa",
+    "name": "Lã Oleosa",
+    "type": "monstro"
+  },
+  {
+    "id": "olhos-aracnideos",
+    "name": "Olhos Aracnídeos",
+    "type": "monstro"
+  },
+  {
+    "id": "cilios-de-neon",
+    "name": "Cílios de Neon",
+    "type": "monstro"
+  },
+  {
+    "id": "veu-dos-sonhos",
+    "name": "Véu dos Sonhos",
+    "type": "monstro"
+  },
+  {
+    "id": "boca-simbiotica",
+    "name": "Boca Simbiótica",
+    "type": "monstro"
+  },
+  {
+    "id": "olhos-enevoados",
+    "name": "Olhos Enevoados",
+    "type": "monstro"
+  },
+  {
+    "id": "nervos-desencapados",
+    "name": "Nervos Desencapados",
+    "type": "monstro"
+  },
+  {
+    "id": "glote-dourada",
+    "name": "Glote Dourada",
+    "type": "monstro"
+  },
+  {
+    "id": "espiraculo-de-fumo",
+    "name": "Espiráculo de Fumo",
+    "type": "monstro"
+  },
+  {
+    "id": "coracao-florescente",
+    "name": "Coração Florescente",
+    "type": "monstro"
+  },
+  {
+    "id": "presas-de-vampiro",
+    "name": "Presas de Vampiro",
+    "type": "monstro"
+  },
+  {
+    "id": "respiradores-branquiais",
+    "name": "Respiradores Branquiais",
+    "type": "monstro"
+  },
+  {
+    "id": "ventre-de-ovas",
+    "name": "Ventre de Ovas",
+    "type": "monstro"
+  },
+  {
+    "id": "esfincter-de-argila",
+    "name": "Esfíncter de Argila",
+    "type": "monstro"
+  },
+  {
+    "id": "colmeia-produtora",
+    "name": "Colmeia Produtora",
+    "type": "monstro"
+  },
+  {
+    "id": "pinca-hidraulica",
+    "name": "Pinça Hidráulica",
+    "type": "monstro"
+  },
+  {
+    "id": "gorgolejo-vulcanico",
+    "name": "Gorgolejo Vulcânico",
+    "type": "monstro"
+  },
+  {
+    "id": "couro-de-sucuri",
+    "name": "Couro de Sucuri",
+    "type": "monstro"
+  },
+  {
+    "id": "olhos-de-onca",
+    "name": "Olhos de Onça",
+    "type": "monstro"
+  },
+  {
+    "id": "penas-de-arara",
+    "name": "Penas de Arara",
+    "type": "monstro"
+  }
+]

@@ -8,16 +8,13 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
-    "serve-ia": "node server-ia.js",
-    "dev-ia": "concurrently -k \"npm:dev\" \"npm:serve-ia\""
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.3.1",
     "nanostores": "^1.4.2"
   },
   "devDependencies": {
-    "concurrently": "^10.0.4",
     "typescript": "^5.5.0",
     "vite": "^8.2.0"
   }

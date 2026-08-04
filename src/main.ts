@@ -3,22 +3,23 @@
 import '@fortawesome/fontawesome-free/css/fontawesome.min.css'
 import './style.css'
 
-import { appStore, definirTema, renovarDia } from './stores/app'
+import { appStore, definirTema, registrarDeck, renovarDia } from './stores/app'
 import { montarHoje } from './ui/views/hoje'
 import { montarFicha } from './ui/views/ficha'
+import { montarCartas } from './ui/views/cartas'
 import { montarConfig } from './ui/views/config'
-import { alternarChat, montarChat } from './ui/chat'
+import { carregarDeck } from './core/baralho'
 import { storageGet } from './db/storage'
 import type { Tema } from './core/tipos'
 
 const raiz = document.getElementById('app')!
 const navLinks = document.querySelectorAll<HTMLAnchorElement>('[data-rota]')
 
-type Rota = 'hoje' | 'ficha' | 'config'
+type Rota = 'hoje' | 'ficha' | 'cartas' | 'config'
 
 function rotaAtual(): Rota {
   const hash = location.hash.replace(/^#\/?/, '')
-  if (hash === 'ficha' || hash === 'config') return hash
+  if (hash === 'ficha' || hash === 'cartas' || hash === 'config') return hash
   return 'hoje'
 }
 
@@ -30,6 +31,9 @@ function montarRota(rota: Rota): void {
       break
     case 'ficha':
       montarFicha(raiz, dados)
+      break
+    case 'cartas':
+      montarCartas(raiz, dados)
       break
     case 'config':
       montarConfig(raiz, dados)
@@ -44,8 +48,6 @@ function aplicarTemaInicial(): void {
   const tema = (storageGet('esquizomon-rpg:tema') as Tema | null) ?? 'dark'
   definirTema(tema)
 }
-
-document.getElementById('fabula-toggle')!.addEventListener('click', () => alternarChat())
 
 document.getElementById('theme-toggle')!.addEventListener('click', () => {
   const atual = appStore.get().configuracao.tema
@@ -66,9 +68,13 @@ appStore.subscribe(() => montarRota(rotaAtual()))
 
 renovarDia()
 
-/* ---------- chat da Fábula ---------- */
+/* ---------- baralho (carrega o deck e sorteia as cartas iniciais) ---------- */
 
-montarChat()
+void carregarDeck()
+  .then((cartas) => registrarDeck(cartas))
+  .catch(() => {
+    /* deck indisponível — a galeria avisa */
+  })
 
 /* ---------- service worker (produção) ---------- */
 

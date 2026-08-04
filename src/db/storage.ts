@@ -1,6 +1,6 @@
 /** Persistência versionada + wrapper seguro (fallback em memória quando localStorage é bloqueado). */
 
-import type { AppData, ConfigIa, Configuracao, Personagem, Tarefa, Tema } from '../core/tipos'
+import type { AppData, Configuracao, Personagem, Tarefa, Tema } from '../core/tipos'
 import { STORAGE_KEY, TEMA_KEY, VERSAO_DADOS } from '../core/tipos'
 import { hpMaxDe, manaMaxDe, personagemInicial, xpProximoDe } from '../core/jogo'
 
@@ -121,6 +121,13 @@ function normalizarPersonagem(v: unknown): Personagem {
       if (typeof k === 'string' && typeof val === 'number') esferas[k] = val
     }
   }
+  const cartas = Array.isArray(p.cartas) ? p.cartas.filter((x): x is string => typeof x === 'string') : []
+  const invocacoes: Record<string, number> = {}
+  if (ehObjeto(p.invocacoes)) {
+    for (const [k, val] of Object.entries(p.invocacoes as Record<string, unknown>)) {
+      if (typeof k === 'string' && typeof val === 'number' && val > 0) invocacoes[k] = Math.floor(val)
+    }
+  }
   return {
     nivel,
     xp: typeof p.xp === 'number' && p.xp >= 0 ? Math.floor(p.xp) : 0,
@@ -132,27 +139,15 @@ function normalizarPersonagem(v: unknown): Personagem {
     esgotado: p.esgotado === true,
     ultimoDia: typeof p.ultimoDia === 'string' ? p.ultimoDia : '',
     esferas,
+    cartas,
+    invocacoes,
   }
 }
 
 function normalizarConfiguracao(v: unknown): Configuracao {
   const tema = ehObjeto(v) && (v.tema === 'light' || v.tema === 'dark') ? v.tema : 'dark'
   const modoRelaxado = ehObjeto(v) && v.modoRelaxado === true
-  const ia = ehObjeto(v) && ehObjeto(v.ia) ? normalizarConfigIa(v.ia) : undefined
-  return { tema, modoRelaxado, ia }
-}
-
-function normalizarConfigIa(v: Record<string, unknown>): ConfigIa {
-  const provider =
-    v.provider === 'gemini' || v.provider === 'opencode' || v.provider === 'openai' || v.provider === 'deepseek'
-      ? v.provider
-      : 'nenhum'
-  return {
-    provider,
-    modelo: typeof v.modelo === 'string' ? v.modelo : '',
-    apiKey: typeof v.apiKey === 'string' ? v.apiKey : '',
-    mundo: typeof v.mundo === 'string' ? v.mundo : undefined,
-  }
+  return { tema, modoRelaxado }
 }
 
 /** Valida e normaliza um dado bruto (de localStorage ou import). Null se irreparável. */

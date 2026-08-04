@@ -237,15 +237,18 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
     const id = acao.dataset.id!
 
     if (acao.dataset.alternarRec !== undefined) {
-      alternarRecorrenteHoje(id, dataVisivel)
+      const novas = alternarRecorrenteHoje(id, dataVisivel)
+      if (novas.length > 0) notificar(`🔓 Subiu de nível! ${novas.length} carta${novas.length > 1 ? 's' : ''} nova${novas.length > 1 ? 's' : ''} no baralho — veja em Cartas.`)
       return
     }
     if (acao.dataset.alternarUnica !== undefined) {
-      alternarUnica(id, dataVisivel)
+      const novas = alternarUnica(id, dataVisivel)
+      if (novas.length > 0) notificar(`🔓 Subiu de nível! ${novas.length} carta${novas.length > 1 ? 's' : ''} nova${novas.length > 1 ? 's' : ''} no baralho — veja em Cartas.`)
       return
     }
     if (acao.dataset.habito) {
-      registrarHabito(id, acao.dataset.habito as 'positivo' | 'negativo', dataVisivel)
+      const novas = registrarHabito(id, acao.dataset.habito as 'positivo' | 'negativo', dataVisivel)
+      if (novas.length > 0) notificar(`🔓 Subiu de nível! ${novas.length} carta${novas.length > 1 ? 's' : ''} nova${novas.length > 1 ? 's' : ''} no baralho — veja em Cartas.`)
       if (acao.dataset.habito === 'positivo') notificar('Repetição registrada.')
       else notificar('Marcado como negativo.')
       return

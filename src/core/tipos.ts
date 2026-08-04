@@ -19,7 +19,7 @@ export interface ContadorHabito {
   totalNegativo: number
 }
 
-/** Personagem do jogador — nível, XP, HP, mana e esferas. */
+/** Personagem do jogador — nível, XP, HP, mana, esferas e baralho. */
 export interface Personagem {
   nivel: number
   xp: number
@@ -34,6 +34,10 @@ export interface Personagem {
   ultimoDia: string
   /** XP acumulado por esfera (perfil de onde a energia vai). */
   esferas: Record<string, number>
+  /** Ids das cartas do baralho desbloqueadas (galeria). */
+  cartas: string[]
+  /** Nº de invocações por carta (custo de mana cresce até um teto). */
+  invocacoes: Record<string, number>
 }
 
 export interface Tarefa {
@@ -59,23 +63,10 @@ export interface Tarefa {
   criadaEm: string
 }
 
-/** Provider de IA para o chat da Fábula (BYOK). */
-export type ProviderIA = 'nenhum' | 'gemini' | 'opencode' | 'openai' | 'deepseek'
-
-export interface ConfigIa {
-  provider: ProviderIA
-  modelo: string
-  apiKey: string
-  /** Mundo fantástico escolhido (ver NARRATIVA.md §5). */
-  mundo?: string
-}
-
 export interface Configuracao {
   tema: Tema
   /** Modo relaxado: desliga o dano (jogo vira só bônus). */
   modoRelaxado?: boolean
-  /** Chat da Fábula — configuração BYOK. */
-  ia?: ConfigIa
 }
 
 export interface AppData {

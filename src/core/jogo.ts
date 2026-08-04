@@ -39,9 +39,9 @@ export function danoDe(dificuldade: Dificuldade): number {
 /** Dano de uma repetição negativa de hábito. */
 export const DANO_HABITO_NEGATIVO = 2
 
-/** XP necessário para subir do nível atual (curva suave: nível n exige n×100). */
+/** XP necessário para subir do nível atual (curva suave: nível n exige n×80). */
 export function xpProximoDe(nivel: number): number {
-  return Math.max(100, nivel * 100)
+  return Math.max(80, nivel * 80)
 }
 
 /** HP máximo por nível: 50 + 5 por nível acima do 1º. */
@@ -54,8 +54,57 @@ export function manaMaxDe(nivel: number): number {
   return 20 + (nivel - 1) * 2
 }
 
-/** Personagem inicial (nível 1). */
-export function personagemInicial() {
+/* ---------- baralho: desbloqueio e invocação ---------- */
+
+/** Cartas desbloqueadas no início: ~10% de 65 = 7. */
+export const CARTAS_INICIAIS = 7
+
+/** Cartas desbloqueadas a cada nível acima do 1º (2 por nível → completo no nível 30). */
+export function cartasPorNivel(): number {
+  return 2
+}
+
+/** Nível em que o baralho fica completo (65 cartas, 7 iniciais + 2/nível). */
+export function nivelBaralhoCompleto(): number {
+  return 1 + Math.ceil((65 - CARTAS_INICIAIS) / cartasPorNivel())
+}
+
+/** Custo base de invocação por tipo de carta (monstro < captura < aliança). */
+export function custoBaseInvocacao(tipo: 'monstro' | 'captura' | 'alianca'): number {
+  switch (tipo) {
+    case 'monstro':
+      return 2
+    case 'captura':
+      return 4
+    case 'alianca':
+      return 6
+  }
+}
+
+/** Incremento de custo por invocação repetida da mesma carta. */
+export function incrementoInvocacao(tipo: 'monstro' | 'captura' | 'alianca'): number {
+  switch (tipo) {
+    case 'monstro':
+      return 1
+    case 'captura':
+      return 2
+    case 'alianca':
+      return 3
+  }
+}
+
+/** Teto de invocações que encarecem (a partir daí o custo fica estável). */
+export const TETO_INVOCACOES = 3
+
+/** Custo atual de invocar uma carta, dado quantas vezes ela já foi invocada.
+ *  Ex.: monstro 2→3→4→5; captura 4→6→8→10; aliança 6→9→12→15. */
+export function custoInvocacao(tipo: 'monstro' | 'captura' | 'alianca', invocacoes: number): number {
+  const extras = Math.min(invocacoes, TETO_INVOCACOES)
+  return custoBaseInvocacao(tipo) + extras * incrementoInvocacao(tipo)
+}
+
+/** Personagem inicial (nível 1, 7 cartas sorteadas). */
+export function personagemInicial(cartasIniciais: string[] = []) {
   return {
     nivel: 1,
     xp: 0,
@@ -67,6 +116,8 @@ export function personagemInicial() {
     esgotado: false,
     ultimoDia: '',
     esferas: {},
+    cartas: cartasIniciais,
+    invocacoes: {},
   }
 }
 

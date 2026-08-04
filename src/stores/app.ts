@@ -3,7 +3,9 @@
 import { atom, computed } from 'nanostores'
 
 import type { Agenda, AppData, Configuracao, Dificuldade, Personagem, Tarefa, Tema, TipoTarefa } from '../core/tipos'
-import { DANO_HABITO_NEGATIVO, danoDe, diaDaSemana, diaDoMes, hojeISO, novoId, somarDias, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../core/jogo'
+import { DANO_HABITO_NEGATIVO, CARTAS_INICIAIS, cartasPorNivel, custoInvocacao, danoDe, diaDaSemana, diaDoMes, hojeISO, novoId, somarDias, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../core/jogo'
+import type { Carta } from '../core/baralho'
+import { sortearIds } from '../core/baralho'
 import { apagarTudo, carregar, normalizarDados, salvar, salvarTema } from '../db/storage'
 
 export const appStore = atom<AppData>(carregar())
@@ -120,8 +122,46 @@ export function reordenarTarefas(ids: string[]): void {
 
 /* ---------- mecânica de jogo ---------- */
 
-/** Aplica XP ao personagem (com esfera se houver); retorna se subiu de nível. */
-export function ganharXP(quantidade: number, esfera?: string): { subiu: boolean; nivel: number } {
+/* Deck carregado + fila de desbloqueio (o deck chega assíncrono no boot). */
+let deckCarregado: Carta[] | null = null
+let desbloqueioPendente = 0
+
+/** Registra o deck carregado; sorteia as cartas iniciais e processa desbloqueios pendentes. */
+export function registrarDeck(cartas: Carta[]): void {
+  deckCarregado = cartas
+  const dados = appStore.get()
+  const p = dados.personagem
+  if (p.cartas.length === 0 && !p.esgotado) {
+    // primeira execução: sorteia ~10% do baralho
+    const iniciais = sortearIds(cartas, CARTAS_INICIAIS)
+    appStore.set({ ...appStore.get(), personagem: { ...p, cartas: iniciais } })
+  }
+  if (desbloqueioPendente > 0) {
+    const n = desbloqueioPendente
+    desbloqueioPendente = 0
+    desbloquearCartas(n)
+  }
+}
+
+/** Sorteia e adiciona n cartas novas ao personagem; retorna os ids desbloqueados. */
+function desbloquearCartas(n: number): string[] {
+  const dados = appStore.get()
+  const p = dados.personagem
+  if (!deckCarregado) {
+    desbloqueioPendente += n
+    return []
+  }
+  const novos = sortearIds(deckCarregado, n, p.cartas)
+  if (novos.length === 0) return []
+  appStore.set({
+    ...dados,
+    personagem: { ...p, cartas: [...p.cartas, ...novos] },
+  })
+  return novos
+}
+
+/** Aplica XP ao personagem (com esfera se houver); retorna se subiu de nível e cartas novas. */
+export function ganharXP(quantidade: number, esfera?: string): { subiu: boolean; nivel: number; novasCartas: string[] } {
   const p = appStore.get().personagem
   let xp = p.xp + quantidade
   const esferas = { ...p.esferas }
@@ -132,11 +172,13 @@ export function ganharXP(quantidade: number, esfera?: string): { subiu: boolean;
   let { nivel } = p
   let xpProximo = p.xpProximo
   let subiu = false
+  let niveis = 0
   while (xp >= xpProximo) {
     xp -= xpProximo
     nivel += 1
     xpProximo = xpProximoDe(nivel)
     subiu = true
+    niveis += 1
   }
   const personagem: Personagem = {
     ...p,
@@ -154,7 +196,28 @@ export function ganharXP(quantidade: number, esfera?: string): { subiu: boolean;
     personagem.esgotado = false
   }
   appStore.set({ ...appStore.get(), personagem })
-  return { subiu, nivel }
+  const novasCartas = subiu ? desbloquearCartas(niveis * cartasPorNivel()) : []
+  return { subiu, nivel, novasCartas }
+}
+
+/** Invoca uma carta desbloqueada: gasta mana (custo cresce por invocação até o teto). */
+export function invocarCarta(id: string): Resultado {
+  const dados = appStore.get()
+  const p = dados.personagem
+  const carta = deckCarregado?.find((c) => c.id === id)
+  if (!carta) return { ok: false, motivo: 'Carta não encontrada.' }
+  if (!p.cartas.includes(id)) return { ok: false, motivo: 'Esta carta ainda está bloqueada.' }
+  const custo = custoInvocacao(carta.type, p.invocacoes[id] ?? 0)
+  if (p.mana < custo) return { ok: false, motivo: `Mana insuficiente — precisa de ${custo}.` }
+  appStore.set({
+    ...dados,
+    personagem: {
+      ...p,
+      mana: p.mana - custo,
+      invocacoes: { ...p.invocacoes, [id]: (p.invocacoes[id] ?? 0) + 1 },
+    },
+  })
+  return { ok: true }
 }
 
 /** Aplica dano ao personagem (no-op no modo relaxado). Retorna se esgotou. */
@@ -172,8 +235,8 @@ export function aplicarDano(quantidade: number): { esgotou: boolean } {
   return { esgotou }
 }
 
-/** Recorrente: marca/desmarca o dia no histórico (data = dia visível; default hoje). */
-export function alternarRecorrenteHoje(id: string, data: string = hojeISO()): void {
+/** Recorrente: marca/desmarca o dia no histórico (data = dia visível; default hoje). Retorna cartas novas. */
+export function alternarRecorrenteHoje(id: string, data: string = hojeISO()): string[] {
   const tarefas = appStore.get().tarefas.map((t) => {
     if (t.id !== id || t.tipo !== 'recorrente') return t
     const tem = t.historico.includes(data)
@@ -186,12 +249,13 @@ export function alternarRecorrenteHoje(id: string, data: string = hojeISO()): vo
   const tarefa = tarefas.find((t) => t.id === id)
   if (tarefa) {
     const marcada = tarefa.historico.includes(data)
-    if (marcada) ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera)
+    if (marcada) return ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera).novasCartas
   }
+  return []
 }
 
-/** Única: alterna concluída e registra a data (data = dia visível; default hoje). */
-export function alternarUnica(id: string, data: string = hojeISO()): void {
+/** Única: alterna concluída e registra a data (data = dia visível; default hoje). Retorna cartas novas. */
+export function alternarUnica(id: string, data: string = hojeISO()): string[] {
   const tarefas = appStore.get().tarefas.map((t) => {
     if (t.id !== id || t.tipo !== 'unica') return t
     const concluida = !t.concluida
@@ -205,11 +269,12 @@ export function alternarUnica(id: string, data: string = hojeISO()): void {
   })
   appStore.set({ ...appStore.get(), tarefas })
   const tarefa = tarefas.find((t) => t.id === id)
-  if (tarefa && tarefa.concluida) ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera)
+  if (tarefa && tarefa.concluida) return ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera).novasCartas
+  return []
 }
 
-/** Hábito: registra uma repetição positiva (+) ou negativa (−). */
-export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data: string = hojeISO()): void {
+/** Hábito: registra uma repetição positiva (+) ou negativa (−). Retorna cartas novas. */
+export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data: string = hojeISO()): string[] {
   const tarefas = appStore.get().tarefas.map((t) => {
     if (t.id !== id || t.tipo !== 'habito') return t
     const contador = t.contador ?? { hoje: 0, totalPositivo: 0, totalNegativo: 0 }
@@ -229,9 +294,10 @@ export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data
   appStore.set({ ...appStore.get(), tarefas })
   const tarefa = tarefas.find((t) => t.id === id)
   if (tarefa) {
-    if (sinal === 'positivo') ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera)
-    else aplicarDano(DANO_HABITO_NEGATIVO)
+    if (sinal === 'positivo') return ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera).novasCartas
+    aplicarDano(DANO_HABITO_NEGATIVO)
   }
+  return []
 }
 
 /** Reset diário (uma vez por dia): cobra dano das recorrentes perdidas de ontem e regenera mana. */
