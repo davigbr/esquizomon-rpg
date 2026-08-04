@@ -30,7 +30,12 @@ export async function montarCartas(raiz: HTMLElement, dados: AppData): Promise<v
   const total = deck.length
 
   const lista = (filtroTipo ? deck.filter((c) => c.type === filtroTipo) : deck)
-    .sort((a, b) => ORDEM_TIPO[a.type] - ORDEM_TIPO[b.type])
+    .sort((a, b) => {
+      // sempre desbloqueadas primeiro; dentro de cada grupo, monstros → capturas → alianças
+      const da = desbloqueadas.has(a.id) ? 0 : 1
+      const db = desbloqueadas.has(b.id) ? 0 : 1
+      return da - db || ORDEM_TIPO[a.type] - ORDEM_TIPO[b.type]
+    })
 
   raiz.innerHTML = `
     <header class="view-header">
@@ -81,7 +86,7 @@ function cardCarta(c: Carta, desbloqueada: boolean): string {
     <div class="carta-item${desbloqueada ? '' : ' carta-item--bloqueada'}" data-carta="${escapar(c.id)}" title="${escapar(c.name)}">
       ${desbloqueada
         ? `<img class="carta-img" src="/images/cards/${escapar(c.id)}.png" alt="${escapar(c.name)}" loading="lazy" />`
-        : `<div class="carta-lock"><i class="fa-solid fa-lock" aria-hidden="true"></i><span>Bloqueada</span></div>`}
+        : `<div class="carta-lock"><i class="fa-solid fa-lock" aria-hidden="true"></i><span class="carta-lock-nome">${escapar(c.name)}</span></div>`}
       <div class="carta-rodape">
         <span class="badge badge--${c.type}">${rotuloTipo(c.type)}</span>
         ${desbloqueada

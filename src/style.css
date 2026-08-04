@@ -1386,6 +1386,16 @@ select.campo {
   text-transform: uppercase;
 }
 
+.carta-lock-nome {
+  font-size: 12px !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  color: var(--text-secondary);
+  padding: 0 10px;
+  text-align: center;
+  line-height: 1.35;
+}
+
 .carta-nome {
   padding: 8px 10px 4px;
   display: flex;
@@ -1745,6 +1755,82 @@ select.campo {
 .morte-dica {
   margin: 0;
   color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ========== Gráficos de progressão ========== */
+.grafico-bloco {
+  margin: 18px 0;
+}
+
+.grafico-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.grafico-bolinha {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.grafico {
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  display: block;
+}
+
+.grafico-grade {
+  stroke: var(--border-color);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.6;
+}
+
+.grafico-linha {
+  vector-effect: non-scaling-stroke;
+}
+
+.grafico-atual {
+  stroke: var(--text-secondary);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  opacity: 0.9;
+}
+
+.grafico-ponto-atual {
+  stroke: var(--bg-primary);
+  stroke-width: 1.5;
+}
+
+.grafico-rotulo-y {
+  fill: var(--text-muted);
+  font-size: 10px;
+}
+
+.grafico-rotulo-x {
+  fill: var(--text-muted);
+  font-size: 10px;
+}
+
+.grafico-rotulo-atual {
+  fill: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.grafico-legenda {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.4;
 }
