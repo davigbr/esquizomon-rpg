@@ -7,6 +7,7 @@ import { appStore, definirTema, renovarDia } from './stores/app'
 import { montarHoje } from './ui/views/hoje'
 import { montarFicha } from './ui/views/ficha'
 import { montarConfig } from './ui/views/config'
+import { alternarChat, montarChat } from './ui/chat'
 import { storageGet } from './db/storage'
 import type { Tema } from './core/tipos'
 
@@ -44,6 +45,8 @@ function aplicarTemaInicial(): void {
   definirTema(tema)
 }
 
+document.getElementById('fabula-toggle')!.addEventListener('click', () => alternarChat())
+
 document.getElementById('theme-toggle')!.addEventListener('click', () => {
   const atual = appStore.get().configuracao.tema
   const proximo = atual === 'dark' ? 'light' : 'dark'
@@ -62,6 +65,10 @@ appStore.subscribe(() => montarRota(rotaAtual()))
 /* ---------- dia novo ---------- */
 
 renovarDia()
+
+/* ---------- chat da Fábula ---------- */
+
+montarChat()
 
 /* ---------- service worker (produção) ---------- */
 

@@ -1,6 +1,6 @@
 /** Persistência versionada + wrapper seguro (fallback em memória quando localStorage é bloqueado). */
 
-import type { AppData, Configuracao, Personagem, Tarefa, Tema } from '../core/tipos'
+import type { AppData, ConfigIa, Configuracao, Personagem, Tarefa, Tema } from '../core/tipos'
 import { STORAGE_KEY, TEMA_KEY, VERSAO_DADOS } from '../core/tipos'
 import { hpMaxDe, manaMaxDe, personagemInicial, xpProximoDe } from '../core/jogo'
 
@@ -138,7 +138,21 @@ function normalizarPersonagem(v: unknown): Personagem {
 function normalizarConfiguracao(v: unknown): Configuracao {
   const tema = ehObjeto(v) && (v.tema === 'light' || v.tema === 'dark') ? v.tema : 'dark'
   const modoRelaxado = ehObjeto(v) && v.modoRelaxado === true
-  return { tema, modoRelaxado }
+  const ia = ehObjeto(v) && ehObjeto(v.ia) ? normalizarConfigIa(v.ia) : undefined
+  return { tema, modoRelaxado, ia }
+}
+
+function normalizarConfigIa(v: Record<string, unknown>): ConfigIa {
+  const provider =
+    v.provider === 'gemini' || v.provider === 'opencode' || v.provider === 'openai' || v.provider === 'deepseek'
+      ? v.provider
+      : 'nenhum'
+  return {
+    provider,
+    modelo: typeof v.modelo === 'string' ? v.modelo : '',
+    apiKey: typeof v.apiKey === 'string' ? v.apiKey : '',
+    mundo: typeof v.mundo === 'string' ? v.mundo : undefined,
+  }
 }
 
 /** Valida e normaliza um dado bruto (de localStorage ou import). Null se irreparável. */

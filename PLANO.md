@@ -26,11 +26,12 @@ A tese de fundo: **a ficção não é fuga da realidade, é uma dobra que dá ou
 - Usar o baralho Esquizomon (65 cartas) como máquina de missões narrativas
 - Camada ficcional por IA sobre o contexto real do usuário (BYOK: Gemini, ChatGPT, DeepSeek, OpenCode)
 - Rodar em browser, celular (PWA) e desktop, com dados 100% do usuário (local-first + export/import)
+- Diário do dia (crônica curta, texto ou voz) — a matéria-prima real da fabulação
 
 **Não-objetivos (por ora)**
 - Não é um MMO / não tem multiplayer
 - Não é um sistema de RPG completo (sem combate por turnos, sem inventário complexo, sem fichas de atributos numéricas)
-- Não é um app de notas nem um habit tracker genérico — é um jogo de transformação do cotidiano
+- Não é um app de notas geral — o Diário é uma crônica breve do dia (1 entrada/dia), não um bloco de anotações; e não é um habit tracker genérico — é um jogo de transformação do cotidiano
 - Sem backend obrigatório: o app funciona offline; serviços externos são opcionais (IA, planilha)
 
 ---
@@ -137,7 +138,7 @@ A tese de fundo: **a ficção não é fuga da realidade, é uma dobra que dá ou
 - **Abertura do dia:** texto curto ficcionalizando o dia real (com carta do dia + tarefas de hoje)
 - **Reescrita narrativa:** cada tarefa pode ganhar um "nome ficcional" (ex.: "lavar a louça" → "purificar os artefatos do laboratório") — a lista real continua sendo a fonte
 - **Eventos ao concluir:** reação narrativa curta à conclusão
-- **Fechamento do dia:** balanço ficcional do que foi feito (opcional, 1×/dia)
+- **Fechamento do dia:** balanço ficcional do que foi feito (opcional, 1×/dia); pode dobrar o texto do **Diário** do dia, mas só com opt-in (seção 9 — o diário não vai à IA por padrão)
 - Estilo: tom cartográfico/afirmativo, sem jargão denso, sem moralismo
 
 ### 6.4 Operação do app por texto e voz
@@ -174,8 +175,8 @@ esquizomon-rpg/
 ├── src/
 │   ├── core/        # domínio puro: tipos.ts (modelo) + jogo.ts (dificuldade/XP/datas)
 │   ├── stores/      # app.ts — nanostores + ações + import/export
-│   ├── db/          # storage.ts — persistência versionada + wrapper seguro
-│   ├── ui/          # toast.ts, modal.ts, formTarefa.ts + views/ (hoje, tarefas, habitos, config)
+│   ├── db/          # storage.ts — persistência versionada + wrapper seguro; diario.ts — persistência do diário (fase 3)
+│   ├── ui/          # toast.ts, modal.ts, formTarefa.ts + views/ (hoje, tarefas, habitos, config, diario); onboarding.ts (fase 4)
 │   └── main.ts      # router hash + tema + SW
 ├── scripts/
 │   ├── exportar-baralho.mjs   # fase 3: vault → deck.json (idempotente)
@@ -219,6 +220,15 @@ interface EstadoBaralho {
 interface Contexto { /* perfil que alimenta a IA (6.2) */ }
 interface LogNarrativo { id: string; data: string; texto: string; tipo: 'abertura'|'evento'|'fechamento' }
 interface ConfigIA { provider: 'gemini'|'openai'|'deepseek'|'opencode'; modelo: string; chave?: string }
+
+interface EntradaDiario {
+  id: string
+  data: string        // YYYY-MM-DD — crônica do dia (1 por dia)
+  titulo: string
+  texto: string
+  criadaEm: string
+  editadaEm?: string
+}
 ```
 
 ---
@@ -257,7 +267,19 @@ O JSON não some — ele é o formato canônico; a planilha é uma *janela* sobr
 
 ---
 
-## 9. Visões (telas)
+## 9. Diário — a crônica do dia
+
+Registro diário curto (título + texto), por digitação **ou voz** — Web Speech API, transcrição direta no aparelho, **sem IA**: o diário não precisa de chave de API nem envia nada a provedores. Cada entrada é a crônica real do dia, matéria-prima que a fabulação do narrador pode dobrar — mas **só com opt-in** (o texto do diário não vai à IA por padrão; ver 6.3).
+
+- [REC] **1 entrada por dia** (ficha do dia, como no vault) — várias por dia fica para depois, se pedir
+- Campos: `data`, `titulo`, `texto`, `criadaEm`, `editadaEm?` (modelo em 7.3)
+- Voz: botão 🎤 no formulário → `SpeechRecognition` → preenche `texto` (título = primeira frase, editável)
+
+**Privacidade:** sem criptografia — os dados já ficam no dispositivo (local-first, seção 8) e nunca sobem a servidores; contra acesso físico ao aparelho, a proteção real é o bloqueio do próprio dispositivo. O texto do diário só vai à IA com opt-in (6.3).
+
+---
+
+## 10. Visões (telas)
 
 1. **Hoje** — dailies do dia + carta do dia/missão + barras HP/mana compactas
 2. **Tarefas** — todas (recorrentes + únicas), filtros por tag/esfera/dificuldade
@@ -265,21 +287,42 @@ O JSON não some — ele é o formato canônico; a planilha é uma *janela* sobr
 4. **Ficha** — nível, XP, HP, mana, esferas, histórico de dano/bônus
 5. **Baralho** — coleção (desbloqueadas/bloqueadas), carta do dia, invocar
 6. **Narrativa** — feed do narrador (aberturas, eventos, fechamentos)
-7. **Contexto** — perfil que alimenta a IA
-8. **Config** — providers de IA (BYOK), export/import, tema, modo relaxado
-9. *(fase 2+)* Semana/calendário
+7. **Diário** — crônica do dia (texto/voz)
+8. **Contexto** — perfil que alimenta a IA
+9. **Config** — providers de IA (BYOK), export/import, tema, modo relaxado, rever o tour
+10. *(fase 2+)* Semana/calendário
+
+### 10.1 Onboarding guiado (primeira execução)
+
+Na primeira execução (sem dados salvos), um **tour guiado** percorre a tela principal destacando cada componente e explicando como funciona:
+
+- **Navegação e visões** — o que é cada tela (Hoje, Tarefas, Hábitos, Ficha, Baralho, Narrativa, Diário, Contexto, Config)
+- **Barras HP/mana e XP** — o custo do descuido (dano leve, 4.2) e o combustível da invocação (4.3)
+- **Lista de tarefas** — o motor do jogo: concluir → XP → nível → desbloqueio de cartas → invocação (4.1, 5.6)
+- **Carta do dia** (fase 3+) — a missão narrativa do dia (5.3)
+- **Voz** — onde falar para criar/editar tarefas e registrar o Diário (6.4, 9)
+
+**Passo de IA (opcional, pulável):** ao final do tour, se nenhuma chave foi configurada, um passo sugere ativar o narrador — leva à tela Config e explica o BYOK (provider + modelo + chave, 6.1): sem chave o app funciona 100%; com chave, ganha abertura do dia, reações e comandos por texto/voz. Deixa claro o custo (modelos baratos por padrão, rate-limit).
+
+**Privacidade e código aberto:** um passo explícito informa que o app roda **100% local** — dados e histórico ficam no dispositivo, funciona offline, nada sobe a servidores — **exceto a camada de IA**, quando o usuário configura a própria chave (a chamada vai direto ao provider escolhido e a chave fica no dispositivo). O passo também aponta o repositório, **código aberto**: `https://github.com/davigbr/esquizomon-rpg` (remote `origin` configurado em 2026-08-04).
+
+**Regras de design:**
+- Sempre pulável ("Pular tour"); **não repetir** — flag `onboardingVisto` na config
+- Revisitar: botão "Rever tour" na tela Config
+- Implementação: overlay + highlight no elemento + tooltip, sem dependência nova (lib leve de tour só se ficar trabalhoso)
+- O tour acompanha as fases: na Fase 3 cobre até o Diário; o passo de IA entra na Fase 4
 
 ---
 
-## 10. Roadmap
+## 11. Roadmap
 
 | Fase | Conteúdo | "Pronto quando" |
 |---|---|---|
 | **0 — Ideação** | Este documento | Decisões marcadas resolvidas (ou conscientemente adiadas) |
 | **1 — MVP tarefas** | CRUD 3 tipos, dificuldade, tags, links; visões Hoje/Tarefas/Hábitos; persistência versionada; export/import JSON; PWA básico | ✅ **Feito (2026-08-03)** — build limpo, E2E validado (CRUD, toggles, filtros, streak, tema, export/import) |
 | **2 — Jogo** | XP/nível, HP, mana, dano diário, morte não-destrutiva, ficha; esferas (opcional) | ✅ **Feito (2026-08-03)** — XP/nível com restauração, HP + dano de recorrentes perdidas/hábitos negativos, esgotado sem reset, mana, esferas, modo relaxado, visão Ficha |
-| **3 — Baralho** | `deck.json` (script do vault), desbloqueio ~25%, carta do dia, invocação, combate leve | Um dia real tem missão de carta e recompensas |
-| **4 — IA** | BYOK multi-provider, contexto, narrador (abertura/eventos/fechamento), comandos texto/voz, parser de intenção | "Concluí a academia" conclui a tarefa e o narrador reage |
+| **3 — Baralho + Diário** | `deck.json` (script do vault), desbloqueio ~25%, carta do dia, invocação, combate leve; **Diário do dia (texto/voz)** | Um dia real tem missão de carta e recompensas; o diário guarda a crônica do dia |
+| **4 — IA** | BYOK multi-provider, contexto, narrador (abertura/eventos/fechamento), comandos texto/voz, parser de intenção, **onboarding guiado** (tour 10.1: componentes da tela, passo de ativar a IA, mensagem local-first + link do GitHub) | "Concluí a academia" conclui a tarefa e o narrador reage |
 | **5 — Distribuição** | Tauri desktop, ponte Sheets (Apps Script), polish, testes E2E | Usável nos 3 alvos com dados exportáveis |
 
 Cada fase termina com **build utilizável** (nada de metade de feature pendurada). [REC: começar Fase 1 com scaffold Vite + TS + nanostores + Dexie, seguindo o skill local-first-web-apps.]
@@ -288,7 +331,7 @@ Cada fase termina com **build utilizável** (nada de metade de feature pendurada
 
 ---
 
-## 11. Decisões em aberto (resumo)
+## 12. Decisões em aberto (resumo)
 
 | # | Pergunta | [REC] | Alternativa |
 |---|---|---|---|
@@ -305,10 +348,12 @@ Cada fase termina com **build utilizável** (nada de metade de feature pendurada
 | 11 | Voz | Web Speech API (browser/PWA); texto primeiro no desktop | plugin nativo Tauri |
 | 12 | Ouro/loja de recompensas | Fase 2+, só se fizer sentido | nunca |
 | 13 | Sync web ↔ celular | Fase 5: ponte Sheets (push Apps Script + pull Sheets API v4, last-write-wins) | só manual (export/import JSON) |
+| 14 | Diário | **DECIDIDO** (2026-08-04): 1 entrada/dia, título+texto, digitação ou voz (Web Speech API, sem IA); **sem criptografia** — dados já ficam no dispositivo (local-first, seção 8) | sem diário |
+| 15 | Onboarding guiado | Tour na primeira execução — pulável, não repetir, "Rever tour" na Config: mostra os componentes da tela principal, sugere configurar a IA (BYOK) e informa 100% local (exceto IA) + link do GitHub (código aberto) | sem onboarding / onboarding só em texto (sem tour guiado) |
 
 ---
 
-## 12. Riscos
+## 13. Riscos
 
 - **Escopo grande demais** (RPG + baralho + IA + 3 plataformas) → mitigação: fases pequenas, cada uma utilizável; IA e baralho só entram nas fases 3–4
 - **Mecânica punitiva afasta o uso real** → dano leve, morte não-destrutiva, modo relaxado
@@ -316,14 +361,16 @@ Cada fase termina com **build utilizável** (nada de metade de feature pendurada
 - **Baralho muda no vault** → export idempotente com ids estáveis (o site já usa ids estáveis após as renomeações)
 - **Voz é instável** (Safari/iOS limita SpeechRecognition; desktop precisa de plugin) → voz é camada opcional, texto cobre tudo
 - **Ficção virar ruído** → narrador conciso (abertura/eventos curtos), opção de silenciar eventos
+- **Onboarding virar atrito** → tour sempre pulável, curto, não repetir (flag) e revisável na Config
 
 ---
 
-## 13. Próximos passos
+## 14. Próximos passos
 
-1. [x] Resolver (ou adiar conscientemente) as decisões da seção 11
+1. [x] Resolver (ou adiar conscientemente) as decisões da seção 12
 2. [x] Decidir o nome/título do app
 3. [x] Fase 1: scaffold Vite + TS + nanostores + persistência versionada + CRUD de tarefas
 4. [x] Fase 1: visões Hoje/Tarefas/Hábitos + export/import JSON + PWA
 5. [x] Fase 2: XP/nível, HP, mana, dano diário, ficha
 6. [ ] Fase 3: baralho — `deck.json` (script do vault), desbloqueio ~25%, carta do dia, invocação, combate leve
+7. [ ] Fase 3: diário do dia (texto/voz)

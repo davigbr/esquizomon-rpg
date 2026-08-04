@@ -59,10 +59,23 @@ export interface Tarefa {
   criadaEm: string
 }
 
+/** Provider de IA para o chat da Fábula (BYOK). */
+export type ProviderIA = 'nenhum' | 'gemini' | 'opencode' | 'openai' | 'deepseek'
+
+export interface ConfigIa {
+  provider: ProviderIA
+  modelo: string
+  apiKey: string
+  /** Mundo fantástico escolhido (ver NARRATIVA.md §5). */
+  mundo?: string
+}
+
 export interface Configuracao {
   tema: Tema
   /** Modo relaxado: desliga o dano (jogo vira só bônus). */
   modoRelaxado?: boolean
+  /** Chat da Fábula — configuração BYOK. */
+  ia?: ConfigIa
 }
 
 export interface AppData {
