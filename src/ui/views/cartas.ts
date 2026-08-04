@@ -64,6 +64,11 @@ export async function montarCartas(raiz: HTMLElement, dados: AppData): Promise<v
       const alvo = e.target as HTMLElement
       if (alvo.closest('[data-invocar]')) return // o botão invocar trata o clique dele
       const id = item.getAttribute('data-carta')!
+      // cartas bloqueadas ficam ocultas — nenhum modal revela a carta
+      if (!appStore.get().personagem.cartas.includes(id)) {
+        notificar('Carta bloqueada — suba de nível para desbloquear.')
+        return
+      }
       abrirModalCarta(id)
     })
   })

@@ -3,7 +3,7 @@
 import { atom, computed } from 'nanostores'
 
 import type { Agenda, AppData, Configuracao, Dificuldade, Personagem, Tarefa, Tema, TipoTarefa } from '../core/tipos'
-import { DANO_HABITO_NEGATIVO, cartasPorNivel, custoInvocacao, danoDe, diaDaSemana, diaDoMes, hojeISO, novoId, somarDias, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../core/jogo'
+import { DANO_HABITO_NEGATIVO, cartasPorNivel, custoInvocacao, danoDe, diaDaSemana, diaDoMes, hojeISO, novoId, personagemInicial, somarDias, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../core/jogo'
 import type { Carta } from '../core/baralho'
 import { sortearIds, sortearIniciais } from '../core/baralho'
 import { apagarTudo, carregar, normalizarDados, salvar, salvarTema } from '../db/storage'
@@ -392,9 +392,14 @@ export function apagarTodosDados(): void {
   appStore.set({
     versao: appStore.get().versao,
     tarefas: [],
-    personagem: appStore.get().personagem,
+    personagem: personagemInicial(),
     configuracao: appStore.get().configuracao,
   })
+  // o deck já carregou no boot — re-sorteia as cartas iniciais do baralho zerado
+  if (deckCarregado) {
+    const iniciais = sortearIniciais(deckCarregado)
+    appStore.set({ ...appStore.get(), personagem: { ...appStore.get().personagem, cartas: iniciais } })
+  }
 }
 
 /* ---------- derivados ---------- */
