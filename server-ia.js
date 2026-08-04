@@ -16,6 +16,11 @@ import http from 'node:http'
 
 const PORT = Number(process.env.IA_PROXY_PORT ?? 5177)
 const DEFAULT_UPSTREAM = process.env.IA_UPSTREAM ?? 'https://opencode.ai/zen/go/v1'
+/** Chave padrão do ambiente (dedicada ao Esquizomon RPG). Usada quando a requisição não traz Authorization. */
+const ENV_KEY =
+  process.env.OPENCODE_GO_ESQUIZOMONRPG_TOKEN ||
+  process.env.OPENCODE_GO_API_KEY ||
+  ''
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -41,21 +46,23 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && url.pathname === '/v1/chat/completions') {
     const base = String(req.headers['x-target-host'] || DEFAULT_UPSTREAM).replace(/\/+$/, '')
-    const auth = String(req.headers['authorization'] || '')
+    const auth = String(req.headers['authorization'] || '').trim()
     const chunks = []
     for await (const c of req) chunks.push(c)
     const body = Buffer.concat(chunks).toString('utf8')
 
-    if (!auth) {
+    // Chave: usa a da requisição; se ausente, injeta a do ambiente (BYOK via env).
+    const chave = auth || (ENV_KEY ? `Bearer ${ENV_KEY}` : '')
+    if (!chave) {
       res.writeHead(401, { ...CORS, 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ error: { message: 'Sem chave. Configure a IA em Config → Fábula.' } }))
+      res.end(JSON.stringify({ error: { message: 'Sem chave: configure em Config → Fábula ou exporte OPENCODE_GO_ESQUIZOMONRPG_TOKEN.' } }))
       return
     }
 
     try {
       const up = await fetch(base + '/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: auth },
+        headers: { 'Content-Type': 'application/json', Authorization: chave },
         body,
       })
       const ct = up.headers.get('content-type') ?? ''

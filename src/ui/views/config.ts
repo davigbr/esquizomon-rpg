@@ -18,6 +18,15 @@ const MUNDOS = [
   'O Clube da Meia-Noite',
 ] as const
 
+/** Modelos sugeridos por provider (o usuário pode digitar outro livremente). */
+const MODELOS_POR_PROVIDER: Record<ProviderIA, string[]> = {
+  nenhum: [],
+  gemini: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'],
+  opencode: ['deepseek-v4-flash', 'deepseek-v4', 'deepseek-chat', 'minimax-m3'],
+  openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1'],
+  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+}
+
 export function montarConfig(raiz: HTMLElement, dados: AppData): void {
   const tema = dados.configuracao.tema
   const modoRelaxado = dados.configuracao.modoRelaxado === true
@@ -84,7 +93,11 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
           <div class="config-rotulo">Modelo</div>
           <div class="config-dica">Em branco usa o padrão do provider</div>
         </div>
-        <input class="campo config-campo-curto" data-ia-modelo value="${escapar(modelo)}" placeholder="ex.: deepseek-v4-flash" />
+        <select class="filtro-select" data-ia-modelo>
+          <option value="">Padrão do provider</option>
+          ${MODELOS_POR_PROVIDER[provider].map((m) => `<option value="${escapar(m)}" ${modelo === m ? 'selected' : ''}>${escapar(m)}</option>`).join('')}
+          ${modelo && !MODELOS_POR_PROVIDER[provider].includes(modelo) ? `<option value="${escapar(modelo)}" selected>${escapar(modelo)} (personalizado)</option>` : ''}
+        </select>
       </div>
       <div class="config-linha">
         <div>
@@ -141,14 +154,28 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
 
   /* ---------- IA (Fábula) ---------- */
   const inputProvider = raiz.querySelector('[data-ia-provider]') as HTMLSelectElement
-  const inputModelo = raiz.querySelector('[data-ia-modelo]') as HTMLInputElement
+  const inputModelo = raiz.querySelector('[data-ia-modelo]') as HTMLSelectElement
   const inputChave = raiz.querySelector('[data-ia-chave]') as HTMLInputElement
   const inputMundo = raiz.querySelector('[data-ia-mundo]') as HTMLSelectElement
+
+  /** Repopula as opções de modelo conforme o provider, preservando a seleção se existir. */
+  function repopularModelos(): void {
+    const atual = inputModelo.value
+    const opcoes = MODELOS_POR_PROVIDER[inputProvider.value as ProviderIA]
+    inputModelo.innerHTML =
+      '<option value="">Padrão do provider</option>' +
+      opcoes
+        .map((m) => `<option value="${escapar(m)}" ${atual === m ? 'selected' : ''}>${escapar(m)}</option>`)
+        .join('') +
+      (atual && !opcoes.includes(atual) ? `<option value="${escapar(atual)}" selected>${escapar(atual)} (personalizado)</option>` : '')
+  }
+
+  inputProvider.addEventListener('change', repopularModelos)
 
   function lerIA() {
     return {
       provider: inputProvider.value as ProviderIA,
-      modelo: inputModelo.value.trim(),
+      modelo: inputModelo.value,
       apiKey: inputChave.value.trim(),
       mundo: inputMundo.value || undefined,
     }
