@@ -27,7 +27,6 @@ export async function montarCartas(raiz: HTMLElement, dados: AppData): Promise<v
   }
   const deck = deckCache
   const desbloqueadas = new Set(dados.personagem.cartas)
-  const mana = dados.personagem.mana
   const total = deck.length
 
   const lista = (filtroTipo ? deck.filter((c) => c.type === filtroTipo) : deck)
@@ -44,7 +43,6 @@ export async function montarCartas(raiz: HTMLElement, dados: AppData): Promise<v
       <button class="filtro-chip${filtroTipo === 'monstro' ? ' ativo' : ''}" data-filtro-tipo="monstro">Monstros</button>
       <button class="filtro-chip${filtroTipo === 'captura' ? ' ativo' : ''}" data-filtro-tipo="captura">Capturas</button>
       <button class="filtro-chip${filtroTipo === 'alianca' ? ' ativo' : ''}" data-filtro-tipo="alianca">Alianças</button>
-      <span class="filtros-rotulo" style="margin-left:auto">Mana: ${mana}</span>
     </div>
 
     <div class="cartas-grade">
@@ -96,27 +94,43 @@ function cardCarta(c: Carta, desbloqueada: boolean): string {
 
 function abrirModalCarta(id: string): void {
   const deck = deckCache ?? []
-  const carta = deck.find((c) => c.id === id)
-  if (!carta) return
   const dados = appStore.get()
-  const desbloqueada = dados.personagem.cartas.includes(id)
+  // apenas cartas desbloqueadas navegam no modal
+  const desbloqueadas = deck.filter((c) => dados.personagem.cartas.includes(c.id))
+  const indice = desbloqueadas.findIndex((c) => c.id === id)
+  const carta = desbloqueadas[indice] ?? deck.find((c) => c.id === id)
+  if (!carta) return
+  const anterior = desbloqueadas[indice - 1]
+  const proxima = desbloqueadas[indice + 1]
   const invocacoes = dados.personagem.invocacoes[id] ?? 0
   const custo = custoInvocacao(tipoDe(carta), invocacoes)
 
   abrirModal(`
     <div class="carta-modal">
-      <img class="carta-modal-img" src="/images/cards/${escapar(id)}.png" alt="${escapar(carta.name)}" />
-      <div class="carta-modal-info">
-        <span class="badge badge--${carta.type}">${rotuloTipo(carta.type)}</span>
-        <h2>${escapar(carta.name)}</h2>
-        <p class="carta-modal-custo"><i class="fa-solid fa-droplet" aria-hidden="true"></i> ${custo} mana${invocacoes > 0 ? ` · invocada ${invocacoes}×` : ''}</p>
-        ${desbloqueada
-          ? `<button class="btn btn-primary" data-modal-invocar>Invocar</button>`
-          : `<p class="config-dica">Carta bloqueada — suba de nível para desbloquear.</p>`}
+      <button class="carta-modal-seta" data-modal-anterior aria-label="Carta anterior" ${anterior ? '' : 'disabled'}>
+        <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+      </button>
+      <div class="carta-modal-central">
+        <img class="carta-modal-img" src="/images/cards/${escapar(id)}.png" alt="${escapar(carta.name)}" />
+        <div class="carta-modal-info">
+          <span class="badge badge--${carta.type}">${rotuloTipo(carta.type)}</span>
+          <h2>${escapar(carta.name)}</h2>
+          <p class="carta-modal-custo"><i class="fa-solid fa-droplet" aria-hidden="true"></i> ${custo} mana${invocacoes > 0 ? ` · invocada ${invocacoes}×` : ''}</p>
+          <button class="btn btn-primary" data-modal-invocar>Invocar</button>
+        </div>
       </div>
+      <button class="carta-modal-seta" data-modal-proxima aria-label="Próxima carta" ${proxima ? '' : 'disabled'}>
+        <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+      </button>
     </div>
   `)
 
+  modalBody.querySelector('[data-modal-anterior]')?.addEventListener('click', () => {
+    if (anterior) abrirModalCarta(anterior.id)
+  })
+  modalBody.querySelector('[data-modal-proxima]')?.addEventListener('click', () => {
+    if (proxima) abrirModalCarta(proxima.id)
+  })
   modalBody.querySelector('[data-modal-invocar]')?.addEventListener('click', () => {
     const resultado = invocarCarta(id)
     if (resultado.ok) {

@@ -1435,9 +1435,41 @@ select.campo {
 /* ========== Modal de carta ========== */
 .carta-modal {
   display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.carta-modal-central {
+  display: grid;
   grid-template-columns: auto 1fr;
   gap: 20px;
   align-items: start;
+}
+
+.carta-modal-seta {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition);
+  flex-shrink: 0;
+}
+
+.carta-modal-seta:hover:not(:disabled) {
+  border-color: var(--border-gold);
+  color: var(--accent-gold);
+}
+
+.carta-modal-seta:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .carta-modal-img {
@@ -1474,10 +1506,97 @@ select.campo {
   .carta-modal {
     grid-template-columns: 1fr;
   }
+  .carta-modal-seta {
+    width: 36px;
+    height: 36px;
+  }
+  .carta-modal-seta:first-child {
+    grid-row: 2;
+    justify-self: end;
+  }
+  .carta-modal-seta:last-child {
+    grid-row: 2;
+    justify-self: start;
+  }
+  .carta-modal-central {
+    grid-template-columns: 1fr;
+  }
   .carta-modal-img {
     width: 100%;
     max-width: none;
   }
+}
+
+/* ========== Barra de status fixa (nível, XP, mana) ========== */
+.status-bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 6px 24px;
+  background: var(--bg-header, var(--bg-secondary));
+  border-bottom: 1px solid var(--border-color);
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.status-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.status-item i {
+  font-size: 11px;
+}
+
+.status-item--nivel i {
+  color: var(--accent-gold);
+}
+
+.status-item--xp i {
+  color: var(--accent-gold);
+}
+
+.status-item--mana i {
+  color: #2868d0;
+}
+
+.status-item--esgotado {
+  color: var(--accent-red);
+  font-weight: 600;
+}
+
+.status-trilho {
+  width: 90px;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.status-preenchimento {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.status-preenchimento--xp {
+  background: var(--accent-gold);
+}
+
+.status-preenchimento--mana {
+  background: #2868d0;
 }
 
 /* ========== Responsivo ========== */

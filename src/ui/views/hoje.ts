@@ -52,9 +52,6 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
 
   const filtroAtivo = filtroTag !== null || filtroDif !== ''
   const p = dados.personagem
-  const pctHp = Math.round((p.hp / p.hpMax) * 100)
-  const pctMana = Math.round((p.mana / p.manaMax) * 100)
-  const pctXp = Math.round((p.xp / p.xpProximo) * 100)
 
   raiz.innerHTML = `
     <header class="view-header">
@@ -66,25 +63,7 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
       <p class="view-sub">${escapar(dataPorExtenso(dataVisivel))}</p>
     </header>
 
-    <div class="ficha-compacta">
-      <div class="ficha-nivel">Nv <b>${p.nivel}</b></div>
-      <div class="ficha-barra" title="HP">
-        <span class="ficha-barra-rotulo">HP</span>
-        <div class="ficha-barra-trilho"><div class="ficha-barra-preenchimento ficha-barra--hp" style="width:${pctHp}%"></div></div>
-        <span class="ficha-barra-valor">${p.hp}/${p.hpMax}</span>
-      </div>
-      <div class="ficha-barra" title="Mana">
-        <span class="ficha-barra-rotulo">MANA</span>
-        <div class="ficha-barra-trilho"><div class="ficha-barra-preenchimento ficha-barra--mana" style="width:${pctMana}%"></div></div>
-        <span class="ficha-barra-valor">${p.mana}/${p.manaMax}</span>
-      </div>
-      <div class="ficha-barra" title="XP">
-        <span class="ficha-barra-rotulo">XP</span>
-        <div class="ficha-barra-trilho"><div class="ficha-barra-preenchimento ficha-barra--xp" style="width:${pctXp}%"></div></div>
-        <span class="ficha-barra-valor">${p.xp}/${p.xpProximo}</span>
-      </div>
-      ${p.esgotado ? '<div class="ficha-esgotado"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Esgotado — sem regeneração de mana até o próximo dia. Conclua tarefas para se recuperar.</div>' : ''}
-    </div>
+    ${p.esgotado ? '<div class="ficha-esgotado"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Esgotado — sem regeneração de mana até o próximo dia. Conclua tarefas para se recuperar.</div>' : ''}
 
     <div class="filtros">
       ${tags.length > 0

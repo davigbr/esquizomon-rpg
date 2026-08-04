@@ -57,12 +57,43 @@ document.getElementById('theme-toggle')!.addEventListener('click', () => {
   if (icone) icone.className = `fa-solid ${proximo === 'dark' ? 'fa-moon' : 'fa-sun'}`
 })
 
+/* ---------- barra de status (nível, XP, mana — fixa em todas as telas) ---------- */
+
+const statusBar = document.getElementById('status-bar')!
+
+function montarStatusBar(): void {
+  const p = appStore.get().personagem
+  const pctXp = Math.min(100, Math.round((p.xp / p.xpProximo) * 100))
+  const pctMana = Math.round((p.mana / p.manaMax) * 100)
+  const esgotado = p.esgotado
+  statusBar.innerHTML = `
+    <div class="status-item status-item--nivel" title="Nível">
+      <i class="fa-solid fa-arrow-trend-up" aria-hidden="true"></i>
+      <span>Nv ${p.nivel}</span>
+    </div>
+    <div class="status-item status-item--xp" title="Experiência ${p.xp}/${p.xpProximo}">
+      <i class="fa-solid fa-star" aria-hidden="true"></i>
+      <span>XP ${p.xp}/${p.xpProximo}</span>
+      <div class="status-trilho"><div class="status-preenchimento status-preenchimento--xp" style="width:${pctXp}%"></div></div>
+    </div>
+    <div class="status-item status-item--mana" title="Mana ${p.mana}/${p.manaMax}">
+      <i class="fa-solid fa-droplet" aria-hidden="true"></i>
+      <span>Mana ${p.mana}/${p.manaMax}</span>
+      <div class="status-trilho"><div class="status-preenchimento status-preenchimento--mana" style="width:${pctMana}%"></div></div>
+    </div>
+    ${esgotado ? '<div class="status-item status-item--esgotado" title="Esgotado"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>Esgotado</span></div>' : ''}
+  `
+}
+
 /* ---------- router ---------- */
 
 window.addEventListener('hashchange', () => montarRota(rotaAtual()))
 
 /* re-render na troca de estado, mantendo a rota atual */
-appStore.subscribe(() => montarRota(rotaAtual()))
+appStore.subscribe(() => {
+  montarStatusBar()
+  montarRota(rotaAtual())
+})
 
 /* ---------- dia novo ---------- */
 
@@ -85,4 +116,5 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 }
 
 aplicarTemaInicial()
+montarStatusBar()
 montarRota(rotaAtual())
