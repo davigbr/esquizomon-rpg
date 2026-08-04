@@ -143,7 +143,134 @@ a ninguém, mas deixa você ler — é o seu diário, escrito pela mão dela.
 
 ---
 
-## 5. O ciclo do dia (game loop)
+## 5. Os mundos possíveis
+
+Na primeira configuração, você escolhe o **mundo** em que a sua aventura acontece. Cada
+mundo é uma lente diferente para as **mesmas** forças — o Mesmo, o Sempre Mais, as
+capturas, as alianças, as linhas de fuga. O baralho mantém os papéis em todos eles
+(Monstro, Captura, Aliança); o que muda é a roupa que cada um veste. E a Fábula se
+adapta: mesma personagem, outra função em cada mundo.
+
+A escolha do mundo não muda o que o jogo é — muda a língua em que a sua vida é contada.
+
+### 5.1 O Império e a Célula *(guerrilha / agência secreta)*
+
+Você é uma **célula de resistência infiltrada** numa cidade ocupada — a sua rotina é a
+cidade. Cada tarefa é uma operação: reabastecer a rede, enviar mensagem cifrada,
+sabotar o relógio da fábrica.
+
+- **O Mesmo** = o Império: mantém a cidade de pé (sem ordem, tudo desaba), mas quer
+  controle total — o trabalho e a burocracia são os tentáculos dele.
+- **O Sempre Mais** = o Regulamento de Produção: as metas infinitas da fábrica. A
+  própria célula pode virar captura — o heroísmo autoprodutor, "a revolução espera,
+  produza mais".
+- **Cartas:** Captura = agentes do Império, o Inspetor de Horários; Aliança = contatos,
+  desertores, a rede.
+- **Fábula** = contato da célula, rádio cifrado: *"O Império apertou o turno da tarde.
+  Reconheço a mão do Regulamento. O que a célula decide?"*
+
+### 5.2 O Grimório *(magos do caos, demônios)*
+
+Você é um **mago do caos** que reescreve o próprio destino com sigilos e rituais —
+demônios e entidades são reais e moram no cotidiano. Tarefas = rituais: consagrar o
+dia, invocar foco, banir a paralisia. O check-in é a leitura das cartas.
+
+- **O Mesmo** = o Roteiro: o destino já escrito, o texto sagrado que diz como sua vida
+  *deve* ser. Estabiliza o mago; quer prendê-lo ao roteiro.
+- **O Sempre Mais** = o Demônio da Ambição: o pacto fáustico do desempenho — "mais
+  poder, mais rituais, mais resultados".
+- **Cartas:** Captura = demônios vinculantes, a dívida demoníaca; Aliança = espíritos
+  aliados, familiares.
+- **Fábula** = a voz do grimório: *"Ritual de abertura registrado. Cuidado com o
+  Demônio da Ambição — ele adora quem acorda cedo demais."*
+
+### 5.3 O Bestiário *(a Coalizão dos Monstros — o mundo padrão)*
+
+Você é um **organizador da monstruosidade**. Neste mundo, os monstros não são ameaças —
+são **potência política pura**: formas de vida que a ordem chama de "anomalia" porque
+não servem à produção, e que por isso mesmo não se deixam capturar. A monstruosidade é
+a diferença radical que desvia, resiste e inventa. Você não doma monstros — **organiza**
+monstros: reúne as criaturas espalhadas, compõe forças entre formas de vida distintas,
+defende territórios monstruosos, escreve o manifesto do possível. As cartas de Monstro
+do baralho são formas de vida que **você carrega** — não demônios a expulsar, mas
+potências suas que pedem organização e cuidado, não exorcismo.
+
+- **O Mesmo** = a Máquina de Normalização: a força que chama de "monstruoso" tudo que
+  não se encaixa e trabalha sem parar para corrigir, moldar, enquadrar. Não mata o
+  monstro — pior: quer torná-lo "normal" (útil, produtivo, previsível). A normalização
+  como projeto político.
+- **O Sempre Mais** = o capataz da monstruosidade útil: a diferença capturada e posta
+  para trabalhar — a potência transformada em produtividade, a anomalia domesticada em
+  mão de obra.
+- **Cartas:** Captura = as forças de normalização (o veterinário do Estado, a escola que
+  corrige, o manual do comportamento certo); Aliança = outros monstros, coletivos, a
+  multidão — e os monstros que você carrega, organizados.
+- **Fábula** = a arquivista das formas proibidas, a historiadora que registra as
+  criaturas que a história oficial apagou: *"Eles chamam de anomalia o que não cabe no
+  manual. Anotei: é forma de vida. O que a coalizão decide?"*
+
+### 5.4 A Ferrovia *(trilhos)*
+
+Você é o **condutor de um trem** que atravessa um continente — o trem é a sua vida, os
+trilhos são a rotina. Tarefas = manobras, trocas de agulha, abastecimento; alguns dias
+você segue o trilho, outros decide mudar de rota.
+
+- **O Mesmo** = o trilho, no sentido literal: sem ele o trem não anda. O trilho não é
+  mau — o problema é nunca sair dele.
+- **O Sempre Mais** = a velocidade: o horário que nunca pode atrasar, a estação que
+  exige pontualidade infinita.
+- **Cartas:** Captura = descarrilamentos, estações-fantasma que prendem; Aliança =
+  passageiros, outras linhas, o maquinista velho.
+- **Fábula** = a telegrafista: *"O trem de hoje sai às sete. O horário quer que você
+  corra; a linha quer que você veja a paisagem. Sua chamada."*
+
+### 5.5 O Jardim do Fim do Mundo *(cultivo)*
+
+Você é a última **jardineira/jardineiro** de um mundo em ruínas — o que você planta e
+rega hoje é o mundo de amanhã. Tarefas = cultivar: semear, podar, colher. E o descanso
+é o **pousio**: o não-fazer é parte do ciclo, não falha.
+
+- **O Mesmo** = o solo: a terra firme que sustenta e alimenta — e o deserto que avança
+  quando nada é cuidado.
+- **O Sempre Mais** = a monocultura: o agrotóxico que promete "mais safra" e envenena a
+  terra; a colheita que nunca deixa pousio.
+- **Cartas:** Captura = pragas, a seca, o deserto; Aliança = sementes, polinizadores,
+  outras criaturas.
+- **Fábula** = a anciã que conhece todas as plantas: *"A terra de hoje está pedindo
+  pousio. O agrotóxico promete mais; a terra pede descanso. O que você planta?"*
+
+### 5.6 A Expedição ao Continente *(cartografia — o mapa ≠ o decalque)*
+
+Você é um **cartógrafo-explorador** de um continente que ninguém mapeou: a sua vida.
+Cada dia é uma expedição; você desenha o mapa enquanto vive.
+
+- **O Mesmo** = o mapa antigo e errado: o decalque dos outros que diz como o território
+  *deveria* ser. Orienta (sem mapa você se perde), mas mente.
+- **O Sempre Mais** = a companhia extratora: "transforme tudo em produto", extraia o
+  continente até virar fazenda.
+- **Cartas:** Captura = armadilhas do território, o decalque; Aliança = guias locais,
+  povos, outras expedições.
+- **Fábula** = a agente da Sociedade de Cartografia: *"O mapa antigo diz que ali não há
+  nada. O território diz o contrário. Em quem você acredita?"*
+
+### 5.7 O Clube da Meia-Noite *(sociedade secreta)*
+
+Você pertence a uma **sociedade secreta** que mantém o mundo funcionando pelos
+bastidores. Tarefas = ritos diários, missões discretas, proteger o segredo. O check-in
+é a reunião.
+
+- **O Mesmo** = o Protocolo: as regras que mantêm a ordem — necessárias, mas capazes de
+  virar burocracia que sufoca.
+- **O Sempre Mais** = o Grau Superior: a hierarquia que promete "subir mais um grau"
+  para sempre — a iniciação infinita.
+- **Cartas:** Captura = a Loja Negra, o juramento que escraviza; Aliança = irmãos de
+  loja.
+- **Fábula** = a secretária do clube, que anota tudo: *"Seu rito de hoje foi
+  registrado. Cuidado com o Grau Superior — ele promete o que nunca entrega."*
+
+---
+
+## 6. O ciclo do dia (game loop)
 
 ### Abertura — o check-in
 
@@ -185,7 +312,7 @@ de um modo de journaling.
 
 ---
 
-## 6. Regras de ouro (anti-produtividade)
+## 7. Regras de ouro (anti-produtividade)
 
 1. **O registro serve à história, não à pontuação.** Medimos para contar, não para ranquear.
 2. **Vale o que foi declarado como intenção**, não o volume de tarefas.
@@ -195,7 +322,7 @@ de um modo de journaling.
 
 ---
 
-## 7. O mundo próprio
+## 8. O mundo próprio
 
 A cada nível, uma **região do seu mundo** é construída — um lugar nomeado a partir da
 sua vida real, pela Cronista. O jogo começa no "bairro" (sua rotina mais próxima) e vai
