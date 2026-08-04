@@ -20,7 +20,7 @@ import { alternarRecorrenteHoje, alternarUnica, appStore, excluirTarefa, registr
 import { abrirFormTarefa, escapar } from '../formTarefa'
 import { renderizarNotas } from '../notas'
 import { confirmar } from '../modal'
-import { notificar } from '../toast'
+import { notificar, notificarCartas } from '../toast'
 
 /* Estado de filtro em nível de módulo — sobrevive aos re-renders do subscribe. */
 let filtroTag: string | null = null
@@ -217,17 +217,17 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
 
     if (acao.dataset.alternarRec !== undefined) {
       const novas = alternarRecorrenteHoje(id, dataVisivel)
-      if (novas.length > 0) notificar(`🔓 Subiu de nível! ${novas.length} carta${novas.length > 1 ? 's' : ''} nova${novas.length > 1 ? 's' : ''} no baralho — veja em Cartas.`)
+      if (novas.length > 0) void notificarCartas(novas, `🔓 Subiu de nível! ${novas.length} carta${novas.length > 1 ? 's' : ''} nova${novas.length > 1 ? 's' : ''} no baralho`)
       return
     }
     if (acao.dataset.alternarUnica !== undefined) {
       const novas = alternarUnica(id, dataVisivel)
-      if (novas.length > 0) notificar(`🔓 Subiu de nível! ${novas.length} carta${novas.length > 1 ? 's' : ''} nova${novas.length > 1 ? 's' : ''} no baralho — veja em Cartas.`)
+      if (novas.length > 0) void notificarCartas(novas, `🔓 Subiu de nível! ${novas.length} carta${novas.length > 1 ? 's' : ''} nova${novas.length > 1 ? 's' : ''} no baralho`)
       return
     }
     if (acao.dataset.habito) {
       const novas = registrarHabito(id, acao.dataset.habito as 'positivo' | 'negativo', dataVisivel)
-      if (novas.length > 0) notificar(`🔓 Subiu de nível! ${novas.length} carta${novas.length > 1 ? 's' : ''} nova${novas.length > 1 ? 's' : ''} no baralho — veja em Cartas.`)
+      if (novas.length > 0) void notificarCartas(novas, `🔓 Subiu de nível! ${novas.length} carta${novas.length > 1 ? 's' : ''} nova${novas.length > 1 ? 's' : ''} no baralho`)
       if (acao.dataset.habito === 'positivo') notificar('Repetição registrada.')
       else notificar('Marcado como negativo.')
       return

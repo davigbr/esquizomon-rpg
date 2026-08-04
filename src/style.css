@@ -1043,6 +1043,42 @@ select.campo {
   box-shadow: 0 6px 20px var(--shadow-color);
   animation: toast-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
+  max-width: 320px;
+}
+
+/* miniaturas de carta dentro do toast (desbloqueio/invocação) */
+.toast strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.toast-cartas {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toast-carta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 52px;
+}
+
+.toast-carta img {
+  width: 52px;
+  border-radius: 5px;
+  border: 1px solid var(--border-gold);
+  box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.toast-carta em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.2;
 }
 
 .toast--erro {
@@ -1343,15 +1379,50 @@ select.campo {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: border-color var(--transition);
+  transition: border-color var(--transition), transform var(--transition);
+  cursor: pointer;
 }
 
 .carta-item:hover {
   border-color: var(--border-gold);
+  transform: translateY(-2px);
 }
 
 .carta-item--bloqueada {
   opacity: 0.75;
+  cursor: default;
+}
+
+.carta-item--bloqueada:hover {
+  border-color: var(--border-color);
+  transform: none;
+}
+
+.carta-figura {
+  position: relative;
+  display: block;
+}
+
+/* overlay "Ver" no hover — indica que a carta é clicável */
+.carta-ver {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--accent-gold);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.carta-item:hover .carta-ver {
+  opacity: 1;
 }
 
 .carta-img {

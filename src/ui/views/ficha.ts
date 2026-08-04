@@ -70,8 +70,8 @@ export function montarFicha(raiz: HTMLElement, dados: AppData): void {
     <div class="config-secao">
       <h3>Baralho</h3>
       <p>Coleção desbloqueada conforme você sobe de nível — 2 cartas por nível, a partir de 7 iniciais (~10%).</p>
-      <div class="ficha-barra" title="Coleção">
-        <span class="ficha-barra-rotulo">BAL.</span>
+      <div class="ficha-barra" title="Cartas desbloqueadas do baralho">
+        <span class="ficha-barra-rotulo">Baralho</span>
         <div class="ficha-barra-trilho"><div class="ficha-barra-preenchimento ficha-barra--xp" style="width:${pctColecao}%"></div></div>
         <span class="ficha-barra-valor">${p.cartas.length}/65</span>
       </div>

@@ -5,7 +5,7 @@ import { carregarDeck, rotuloTipo, tipoDe, type Carta, type TipoCarta } from '..
 import { custoInvocacao, nivelBaralhoCompleto } from '../../core/jogo'
 import { appStore, invocarCarta } from '../../stores/app'
 import { abrirModal, fecharModal, modalBody } from '../modal'
-import { notificar } from '../toast'
+import { notificar, notificarCartas } from '../toast'
 import { escapar } from '../formTarefa'
 
 let deckCache: Carta[] | null = null
@@ -62,19 +62,8 @@ export async function montarCartas(raiz: HTMLElement, dados: AppData): Promise<v
     })
   })
 
-  raiz.querySelectorAll('[data-invocar]').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation()
-      const id = btn.getAttribute('data-invocar')!
-      const resultado = invocarCarta(id)
-      notificar(resultado.ok ? `🜏 Carta invocada.` : resultado.motivo ?? 'Não deu para invocar.', resultado.ok ? 'ok' : 'erro')
-    })
-  })
-
   raiz.querySelectorAll('[data-carta]').forEach((item) => {
-    item.addEventListener('click', (e) => {
-      const alvo = e.target as HTMLElement
-      if (alvo.closest('[data-invocar]')) return // o botão invocar trata o clique dele
+    item.addEventListener('click', () => {
       const id = item.getAttribute('data-carta')!
       // cartas bloqueadas ficam ocultas — nenhum modal revela a carta
       if (!appStore.get().personagem.cartas.includes(id)) {
@@ -89,18 +78,14 @@ export async function montarCartas(raiz: HTMLElement, dados: AppData): Promise<v
 function cardCarta(c: Carta, desbloqueada: boolean): string {
   const invocacoes = appStore.get().personagem.invocacoes[c.id] ?? 0
   const custo = custoInvocacao(tipoDe(c), invocacoes)
-  const mana = appStore.get().personagem.mana
-  const pode = desbloqueada && mana >= custo
   return `
-    <div class="carta-item${desbloqueada ? '' : ' carta-item--bloqueada'}" data-carta="${escapar(c.id)}" title="${escapar(c.name)}">
+    <div class="carta-item${desbloqueada ? '' : ' carta-item--bloqueada'}" data-carta="${escapar(c.id)}" title="${desbloqueada ? `Ver ${c.name}` : `${c.name} — bloqueada`}">
       ${desbloqueada
-        ? `<img class="carta-img" src="/images/cards/${escapar(c.id)}.png" alt="${escapar(c.name)}" loading="lazy" />`
+        ? `<div class="carta-figura"><img class="carta-img" src="/images/cards/${escapar(c.id)}.png" alt="${escapar(c.name)}" loading="lazy" /><span class="carta-ver"><i class="fa-solid fa-eye" aria-hidden="true"></i> Ver</span></div>`
         : `<div class="carta-lock"><i class="fa-solid fa-lock" aria-hidden="true"></i><span class="carta-lock-nome">${escapar(c.name)}</span></div>`}
       <div class="carta-rodape">
         <span class="badge badge--${c.type}">${rotuloTipo(c.type)}</span>
-        ${desbloqueada
-          ? `<button class="btn btn-icon" data-invocar="${escapar(c.id)}" aria-label="Invocar ${escapar(c.name)}" ${pode ? '' : 'disabled'} title="${pode ? 'Invocar' : 'Mana insuficiente'}"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></button>`
-          : ''}
+        ${desbloqueada ? `<span class="carta-custo" title="Custo de invocação (no modal)"><i class="fa-solid fa-droplet" aria-hidden="true"></i> ${custo}</span>` : ''}
       </div>
     </div>
   `
@@ -148,7 +133,7 @@ function abrirModalCarta(id: string): void {
   modalBody.querySelector('[data-modal-invocar]')?.addEventListener('click', () => {
     const resultado = invocarCarta(id)
     if (resultado.ok) {
-      notificar(`🜏 ${carta.name} invocada.`)
+      void notificarCartas([id], `🜏 Carta invocada`)
       fecharModal()
       void montarCartas(document.getElementById('app')!, appStore.get())
     } else {
