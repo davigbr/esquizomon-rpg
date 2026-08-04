@@ -1438,11 +1438,14 @@ select.campo {
   grid-template-columns: auto 1fr auto;
   gap: 14px;
   align-items: center;
+  /* largura fixa: as setas não variam de posição entre cartas */
+  width: 560px;
+  max-width: 100%;
 }
 
 .carta-modal-central {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 240px 1fr;
   gap: 20px;
   align-items: start;
 }
@@ -1473,8 +1476,7 @@ select.campo {
 }
 
 .carta-modal-img {
-  width: 260px;
-  max-width: 40vw;
+  width: 240px;
   border-radius: 10px;
   border: 1px solid var(--border-gold);
 }
@@ -1505,6 +1507,7 @@ select.campo {
 @media (max-width: 640px) {
   .carta-modal {
     grid-template-columns: 1fr;
+    width: 100%;
   }
   .carta-modal-seta {
     width: 36px;
@@ -1530,7 +1533,8 @@ select.campo {
 /* ========== Barra de status fixa (nível, XP, mana) ========== */
 .status-bar {
   position: sticky;
-  top: 0;
+  /* abaixo do navbar (56px), sem colidir com ele */
+  top: 56px;
   z-index: 30;
   display: flex;
   align-items: center;
