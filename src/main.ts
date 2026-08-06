@@ -9,6 +9,7 @@ import { montarFicha } from './ui/views/ficha'
 import { montarCartas } from './ui/views/cartas'
 import { montarHistorico } from './ui/views/historico'
 import { montarConfig } from './ui/views/config'
+import { alternarChat, montarChat, reagirMudancaStore } from './ui/chat'
 import { carregarDeck } from './core/baralho'
 import { storageGet } from './db/storage'
 import type { Tema } from './core/tipos'
@@ -176,6 +177,15 @@ appStore.subscribe(() => {
   // morte: mostra a tela de esgotado com a carta perdida (uma vez)
   const morte = consumirMorte()
   if (morte && morteOverlay.hidden) mostrarMorte(morte.cartaId, morte.cartaNome)
+  // o chat lê do appStore — re-renderiza pra refletir mudanças externas
+  reagirMudancaStore()
+})
+
+/* ---------- chat da Fábula (painel lateral) ---------- */
+
+document.getElementById('fabula-toggle')!.addEventListener('click', () => {
+  montarChat()
+  alternarChat()
 })
 
 /* ---------- dia novo ---------- */

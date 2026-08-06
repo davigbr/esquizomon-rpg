@@ -67,6 +67,49 @@ export interface Configuracao {
   tema: Tema
   /** Modo relaxado: desliga o dano (jogo vira só bônus). */
   modoRelaxado?: boolean
+  /** Configuração da Fábula (chat com IA, BYOK). */
+  ia?: ConfigIa
+}
+
+/** Provider de IA. MVP: deepseek e opencode Zen Go (ambos OpenAI-compatíveis). */
+export type ProviderIA = 'nenhum' | 'deepseek' | 'opencode'
+
+/** Configuração da Fábula (chat). Persistida em `configuracao.ia`. */
+export interface ConfigIa {
+  provider: ProviderIA
+  /** Modelo a usar (vazio = modelo padrão do provider). */
+  modelo: string
+  /** Chave de API do usuário (BYOK — fica no localStorage). */
+  apiKey: string
+  /** Preset de system prompt escolhido pelo usuário. */
+  preset: PresetPrompt
+  /** System prompt customizado (usado quando `preset === 'custom'`). */
+  systemPromptCustom: string
+}
+
+/** Preset de system prompt disponível na UI. */
+export type PresetPrompt = 'fabula' | 'clinico' | 'produtividade' | 'brutal' | 'custom'
+
+/** Mensagem de uma conversa com a IA (formato OpenAI-compatível). */
+export interface MensagemIA {
+  role: 'user' | 'assistant'
+  /** Texto visível. */
+  content: string
+  /** Raciocínio do modelo (DeepSeek R1, OpenAI o-series, Gemini thinking) — colapsável. */
+  reasoning?: string
+  /** ISO timestamp. */
+  ts: string
+}
+
+/** Conversa com a IA. Múltiplas conversas persistidas. */
+export interface Conversa {
+  id: string
+  /** Título automático (3-5 primeiras palavras da 1ª mensagem do usuário) ou editado. */
+  titulo: string
+  /** Mensagens em ordem cronológica. */
+  mensagens: MensagemIA[]
+  /** ISO da última atividade. */
+  atualizadaEm: string
 }
 
 /** Tipo de evento do histórico (define ícone e cor na listagem). */
@@ -88,8 +131,10 @@ export interface AppData {
   configuracao: Configuracao
   /** Histórico extensivo de ações (mais recente primeiro). */
   log: LogEvento[]
+  /** Conversas com a Fábula (chat com IA). Múltiplas, persistidas. */
+  conversas?: Conversa[]
 }
 
-export const VERSAO_DADOS = 1
+export const VERSAO_DADOS = 2
 export const STORAGE_KEY = 'esquizomon-rpg:v1'
 export const TEMA_KEY = 'esquizomon-rpg:tema'

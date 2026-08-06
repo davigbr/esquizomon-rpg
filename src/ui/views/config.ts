@@ -1,13 +1,28 @@
-/** Visão Config — tema, jogo, export/import de dados e zona de perigo. */
+/** Visão Config — tema, jogo, IA, export/import de dados e zona de perigo. */
 
-import type { AppData } from '../../core/tipos'
+import type { AppData, ConfigIa, PresetPrompt, ProviderIA } from '../../core/tipos'
+import { MODELOS_POR_PROVIDER, modeloPadrao, testarConexao, ErroIA } from '../../ia/cliente'
+import { PRESETS } from '../../ia/prompt'
 import { apagarTodosDados, definirConfiguracao, definirTema, exportarJSON, importarJSON } from '../../stores/app'
 import { confirmar } from '../modal'
 import { notificar } from '../toast'
 
+const IA_PADRAO: ConfigIa = {
+  provider: 'nenhum',
+  modelo: '',
+  apiKey: '',
+  preset: 'fabula',
+  systemPromptCustom: '',
+}
+
+function iaAtual(dados: AppData): ConfigIa {
+  return dados.configuracao.ia ?? IA_PADRAO
+}
+
 export function montarConfig(raiz: HTMLElement, dados: AppData): void {
   const tema = dados.configuracao.tema
   const modoRelaxado = dados.configuracao.modoRelaxado === true
+  const ia = iaAtual(dados)
   const total = dados.tarefas.length
 
   raiz.innerHTML = `
@@ -46,6 +61,8 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
       </div>
     </div>
 
+    ${secaoIA(ia)}
+
     <div class="config-secao">
       <h3>Dados</h3>
       <p>Exporte ou importe tudo em JSON — o backup do seu território.</p>
@@ -75,6 +92,8 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
     definirConfiguracao({ modoRelaxado: valor })
     notificar(valor ? 'Modo relaxado ligado — sem dano.' : 'Modo relaxado desligado.')
   })
+
+  instalarHandlersIA(raiz)
 
   raiz.querySelector('[data-exportar]')!.addEventListener('click', () => {
     const json = exportarJSON()
@@ -113,4 +132,159 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
       }
     })
   })
+}
+
+function secaoIA(ia: ConfigIa): string {
+  const providerOptions: Array<[ProviderIA, string]> = [
+    ['nenhum', 'Desligado (sem IA)'],
+    ['deepseek', 'DeepSeek'],
+    ['opencode', 'OpenCode Zen Go'],
+  ]
+  const provider = ia.provider
+  const modelos = MODELOS_POR_PROVIDER[provider] ?? []
+  const presetOptions = Object.entries(PRESETS)
+    .map(([k, v]) => `<option value="${k}" ${ia.preset === k ? 'selected' : ''}>${v.nome}</option>`)
+    .join('')
+
+  return `
+    <div class="config-secao">
+      <h3><i class="fa-solid fa-feather" aria-hidden="true"></i> Fábula (IA)</h3>
+      <p>BYOK: a chave fica só no seu dispositivo. O provedor é contactado direto (sem servidor intermediário guardando dados). DeepSeek e OpenCode têm raciocínio visível no chat.</p>
+
+      <div class="config-linha">
+        <div>
+          <div class="config-rotulo">Provider</div>
+          <div class="config-dica">Quem vai responder</div>
+        </div>
+        <select class="filtro-select" data-ia-provider>
+          ${providerOptions.map(([v, l]) => `<option value="${v}" ${provider === v ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="config-linha">
+        <div>
+          <div class="config-rotulo">Modelo</div>
+          <div class="config-dica">Vazio = ${provider !== 'nenhum' ? modeloPadrao(provider) : 'escolha um provider'}</div>
+        </div>
+        <select class="filtro-select" data-ia-modelo ${provider === 'nenhum' ? 'disabled' : ''}>
+          <option value="" ${ia.modelo === '' ? 'selected' : ''}>(padrão)</option>
+          ${modelos.map((m) => `<option value="${m}" ${ia.modelo === m ? 'selected' : ''}>${m}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="config-linha config-linha--empilhado">
+        <div>
+          <div class="config-rotulo">Chave de API</div>
+          <div class="config-dica">${provider === 'opencode'
+            ? 'Vem de <code>OPENCODE_GO_ESQUIZOMONRPG_TOKEN</code> se setada no ambiente.'
+            : 'Só você vê. Não sai do seu dispositivo.'}</div>
+        </div>
+        <input type="password" class="filtro-input" data-ia-chave autocomplete="off" spellcheck="false" placeholder="sk-..." value="${ia.apiKey.replace(/"/g, '&quot;')}" ${provider === 'nenhum' ? 'disabled' : ''} />
+      </div>
+
+      <div class="config-linha">
+        <div>
+          <div class="config-rotulo">Personalidade</div>
+          <div class="config-dica">Como a Fábula vai falar com você</div>
+        </div>
+        <select class="filtro-select" data-ia-preset>
+          ${presetOptions}
+        </select>
+      </div>
+
+      <div class="config-linha config-linha--empilhado" data-ia-custom-wrap ${ia.preset === 'custom' ? '' : 'hidden'}>
+        <div>
+          <div class="config-rotulo">System prompt customizado</div>
+          <div class="config-dica">Texto enviado como system message. O estado do app é anexado depois.</div>
+        </div>
+        <textarea class="filtro-textarea" data-ia-custom rows="6" placeholder="Você é...&#10;Regras:...">${ia.systemPromptCustom.replace(/</g, '&lt;')}</textarea>
+      </div>
+
+      <div class="config-acoes">
+        <button class="btn" data-ia-testar ${provider === 'nenhum' ? 'disabled' : ''}><i class="fa-solid fa-plug" aria-hidden="true"></i> Testar conexão</button>
+        <span class="config-dica" data-ia-status></span>
+      </div>
+    </div>
+  `
+}
+
+function instalarHandlersIA(raiz: HTMLElement): void {
+  const providerEl = raiz.querySelector<HTMLSelectElement>('[data-ia-provider]')
+  const modeloEl = raiz.querySelector<HTMLSelectElement>('[data-ia-modelo]')
+  const chaveEl = raiz.querySelector<HTMLInputElement>('[data-ia-chave]')
+  const presetEl = raiz.querySelector<HTMLSelectElement>('[data-ia-preset]')
+  const customEl = raiz.querySelector<HTMLTextAreaElement>('[data-ia-custom]')
+  const customWrap = raiz.querySelector<HTMLElement>('[data-ia-custom-wrap]')
+  const testarEl = raiz.querySelector<HTMLButtonElement>('[data-ia-testar]')
+  const statusEl = raiz.querySelector<HTMLElement>('[data-ia-status]')
+
+  function lerIa(): ConfigIa {
+    return {
+      provider: (providerEl?.value as ProviderIA) ?? 'nenhum',
+      modelo: modeloEl?.value ?? '',
+      apiKey: chaveEl?.value ?? '',
+      preset: (presetEl?.value as PresetPrompt) ?? 'fabula',
+      systemPromptCustom: customEl?.value ?? '',
+    }
+  }
+
+  function salvar(): void {
+    definirConfiguracao({ ia: lerIa() })
+  }
+
+  function atualizarModelos(): void {
+    if (!modeloEl) return
+    const provider = (providerEl?.value as ProviderIA) ?? 'nenhum'
+    const modelos = MODELOS_POR_PROVIDER[provider] ?? []
+    const atual = modeloEl.value
+    modeloEl.innerHTML =
+      `<option value="" ${atual === '' ? 'selected' : ''}>(padrão)</option>` +
+      modelos.map((m) => `<option value="${m}" ${atual === m ? 'selected' : ''}>${m}</option>`).join('')
+    modeloEl.disabled = provider === 'nenhum'
+    if (chaveEl) chaveEl.disabled = provider === 'nenhum'
+    if (testarEl) testarEl.disabled = provider === 'nenhum'
+  }
+
+  function atualizarCustom(): void {
+    if (!customWrap || !presetEl) return
+    customWrap.hidden = presetEl.value !== 'custom'
+  }
+
+  providerEl?.addEventListener('change', () => {
+    atualizarModelos()
+    salvar()
+  })
+  modeloEl?.addEventListener('change', salvar)
+  chaveEl?.addEventListener('change', salvar)
+  presetEl?.addEventListener('change', () => {
+    atualizarCustom()
+    salvar()
+  })
+  customEl?.addEventListener('change', salvar)
+
+  testarEl?.addEventListener('click', async () => {
+    const ia = lerIa()
+    if (ia.provider === 'nenhum' || !ia.apiKey.trim()) {
+      notificar('Escolha um provider e informe a chave.', 'erro')
+      return
+    }
+    if (statusEl) {
+      statusEl.textContent = 'Testando…'
+      testarEl!.disabled = true
+    }
+    try {
+      const resp = await testarConexao(ia)
+      if (statusEl) statusEl.textContent = `OK — respondeu: "${resp.slice(0, 30)}"`
+      notificar('Conexão ok.', 'ok')
+    } catch (err) {
+      const msg = err instanceof ErroIA ? err.message : String(err)
+      if (statusEl) statusEl.textContent = `Falhou: ${msg.slice(0, 50)}`
+      notificar(`Falhou: ${msg}`, 'erro')
+    } finally {
+      if (testarEl) testarEl.disabled = false
+    }
+  })
+
+  atualizarModelos()
+  atualizarCustom()
 }
