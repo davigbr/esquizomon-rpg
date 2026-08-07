@@ -1368,6 +1368,57 @@ select.campo {
   font-weight: 600;
 }
 
+/* Tabela de XP / Dano na tela Jogo */
+.jogo-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 4px 0 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.jogo-tabela thead th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 10px 14px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.jogo-tabela tbody tr {
+  border-top: 1px solid var(--border-color);
+}
+
+.jogo-tabela tbody tr:first-child {
+  border-top: none;
+}
+
+.jogo-tabela tbody th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 8px 14px;
+  width: 45%;
+}
+
+.jogo-tabela tbody td {
+  padding: 8px 14px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.jogo-tabela tbody td b {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 @media (max-width: 640px) {
   .ficha-barra {
     width: 100%;
