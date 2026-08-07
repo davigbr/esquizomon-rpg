@@ -69,7 +69,7 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
         <button class="btn" data-exportar><i class="fa-solid fa-download" aria-hidden="true"></i> Exportar (JSON)</button>
         <button class="btn" data-importar><i class="fa-solid fa-upload" aria-hidden="true"></i> Importar</button>
       </div>
-      <div class="config-dica config-dica-linha">${total} tarefa${total === 1 ? '' : 's'} · nível ${dados.personagem.nivel} · ${dados.personagem.cartas.length} cartas desbloqueadas</div>
+      <div class="config-dica config-dica-linha">${total} tarefa${total === 1 ? '' : 's'} · nível <b>${dados.personagem.nivel}</b> · <b>${dados.personagem.cartas.length}</b> cartas desbloqueadas</div>
     </div>
 
     <div class="config-secao">

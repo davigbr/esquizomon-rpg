@@ -1017,6 +1017,19 @@ select.campo {
   font-size: 12px;
 }
 
+/* "28 tarefas · nível 1 · 7 cartas desbloqueadas" — fonte menor que o padrão,
+   mais respiro acima, números destacados em negrito (text-secondary) */
+.config-dica-linha {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.config-dica-linha b {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
 .config-perigo {
   border-color: var(--accent-red);
 }
