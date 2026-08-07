@@ -2045,7 +2045,6 @@ select.campo {
   top: 56px;
   right: 0;
   bottom: 0;
-  width: 480px;
   max-width: 92vw;
   background: var(--bg-secondary);
   border-left: 1px solid var(--border-color);
@@ -2057,6 +2056,35 @@ select.campo {
 
 #fabula-panel.aberto {
   transform: none;
+}
+
+/* Alça de resize (6px na borda esquerda do painel) */
+.fabula-resize {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 2;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.fabula-resize:hover,
+body.fabula-resizing .fabula-resize {
+  background: var(--accent-gold);
+  opacity: 0.5;
+}
+
+body.fabula-resizing {
+  cursor: ew-resize !important;
+  user-select: none;
+}
+
+body.fabula-resizing * {
+  cursor: ew-resize !important;
+  user-select: none;
 }
 
 body.fabula-aberto .container {
@@ -2323,34 +2351,63 @@ body.fabula-aberto .container {
 .fabula-form {
   display: flex;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 12px;
   border-top: 1px solid var(--border-color);
   align-items: flex-end;
   flex-shrink: 0;
+  background: var(--bg-secondary);
 }
 
 .fabula-input {
   flex: 1;
   background: var(--bg-card);
+  color: var(--text-primary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  color: var(--text-primary);
-  padding: 8px 10px;
-  font-size: 13px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.5;
   font-family: inherit;
   resize: none;
-  max-height: 140px;
-  line-height: 1.4;
+  max-height: 200px;
+  min-height: 48px;
+  /* padding interno generoso (decisão do usuário: "sem padding interno") */
+}
+
+.fabula-input::placeholder {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.fabula-input:hover {
+  border-color: var(--border-gold);
 }
 
 .fabula-input:focus {
   outline: none;
-  border-color: var(--border-gold);
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-gold) 20%, transparent);
+}
+
+.fabula-form .btn[type="submit"] {
+  align-self: stretch;
+  padding: 0 14px;
+  background: var(--accent-gold);
+  color: #0a0a0a;
+}
+
+.fabula-form .btn[type="submit"]:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.fabula-form .btn[type="submit"]:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 @media (max-width: 640px) {
   #fabula-panel {
-    width: 100%;
+    width: 100% !important;
     max-width: none;
   }
   body.fabula-aberto .container {
@@ -2359,29 +2416,106 @@ body.fabula-aberto .container {
   .fabula-lateral {
     width: 110px;
   }
+  .fabula-resize {
+    display: none;
+  }
 }
 
-/* --- Config: seção IA --- */
+/* --- Config: inputs/selects/textarea compartilhados --- */
+.filtro-input {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  line-height: 1.4;
+  width: 100%;
+}
+
+.filtro-input:hover {
+  border-color: var(--border-gold);
+}
+
+.filtro-input:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-gold) 20%, transparent);
+}
+
+/* Autofill do browser (Chrome/Safari) pinta de amarelo/preto por padrão.
+   Forçamos a cor de fundo do tema. */
+.filtro-input:-webkit-autofill,
+.filtro-input:-webkit-autofill:hover,
+.filtro-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-card) inset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  caret-color: var(--text-primary);
+}
 .config-linha--empilhado {
   flex-direction: column;
   align-items: stretch;
   gap: 8px;
 }
 
+.config-rotulo-linha {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .filtro-textarea {
   background: var(--bg-card);
+  color: var(--text-primary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  color: var(--text-primary);
-  padding: 8px 10px;
-  font-size: 12px;
+  padding: 12px 14px;
+  font-size: 13px;
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   line-height: 1.5;
   resize: vertical;
   min-height: 80px;
 }
 
+.filtro-textarea:hover {
+  border-color: var(--border-gold);
+}
+
 .filtro-textarea:focus {
   outline: none;
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-gold) 20%, transparent);
+}
+
+/* Autofill não pinta textarea (não tem), mas por simetria */
+.filtro-textarea:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-card) inset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+}
+
+.filtro-textarea--prompt {
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 280px;
+}
+
+/* Botão texto (sem fundo) — pro "Restaurar padrão" ficar discreto */
+.btn--texto {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn--texto:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
   border-color: var(--border-gold);
 }

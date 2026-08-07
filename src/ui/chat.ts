@@ -16,6 +16,10 @@ import { escapar } from './formTarefa'
 import { confirmar } from './modal'
 
 const PAINEL_CHAVE = 'esquizomon-rpg:chat-painel'
+const LARGURA_CHAVE = 'esquizomon-rpg:chat-largura'
+const LARGURA_MIN = 320
+const LARGURA_MAX = 900
+const LARGURA_PADRAO = 480
 
 /** Estado da UI do painel (aberto/fechado, conversa ativa). Persistido separado das conversas. */
 interface EstadoPainel {
@@ -45,6 +49,28 @@ function salvarEstadoPainel(estado: EstadoPainel): void {
   }
 }
 
+function carregarLargura(): number {
+  try {
+    const v = Number(localStorage.getItem(LARGURA_CHAVE))
+    if (Number.isFinite(v) && v >= LARGURA_MIN && v <= LARGURA_MAX) return v
+  } catch {
+    /* storage bloqueado */
+  }
+  return LARGURA_PADRAO
+}
+
+function salvarLargura(largura: number): void {
+  try {
+    localStorage.setItem(LARGURA_CHAVE, String(Math.round(largura)))
+  } catch {
+    /* sem persistência */
+  }
+}
+
+function aplicarLargura(largura: number): void {
+  if (painel) painel.style.width = `${Math.round(largura)}px`
+}
+
 let painel: HTMLElement | null = null
 let listaEl: HTMLElement | null = null
 let msgsEl: HTMLElement | null = null
@@ -59,6 +85,7 @@ export function montarChat(): void {
   painel = document.createElement('aside')
   painel.id = 'fabula-panel'
   painel.setAttribute('aria-label', 'Chat com a Fábula')
+  painel.style.width = `${carregarLargura()}px`
   document.body.appendChild(painel)
   renderizar()
 }
@@ -75,6 +102,7 @@ function renderizar(): void {
   document.body.classList.toggle('fabula-aberto', estado.aberto)
 
   painel.innerHTML = `
+    <div class="fabula-resize" data-fabula-resize title="Arraste pra redimensionar" aria-label="Redimensionar painel"></div>
     <div class="fabula-lateral">
       <button class="btn btn-icon fabula-nova" data-fabula-nova title="Nova conversa" aria-label="Nova conversa">
         <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
@@ -154,6 +182,7 @@ function instalarHandlers(conversa: Conversa | undefined): void {
   listaEl?.querySelectorAll<HTMLButtonElement>('[data-conversa]').forEach((btn) => {
     btn.addEventListener('click', () => selecionarConversa(btn.dataset.conversa ?? ''))
   })
+  instalarResize()
   if (formEl && inputEl && conversa) {
     // Enter envia / Shift+Enter quebra linha
     inputEl.addEventListener('keydown', (e) => {
@@ -166,7 +195,7 @@ function instalarHandlers(conversa: Conversa | undefined): void {
     // Auto-resize do textarea
     inputEl.addEventListener('input', () => {
       inputEl!.style.height = 'auto'
-      inputEl!.style.height = Math.min(inputEl!.scrollHeight, 140) + 'px'
+      inputEl!.style.height = Math.min(inputEl!.scrollHeight, 200) + 'px'
     })
     formEl.addEventListener('submit', (e) => {
       e.preventDefault()
@@ -177,6 +206,42 @@ function instalarHandlers(conversa: Conversa | undefined): void {
       void enviar(texto)
     })
   }
+}
+
+/** Drag horizontal na borda esquerda do painel — redimensiona largura. */
+function instalarResize(): void {
+  if (!painel) return
+  const alca = painel.querySelector<HTMLElement>('[data-fabula-resize]')
+  if (!alca) return
+
+  alca.addEventListener('pointerdown', (eDown) => {
+    if (!painel) return
+    eDown.preventDefault()
+    alca.setPointerCapture(eDown.pointerId)
+    const inicioX = eDown.clientX
+    const larguraInicial = painel.getBoundingClientRect().width
+    document.body.classList.add('fabula-resizing')
+
+    const mover = (eMove: PointerEvent) => {
+      if (!painel) return
+      // Arrastar pra ESQUERDA aumenta o painel (borda esquerda é a "frente" do resize)
+      const dx = inicioX - eMove.clientX
+      const nova = Math.min(LARGURA_MAX, Math.max(LARGURA_MIN, larguraInicial + dx))
+      aplicarLargura(nova)
+    }
+
+    const fim = () => {
+      alca.removeEventListener('pointermove', mover)
+      alca.removeEventListener('pointerup', fim)
+      alca.removeEventListener('pointercancel', fim)
+      document.body.classList.remove('fabula-resizing')
+      if (painel) salvarLargura(painel.getBoundingClientRect().width)
+    }
+
+    alca.addEventListener('pointermove', mover)
+    alca.addEventListener('pointerup', fim)
+    alca.addEventListener('pointercancel', fim)
+  })
 }
 
 function rolarParaFim(): void {

@@ -81,14 +81,9 @@ export interface ConfigIa {
   modelo: string
   /** Chave de API do usuário (BYOK — fica no localStorage). */
   apiKey: string
-  /** Preset de system prompt escolhido pelo usuário. */
-  preset: PresetPrompt
-  /** System prompt customizado (usado quando `preset === 'custom'`). */
-  systemPromptCustom: string
+  /** System prompt editável pelo usuário. Vazio = usar o canônico (Fábula do NARRATIVA.md). */
+  systemPrompt: string
 }
-
-/** Preset de system prompt disponível na UI. */
-export type PresetPrompt = 'fabula' | 'clinico' | 'produtividade' | 'brutal' | 'custom'
 
 /** Mensagem de uma conversa com a IA (formato OpenAI-compatível). */
 export interface MensagemIA {

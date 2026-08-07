@@ -1,8 +1,8 @@
 /** Visão Config — tema, jogo, IA, export/import de dados e zona de perigo. */
 
-import type { AppData, ConfigIa, PresetPrompt, ProviderIA } from '../../core/tipos'
+import type { AppData, ConfigIa, ProviderIA } from '../../core/tipos'
 import { MODELOS_POR_PROVIDER, modeloPadrao, testarConexao, ErroIA } from '../../ia/cliente'
-import { PRESETS } from '../../ia/prompt'
+import { SYSTEM_PROMPT_PADRAO } from '../../ia/prompt'
 import { apagarTodosDados, definirConfiguracao, definirTema, exportarJSON, importarJSON } from '../../stores/app'
 import { confirmar } from '../modal'
 import { notificar } from '../toast'
@@ -11,8 +11,7 @@ const IA_PADRAO: ConfigIa = {
   provider: 'nenhum',
   modelo: '',
   apiKey: '',
-  preset: 'fabula',
-  systemPromptCustom: '',
+  systemPrompt: '',
 }
 
 function iaAtual(dados: AppData): ConfigIa {
@@ -142,9 +141,9 @@ function secaoIA(ia: ConfigIa): string {
   ]
   const provider = ia.provider
   const modelos = MODELOS_POR_PROVIDER[provider] ?? []
-  const presetOptions = Object.entries(PRESETS)
-    .map(([k, v]) => `<option value="${k}" ${ia.preset === k ? 'selected' : ''}>${v.nome}</option>`)
-    .join('')
+  // Mostra o system prompt: o do usuário OU o canônico (read-only até o usuário editar).
+  const promptAtual = ia.systemPrompt || SYSTEM_PROMPT_PADRAO
+  const isPadrao = !ia.systemPrompt.trim()
 
   return `
     <div class="config-secao">
@@ -182,22 +181,21 @@ function secaoIA(ia: ConfigIa): string {
         <input type="password" class="filtro-input" data-ia-chave autocomplete="off" spellcheck="false" placeholder="sk-..." value="${ia.apiKey.replace(/"/g, '&quot;')}" ${provider === 'nenhum' ? 'disabled' : ''} />
       </div>
 
-      <div class="config-linha">
-        <div>
-          <div class="config-rotulo">Personalidade</div>
-          <div class="config-dica">Como a Fábula vai falar com você</div>
+      <div class="config-linha config-linha--empilhado">
+        <div class="config-rotulo-linha">
+          <div>
+            <div class="config-rotulo">System prompt da Fábula</div>
+            <div class="config-dica">
+              ${isPadrao
+                ? 'Usando o <strong>prompt canônico</strong> (NARRATIVA.md). Edite pra customizar.'
+                : 'Customizado — edite à vontade.'}
+            </div>
+          </div>
+          <button class="btn btn--texto" data-ia-restaurar type="button" title="Volta pro prompt canônico">
+            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Restaurar padrão
+          </button>
         </div>
-        <select class="filtro-select" data-ia-preset>
-          ${presetOptions}
-        </select>
-      </div>
-
-      <div class="config-linha config-linha--empilhado" data-ia-custom-wrap ${ia.preset === 'custom' ? '' : 'hidden'}>
-        <div>
-          <div class="config-rotulo">System prompt customizado</div>
-          <div class="config-dica">Texto enviado como system message. O estado do app é anexado depois.</div>
-        </div>
-        <textarea class="filtro-textarea" data-ia-custom rows="6" placeholder="Você é...&#10;Regras:...">${ia.systemPromptCustom.replace(/</g, '&lt;')}</textarea>
+        <textarea class="filtro-textarea filtro-textarea--prompt" data-ia-prompt rows="14" spellcheck="false">${promptAtual.replace(/</g, '&lt;')}</textarea>
       </div>
 
       <div class="config-acoes">
@@ -212,9 +210,8 @@ function instalarHandlersIA(raiz: HTMLElement): void {
   const providerEl = raiz.querySelector<HTMLSelectElement>('[data-ia-provider]')
   const modeloEl = raiz.querySelector<HTMLSelectElement>('[data-ia-modelo]')
   const chaveEl = raiz.querySelector<HTMLInputElement>('[data-ia-chave]')
-  const presetEl = raiz.querySelector<HTMLSelectElement>('[data-ia-preset]')
-  const customEl = raiz.querySelector<HTMLTextAreaElement>('[data-ia-custom]')
-  const customWrap = raiz.querySelector<HTMLElement>('[data-ia-custom-wrap]')
+  const promptEl = raiz.querySelector<HTMLTextAreaElement>('[data-ia-prompt]')
+  const restaurarEl = raiz.querySelector<HTMLButtonElement>('[data-ia-restaurar]')
   const testarEl = raiz.querySelector<HTMLButtonElement>('[data-ia-testar]')
   const statusEl = raiz.querySelector<HTMLElement>('[data-ia-status]')
 
@@ -223,8 +220,7 @@ function instalarHandlersIA(raiz: HTMLElement): void {
       provider: (providerEl?.value as ProviderIA) ?? 'nenhum',
       modelo: modeloEl?.value ?? '',
       apiKey: chaveEl?.value ?? '',
-      preset: (presetEl?.value as PresetPrompt) ?? 'fabula',
-      systemPromptCustom: customEl?.value ?? '',
+      systemPrompt: promptEl?.value ?? '',
     }
   }
 
@@ -245,22 +241,29 @@ function instalarHandlersIA(raiz: HTMLElement): void {
     if (testarEl) testarEl.disabled = provider === 'nenhum'
   }
 
-  function atualizarCustom(): void {
-    if (!customWrap || !presetEl) return
-    customWrap.hidden = presetEl.value !== 'custom'
-  }
-
   providerEl?.addEventListener('change', () => {
     atualizarModelos()
     salvar()
   })
   modeloEl?.addEventListener('change', salvar)
   chaveEl?.addEventListener('change', salvar)
-  presetEl?.addEventListener('change', () => {
-    atualizarCustom()
+  promptEl?.addEventListener('change', salvar)
+
+  restaurarEl?.addEventListener('click', async () => {
+    if (!promptEl) return
+    if (promptEl.value.trim() === SYSTEM_PROMPT_PADRAO) {
+      notificar('O prompt já é o padrão.')
+      return
+    }
+    const ok = await confirmar(
+      'Restaurar o system prompt canônico da Fábula? Suas edições serão perdidas.',
+      'Restaurar padrão',
+    )
+    if (!ok) return
+    promptEl.value = SYSTEM_PROMPT_PADRAO
     salvar()
+    notificar('System prompt restaurado.')
   })
-  customEl?.addEventListener('change', salvar)
 
   testarEl?.addEventListener('click', async () => {
     const ia = lerIa()
@@ -286,5 +289,4 @@ function instalarHandlersIA(raiz: HTMLElement): void {
   })
 
   atualizarModelos()
-  atualizarCustom()
 }

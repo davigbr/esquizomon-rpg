@@ -1,6 +1,6 @@
 /** Persistência versionada + wrapper seguro (fallback em memória quando localStorage é bloqueado). */
 
-import type { AppData, ConfigIa, Configuracao, Conversa, LogEvento, MensagemIA, Personagem, PresetPrompt, ProviderIA, Tarefa, Tema, TipoLog } from '../core/tipos'
+import type { AppData, ConfigIa, Configuracao, Conversa, LogEvento, MensagemIA, Personagem, ProviderIA, Tarefa, Tema, TipoLog } from '../core/tipos'
 import { STORAGE_KEY, TEMA_KEY, VERSAO_DADOS } from '../core/tipos'
 import { hpMaxDe, manaMaxDe, personagemInicial, xpProximoDe } from '../core/jogo'
 
@@ -154,21 +154,26 @@ function normalizarConfiguracao(v: unknown): Configuracao {
 }
 
 const PROVIDERS: ReadonlySet<string> = new Set(['nenhum', 'deepseek', 'opencode'])
-const PRESETS: ReadonlySet<string> = new Set(['fabula', 'clinico', 'produtividade', 'brutal', 'custom'])
 
 function normalizarConfigIa(v: unknown): ConfigIa | undefined {
   if (!ehObjeto(v)) return undefined
   const provider: ProviderIA =
     typeof v.provider === 'string' && PROVIDERS.has(v.provider) ? (v.provider as ProviderIA) : 'nenhum'
   if (provider === 'nenhum') return undefined // sem provider configurado → não criar config
-  const preset: PresetPrompt =
-    typeof v.preset === 'string' && PRESETS.has(v.preset) ? (v.preset as PresetPrompt) : 'fabula'
+  // Migração v2 → v3: presets viraram texto livre. Se o usuário tinha
+  // `preset === 'custom'` + `systemPromptCustom`, copia; senão mantém vazio
+  // (= usa o canônico). O campo `preset` legado é ignorado.
+  let systemPrompt = ''
+  if (typeof v.systemPrompt === 'string') {
+    systemPrompt = v.systemPrompt
+  } else if (v.preset === 'custom' && typeof v.systemPromptCustom === 'string') {
+    systemPrompt = v.systemPromptCustom
+  }
   return {
     provider,
     modelo: typeof v.modelo === 'string' ? v.modelo : '',
     apiKey: typeof v.apiKey === 'string' ? v.apiKey : '',
-    preset,
-    systemPromptCustom: typeof v.systemPromptCustom === 'string' ? v.systemPromptCustom : '',
+    systemPrompt,
   }
 }
 
