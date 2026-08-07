@@ -1281,6 +1281,8 @@ select.campo {
   background: var(--accent-red);
   border-radius: 8px;
   padding: 8px 12px;
+  /* Respiro antes dos filtros / colunas — antes colava no próximo bloco */
+  margin-bottom: 18px;
 }
 
 .ficha-card {
