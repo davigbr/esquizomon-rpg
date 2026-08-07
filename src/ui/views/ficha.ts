@@ -36,57 +36,59 @@ export function montarFicha(raiz: HTMLElement, dados: AppData): void {
       </ul>
     </div>
 
-    <div class="config-secao">
-      <h3>XP ganho</h3>
-      <p>Quanto cada conclusão de tarefa adiciona ao seu XP. Recorrentes marcadas, únicas concluídas e hábitos positivos dão o mesmo valor.</p>
-      <table class="jogo-tabela">
-        <thead>
-          <tr>
-            <th scope="col">Dificuldade</th>
-            <th scope="col">Multiplicador</th>
-            <th scope="col">XP ganho</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${DIFICULDADES.map((d) => `
+    <div class="jogo-tabelas-grid">
+      <div class="config-secao">
+        <h3>XP ganho</h3>
+        <p>Quanto cada conclusão de tarefa adiciona ao seu XP. Recorrentes marcadas, únicas concluídas e hábitos positivos dão o mesmo valor.</p>
+        <table class="jogo-tabela">
+          <thead>
             <tr>
-              <th scope="row">${d.rotulo}</th>
-              <td>×${d.multiplicador}</td>
-              <td><b>+${xpDe(d.id)}</b></td>
+              <th scope="col">Dificuldade</th>
+              <th scope="col">Mult.</th>
+              <th scope="col">XP</th>
             </tr>
-          `).join('')}
-        </tbody>
-      </table>
-      <p class="config-dica">XP acumula na esfera da tarefa (Estudo, Corpo, Criação, Vínculos, Cuidado…). Subir de nível restaura vida e mana ao máximo.</p>
-    </div>
+          </thead>
+          <tbody>
+            ${DIFICULDADES.map((d) => `
+              <tr>
+                <th scope="row">${d.rotulo}</th>
+                <td>×${d.multiplicador}</td>
+                <td><b>+${xpDe(d.id)}</b></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <p class="config-dica">XP acumula na esfera da tarefa. Subir de nível restaura vida e mana.</p>
+      </div>
 
-    <div class="config-secao">
-      <h3>Dano</h3>
-      <p>Quanto você perde de vida quando o reset diário cobra as recorrentes que não foram feitas, ou quando repete um hábito negativo.</p>
-      <table class="jogo-tabela">
-        <thead>
-          <tr>
-            <th scope="col">Origem</th>
-            <th scope="col">Dificuldade</th>
-            <th scope="col">Vida perdida</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${DIFICULDADES.map((d) => `
+      <div class="config-secao">
+        <h3>Dano</h3>
+        <p>Quanto você perde de vida no reset diário (recorrentes perdidas) ou por repetição negativa de hábito.</p>
+        <table class="jogo-tabela">
+          <thead>
             <tr>
-              <th scope="row">Recorrente perdida</th>
-              <td>${d.rotulo}</td>
-              <td><b>−${danoDe(d.id)}</b></td>
+              <th scope="col">Origem</th>
+              <th scope="col">Dif.</th>
+              <th scope="col">Vida</th>
             </tr>
-          `).join('')}
-          <tr>
-            <th scope="row">Hábito negativo</th>
-            <td>—</td>
-            <td><b>−${DANO_HABITO_NEGATIVO}</b></td>
-          </tr>
-        </tbody>
-      </table>
-      <p class="config-dica">${modoRelaxado ? 'Modo relaxado ativo: nenhum dano é aplicado.' : 'Vida zerada = personagem esgotado, sem regeneração de mana até o próximo dia, e perde uma carta do baralho.'}</p>
+          </thead>
+          <tbody>
+            ${DIFICULDADES.map((d) => `
+              <tr>
+                <th scope="row">Recorrente perdida</th>
+                <td>${d.rotulo}</td>
+                <td><b>−${danoDe(d.id)}</b></td>
+              </tr>
+            `).join('')}
+            <tr>
+              <th scope="row">Hábito negativo</th>
+              <td>—</td>
+              <td><b>−${DANO_HABITO_NEGATIVO}</b></td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="config-dica">${modoRelaxado ? 'Modo relaxado ativo: nenhum dano é aplicado.' : 'Vida zerada = esgotado e perde uma carta do baralho.'}</p>
+      </div>
     </div>
 
     <div class="config-secao">

@@ -1368,6 +1368,35 @@ select.campo {
   font-weight: 600;
 }
 
+/* Grid 2 colunas: 'XP ganho' e 'Dano' lado a lado na página Jogo */
+.jogo-tabelas-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.jogo-tabelas-grid .config-secao {
+  margin-bottom: 0; /* grid controla o espaçamento */
+}
+
+.jogo-tabelas-grid .jogo-tabela {
+  font-size: 12px;
+  margin: 0 0 8px;
+}
+
+.jogo-tabelas-grid .jogo-tabela thead th,
+.jogo-tabelas-grid .jogo-tabela tbody th,
+.jogo-tabelas-grid .jogo-tabela tbody td {
+  padding: 7px 10px;
+}
+
+@media (max-width: 720px) {
+  .jogo-tabelas-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Tabela de XP / Dano na tela Jogo */
 .jogo-tabela {
   width: 100%;
