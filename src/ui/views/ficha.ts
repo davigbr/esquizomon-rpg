@@ -1,7 +1,7 @@
 /** Visão Jogo — como o jogo funciona, progressão e o progresso do baralho. */
 
 import type { AppData } from '../../core/tipos'
-import { nivelBaralhoCompleto, xpProximoDe, hpMaxDe, manaMaxDe } from '../../core/jogo'
+import { DANO_HABITO_NEGATIVO, DIFICULDADES, danoDe, nivelBaralhoCompleto, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../../core/jogo'
 import { graficoProgressao } from '../graficos'
 
 /** Níveis exibidos nos gráficos (até o baralho completo). */
@@ -34,6 +34,61 @@ export function montarFicha(raiz: HTMLElement, dados: AppData): void {
         <li><b>Morte não-destrutiva:</b> com vida zerada você fica <b>esgotado</b> — sem regeneração de mana — até o próximo dia. A queda custa uma carta do baralho.</li>
         <li><b>Modo relaxado${modoRelaxado ? ' (ativado)' : ''}:</b> desliga todo dano — o jogo vira só bônus. Alternar em Config.</li>
       </ul>
+    </div>
+
+    <div class="jogo-tabelas-grid">
+      <div class="config-secao">
+        <h3>XP ganho</h3>
+        <p>Quanto cada conclusão de tarefa adiciona ao seu XP. Recorrentes marcadas, únicas concluídas e hábitos positivos dão o mesmo valor.</p>
+        <table class="jogo-tabela">
+          <thead>
+            <tr>
+              <th scope="col">Dificuldade</th>
+              <th scope="col">Mult.</th>
+              <th scope="col">XP</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${DIFICULDADES.map((d) => `
+              <tr>
+                <th scope="row">${d.rotulo}</th>
+                <td>×${d.multiplicador}</td>
+                <td><b>+${xpDe(d.id)}</b></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <p class="config-dica">XP acumula na esfera da tarefa. Subir de nível restaura vida e mana.</p>
+      </div>
+
+      <div class="config-secao">
+        <h3>Dano</h3>
+        <p>Quanto você perde de vida no reset diário (recorrentes perdidas) ou por repetição negativa de hábito.</p>
+        <table class="jogo-tabela">
+          <thead>
+            <tr>
+              <th scope="col">Origem</th>
+              <th scope="col">Dif.</th>
+              <th scope="col">Vida</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${DIFICULDADES.map((d) => `
+              <tr>
+                <th scope="row">Recorrente perdida</th>
+                <td>${d.rotulo}</td>
+                <td><b>−${danoDe(d.id)}</b></td>
+              </tr>
+            `).join('')}
+            <tr>
+              <th scope="row">Hábito negativo</th>
+              <td>—</td>
+              <td><b>−${DANO_HABITO_NEGATIVO}</b></td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="config-dica">${modoRelaxado ? 'Modo relaxado ativo: nenhum dano é aplicado.' : 'Vida zerada = esgotado e perde uma carta do baralho.'}</p>
+      </div>
     </div>
 
     <div class="config-secao">

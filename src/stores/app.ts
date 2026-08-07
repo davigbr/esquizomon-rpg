@@ -2,11 +2,11 @@
 
 import { atom, computed } from 'nanostores'
 
-import type { Agenda, AppData, Configuracao, Dificuldade, Personagem, Tarefa, Tema, TipoLog, TipoTarefa } from '../core/tipos'
+import type { Agenda, AppData, Configuracao, Conversa, Dificuldade, Personagem, Tarefa, Tema, TipoLog, TipoTarefa } from '../core/tipos'
 import { DANO_HABITO_NEGATIVO, cartasPorNivel, custoInvocacao, danoDe, diaDaSemana, diaDoMes, hojeISO, novoId, personagemInicial, somarDias, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../core/jogo'
 import type { Carta } from '../core/baralho'
 import { sortearIds, sortearIniciais } from '../core/baralho'
-import { MAX_LOG, apagarTudo, carregar, normalizarDados, salvar, salvarTema } from '../db/storage'
+import { MAX_CONVERSAS, MAX_LOG, apagarTudo, carregar, normalizarDados, salvar, salvarTema } from '../db/storage'
 
 export const appStore = atom<AppData>(carregar())
 
@@ -439,6 +439,62 @@ export function definirConfiguracao(patch: Partial<Configuracao>): void {
   appStore.set({ ...appStore.get(), configuracao: { ...appStore.get().configuracao, ...patch } })
 }
 
+/* ---------- conversas (chat com a IA) ---------- */
+
+function conversasAtuais(): Conversa[] {
+  return appStore.get().conversas ?? []
+}
+
+function salvarConversas(conversas: Conversa[]): void {
+  appStore.set({ ...appStore.get(), conversas })
+}
+
+export function criarConversa(): Conversa {
+  const id = novoId()
+  const agora = new Date().toISOString()
+  const conversa: Conversa = { id, titulo: 'Nova conversa', mensagens: [], atualizadaEm: agora }
+  salvarConversas([conversa, ...conversasAtuais()].slice(0, MAX_CONVERSAS))
+  return conversa
+}
+
+export function conversaPorId(id: string): Conversa | undefined {
+  return conversasAtuais().find((c) => c.id === id)
+}
+
+export function atualizarConversa(id: string, patch: Partial<Conversa>): void {
+  const conversas = conversasAtuais()
+  const idx = conversas.findIndex((c) => c.id === id)
+  if (idx < 0) return
+  const atualizada: Conversa = { ...conversas[idx], ...patch, atualizadaEm: new Date().toISOString() }
+  const proximas = [...conversas]
+  proximas.splice(idx, 1)
+  // Re-ordena: mais recente no topo.
+  salvarConversas([atualizada, ...proximas].slice(0, MAX_CONVERSAS))
+}
+
+export function adicionarMensagem(conversaId: string, msg: import('../core/tipos').MensagemIA): void {
+  const conversa = conversaPorId(conversaId)
+  if (!conversa) return
+  const mensagens = [...conversa.mensagens, msg]
+  // Primeira mensagem do usuário vira o título (3-5 palavras).
+  let titulo = conversa.titulo
+  if (conversa.mensagens.length === 0 && msg.role === 'user') {
+    titulo = msg.content
+      .replace(/\s+/g, ' ')
+      .trim()
+      .split(' ')
+      .slice(0, 5)
+      .join(' ')
+      .slice(0, 60)
+    if (!titulo) titulo = 'Conversa'
+  }
+  atualizarConversa(conversaId, { titulo, mensagens })
+}
+
+export function excluirConversa(id: string): void {
+  salvarConversas(conversasAtuais().filter((c) => c.id !== id))
+}
+
 /* ---------- import/export ---------- */
 
 export function exportarJSON(): string {
@@ -468,6 +524,7 @@ export function apagarTodosDados(): void {
     personagem: personagemInicial(),
     configuracao: appStore.get().configuracao,
     log: [],
+    conversas: [],
   })
   // o deck já carregou no boot — re-sorteia as cartas iniciais do baralho zerado
   if (deckCarregado) {

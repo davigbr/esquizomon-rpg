@@ -1,0 +1,24 @@
+# Netlify config — Esquizomon RPG
+# Build: SPA estática + 1 serverless function (ia).
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  # Funções em netlify/functions, runtime default (Node 20).
+  directory = "netlify/functions"
+
+# Redireciona /api/ia → function /.netlify/functions/ia
+# (mesma URL em dev e prod — Vite middleware serve /api/ia em dev)
+[[redirects]]
+  from = "/api/ia"
+  to = "/.netlify/functions/ia"
+  status = 200
+
+# SPA: rotas do hash-router não precisam de fallback (são client-side),
+# mas qualquer URL desconhecida volta pro index.html pro PWA/sw.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

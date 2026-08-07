@@ -1,6 +1,6 @@
 /** Persistência versionada + wrapper seguro (fallback em memória quando localStorage é bloqueado). */
 
-import type { AppData, Configuracao, LogEvento, Personagem, Tarefa, Tema, TipoLog } from '../core/tipos'
+import type { AppData, ConfigIa, Configuracao, Conversa, LogEvento, MensagemIA, Personagem, ProviderIA, Tarefa, Tema, TipoLog } from '../core/tipos'
 import { STORAGE_KEY, TEMA_KEY, VERSAO_DADOS } from '../core/tipos'
 import { hpMaxDe, manaMaxDe, personagemInicial, xpProximoDe } from '../core/jogo'
 
@@ -147,7 +147,75 @@ function normalizarPersonagem(v: unknown): Personagem {
 function normalizarConfiguracao(v: unknown): Configuracao {
   const tema = ehObjeto(v) && (v.tema === 'light' || v.tema === 'dark') ? v.tema : 'dark'
   const modoRelaxado = ehObjeto(v) && v.modoRelaxado === true
-  return { tema, modoRelaxado }
+  const ia = ehObjeto(v) ? normalizarConfigIa(v.ia) : undefined
+  const out: Configuracao = { tema, modoRelaxado }
+  if (ia) out.ia = ia
+  return out
+}
+
+const PROVIDERS: ReadonlySet<string> = new Set(['nenhum', 'deepseek', 'opencode'])
+
+function normalizarConfigIa(v: unknown): ConfigIa | undefined {
+  if (!ehObjeto(v)) return undefined
+  const provider: ProviderIA =
+    typeof v.provider === 'string' && PROVIDERS.has(v.provider) ? (v.provider as ProviderIA) : 'nenhum'
+  if (provider === 'nenhum') return undefined // sem provider configurado → não criar config
+  // Migração v2 → v3: presets viraram texto livre. Se o usuário tinha
+  // `preset === 'custom'` + `systemPromptCustom`, copia; senão mantém vazio
+  // (= usa o canônico). O campo `preset` legado é ignorado.
+  let systemPrompt = ''
+  if (typeof v.systemPrompt === 'string') {
+    systemPrompt = v.systemPrompt
+  } else if (v.preset === 'custom' && typeof v.systemPromptCustom === 'string') {
+    systemPrompt = v.systemPromptCustom
+  }
+  return {
+    provider,
+    modelo: typeof v.modelo === 'string' ? v.modelo : '',
+    apiKey: typeof v.apiKey === 'string' ? v.apiKey : '',
+    systemPrompt,
+  }
+}
+
+/** Limite de mensagens por conversa (evita localStorage inflado). */
+const MAX_MSG_POR_CONVERSA = 200
+/** Limite de conversas guardadas. */
+export const MAX_CONVERSAS = 30
+
+function normalizarConversa(v: unknown): Conversa | null {
+  if (!ehObjeto(v)) return null
+  const id = typeof v.id === 'string' && v.id ? v.id : null
+  if (!id) return null
+  const titulo = typeof v.titulo === 'string' && v.titulo.trim() ? v.titulo.trim().slice(0, 80) : 'Conversa'
+  const atualizadaEm = typeof v.atualizadaEm === 'string' ? v.atualizadaEm : new Date(0).toISOString()
+  const msgs: MensagemIA[] = []
+  if (Array.isArray(v.mensagens)) {
+    for (const m of v.mensagens) {
+      if (!ehObjeto(m)) continue
+      if (m.role !== 'user' && m.role !== 'assistant') continue
+      if (typeof m.content !== 'string' || !m.content) continue
+      msgs.push({
+        role: m.role,
+        content: m.content,
+        reasoning: typeof m.reasoning === 'string' ? m.reasoning : undefined,
+        ts: typeof m.ts === 'string' ? m.ts : new Date().toISOString(),
+      })
+      if (msgs.length >= MAX_MSG_POR_CONVERSA) break
+    }
+  }
+  return { id, titulo, mensagens: msgs, atualizadaEm }
+}
+
+function normalizarConversas(v: unknown): Conversa[] {
+  if (!Array.isArray(v)) return []
+  const out: Conversa[] = []
+  for (const c of v) {
+    const conv = normalizarConversa(c)
+    if (conv) out.push(conv)
+  }
+  // Mantém só as MAX_CONVERSAS mais recentes.
+  out.sort((a, b) => b.atualizadaEm.localeCompare(a.atualizadaEm))
+  return out.slice(0, MAX_CONVERSAS)
 }
 
 /** Valida e normaliza um dado bruto (de localStorage ou import). Null se irreparável. */
@@ -161,12 +229,14 @@ export function normalizarDados(bruto: unknown): AppData | null {
     if (ok) tarefas.push(ok)
   }
   const log = normalizarLog(b.log)
+  const conversas = normalizarConversas(b.conversas)
   return {
     versao: VERSAO_DADOS,
     tarefas,
     personagem: normalizarPersonagem(b.personagem),
     configuracao: normalizarConfiguracao(b.configuracao),
     log,
+    conversas,
   }
 }
 
@@ -200,6 +270,7 @@ export function estadoVazio(): AppData {
     personagem: personagemInicial(),
     configuracao: { tema: temaInicial() },
     log: [],
+    conversas: [],
   }
 }
 

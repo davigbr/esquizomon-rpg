@@ -1,13 +1,27 @@
-/** Visão Config — tema, jogo, export/import de dados e zona de perigo. */
+/** Visão Config — tema, jogo, IA, export/import de dados e zona de perigo. */
 
-import type { AppData } from '../../core/tipos'
+import type { AppData, ConfigIa, ProviderIA } from '../../core/tipos'
+import { MODELOS_POR_PROVIDER, modeloPadrao, testarConexao, ErroIA } from '../../ia/cliente'
+import { SYSTEM_PROMPT_PADRAO } from '../../ia/prompt'
 import { apagarTodosDados, definirConfiguracao, definirTema, exportarJSON, importarJSON } from '../../stores/app'
 import { confirmar } from '../modal'
 import { notificar } from '../toast'
 
+const IA_PADRAO: ConfigIa = {
+  provider: 'nenhum',
+  modelo: '',
+  apiKey: '',
+  systemPrompt: '',
+}
+
+function iaAtual(dados: AppData): ConfigIa {
+  return dados.configuracao.ia ?? IA_PADRAO
+}
+
 export function montarConfig(raiz: HTMLElement, dados: AppData): void {
   const tema = dados.configuracao.tema
   const modoRelaxado = dados.configuracao.modoRelaxado === true
+  const ia = iaAtual(dados)
   const total = dados.tarefas.length
 
   raiz.innerHTML = `
@@ -46,6 +60,8 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
       </div>
     </div>
 
+    ${secaoIA(ia)}
+
     <div class="config-secao">
       <h3>Dados</h3>
       <p>Exporte ou importe tudo em JSON — o backup do seu território.</p>
@@ -53,7 +69,7 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
         <button class="btn" data-exportar><i class="fa-solid fa-download" aria-hidden="true"></i> Exportar (JSON)</button>
         <button class="btn" data-importar><i class="fa-solid fa-upload" aria-hidden="true"></i> Importar</button>
       </div>
-      <div class="config-dica config-dica-linha">${total} tarefa${total === 1 ? '' : 's'} · nível ${dados.personagem.nivel} · ${dados.personagem.cartas.length} cartas desbloqueadas</div>
+      <div class="config-dica config-dica-linha">${total} tarefa${total === 1 ? '' : 's'} · nível <b>${dados.personagem.nivel}</b> · <b>${dados.personagem.cartas.length}</b> cartas desbloqueadas</div>
     </div>
 
     <div class="config-secao">
@@ -75,6 +91,8 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
     definirConfiguracao({ modoRelaxado: valor })
     notificar(valor ? 'Modo relaxado ligado — sem dano.' : 'Modo relaxado desligado.')
   })
+
+  instalarHandlersIA(raiz)
 
   raiz.querySelector('[data-exportar]')!.addEventListener('click', () => {
     const json = exportarJSON()
@@ -113,4 +131,162 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
       }
     })
   })
+}
+
+function secaoIA(ia: ConfigIa): string {
+  const providerOptions: Array<[ProviderIA, string]> = [
+    ['nenhum', 'Desligado (sem IA)'],
+    ['deepseek', 'DeepSeek'],
+    ['opencode', 'OpenCode Zen Go'],
+  ]
+  const provider = ia.provider
+  const modelos = MODELOS_POR_PROVIDER[provider] ?? []
+  // Mostra o system prompt: o do usuário OU o canônico (read-only até o usuário editar).
+  const promptAtual = ia.systemPrompt || SYSTEM_PROMPT_PADRAO
+  const isPadrao = !ia.systemPrompt.trim()
+
+  return `
+    <div class="config-secao">
+      <h3><i class="fa-solid fa-feather" aria-hidden="true"></i> Fábula (IA)</h3>
+      <p>BYOK: a chave fica só no seu dispositivo. O provedor é contactado direto (sem servidor intermediário guardando dados). DeepSeek e OpenCode têm raciocínio visível no chat.</p>
+
+      <div class="config-linha">
+        <div>
+          <div class="config-rotulo">Provider</div>
+          <div class="config-dica">Quem vai responder</div>
+        </div>
+        <select class="filtro-select" data-ia-provider>
+          ${providerOptions.map(([v, l]) => `<option value="${v}" ${provider === v ? 'selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="config-linha">
+        <div>
+          <div class="config-rotulo">Modelo</div>
+          <div class="config-dica">Vazio = ${provider !== 'nenhum' ? modeloPadrao(provider) : 'escolha um provider'}</div>
+        </div>
+        <select class="filtro-select" data-ia-modelo ${provider === 'nenhum' ? 'disabled' : ''}>
+          <option value="" ${ia.modelo === '' ? 'selected' : ''}>(padrão)</option>
+          ${modelos.map((m) => `<option value="${m}" ${ia.modelo === m ? 'selected' : ''}>${m}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="config-linha config-linha--empilhado">
+        <div>
+          <div class="config-rotulo">Chave de API</div>
+          <div class="config-dica">${provider === 'opencode'
+            ? 'Vem de <code>OPENCODE_GO_ESQUIZOMONRPG_TOKEN</code> se setada no ambiente.'
+            : 'Só você vê. Não sai do seu dispositivo.'}</div>
+        </div>
+        <input type="password" class="filtro-input" data-ia-chave autocomplete="off" spellcheck="false" placeholder="sk-..." value="${ia.apiKey.replace(/"/g, '&quot;')}" ${provider === 'nenhum' ? 'disabled' : ''} />
+      </div>
+
+      <div class="config-linha config-linha--empilhado">
+        <div class="config-rotulo-linha">
+          <div>
+            <div class="config-rotulo">System prompt da Fábula</div>
+            <div class="config-dica">
+              ${isPadrao
+                ? 'Usando o <strong>prompt canônico</strong> (NARRATIVA.md). Edite pra customizar.'
+                : 'Customizado — edite à vontade.'}
+            </div>
+          </div>
+          <button class="btn btn--texto" data-ia-restaurar type="button" title="Volta pro prompt canônico">
+            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Restaurar padrão
+          </button>
+        </div>
+        <textarea class="filtro-textarea filtro-textarea--prompt" data-ia-prompt rows="14" spellcheck="false">${promptAtual.replace(/</g, '&lt;')}</textarea>
+      </div>
+
+      <div class="config-acoes">
+        <button class="btn" data-ia-testar ${provider === 'nenhum' ? 'disabled' : ''}><i class="fa-solid fa-plug" aria-hidden="true"></i> Testar conexão</button>
+        <span class="config-dica" data-ia-status></span>
+      </div>
+    </div>
+  `
+}
+
+function instalarHandlersIA(raiz: HTMLElement): void {
+  const providerEl = raiz.querySelector<HTMLSelectElement>('[data-ia-provider]')
+  const modeloEl = raiz.querySelector<HTMLSelectElement>('[data-ia-modelo]')
+  const chaveEl = raiz.querySelector<HTMLInputElement>('[data-ia-chave]')
+  const promptEl = raiz.querySelector<HTMLTextAreaElement>('[data-ia-prompt]')
+  const restaurarEl = raiz.querySelector<HTMLButtonElement>('[data-ia-restaurar]')
+  const testarEl = raiz.querySelector<HTMLButtonElement>('[data-ia-testar]')
+  const statusEl = raiz.querySelector<HTMLElement>('[data-ia-status]')
+
+  function lerIa(): ConfigIa {
+    return {
+      provider: (providerEl?.value as ProviderIA) ?? 'nenhum',
+      modelo: modeloEl?.value ?? '',
+      apiKey: chaveEl?.value ?? '',
+      systemPrompt: promptEl?.value ?? '',
+    }
+  }
+
+  function salvar(): void {
+    definirConfiguracao({ ia: lerIa() })
+  }
+
+  function atualizarModelos(): void {
+    if (!modeloEl) return
+    const provider = (providerEl?.value as ProviderIA) ?? 'nenhum'
+    const modelos = MODELOS_POR_PROVIDER[provider] ?? []
+    const atual = modeloEl.value
+    modeloEl.innerHTML =
+      `<option value="" ${atual === '' ? 'selected' : ''}>(padrão)</option>` +
+      modelos.map((m) => `<option value="${m}" ${atual === m ? 'selected' : ''}>${m}</option>`).join('')
+    modeloEl.disabled = provider === 'nenhum'
+    if (chaveEl) chaveEl.disabled = provider === 'nenhum'
+    if (testarEl) testarEl.disabled = provider === 'nenhum'
+  }
+
+  providerEl?.addEventListener('change', () => {
+    atualizarModelos()
+    salvar()
+  })
+  modeloEl?.addEventListener('change', salvar)
+  chaveEl?.addEventListener('change', salvar)
+  promptEl?.addEventListener('change', salvar)
+
+  restaurarEl?.addEventListener('click', async () => {
+    if (!promptEl) return
+    if (promptEl.value.trim() === SYSTEM_PROMPT_PADRAO) {
+      notificar('O prompt já é o padrão.')
+      return
+    }
+    const ok = await confirmar(
+      'Restaurar o system prompt canônico da Fábula? Suas edições serão perdidas.',
+      'Restaurar padrão',
+    )
+    if (!ok) return
+    promptEl.value = SYSTEM_PROMPT_PADRAO
+    salvar()
+    notificar('System prompt restaurado.')
+  })
+
+  testarEl?.addEventListener('click', async () => {
+    const ia = lerIa()
+    if (ia.provider === 'nenhum' || !ia.apiKey.trim()) {
+      notificar('Escolha um provider e informe a chave.', 'erro')
+      return
+    }
+    if (statusEl) {
+      statusEl.textContent = 'Testando…'
+      testarEl!.disabled = true
+    }
+    try {
+      const resp = await testarConexao(ia)
+      if (statusEl) statusEl.textContent = `OK — respondeu: "${resp.slice(0, 30)}"`
+      notificar('Conexão ok.', 'ok')
+    } catch (err) {
+      const msg = err instanceof ErroIA ? err.message : String(err)
+      if (statusEl) statusEl.textContent = `Falhou: ${msg.slice(0, 50)}`
+      notificar(`Falhou: ${msg}`, 'erro')
+    } finally {
+      if (testarEl) testarEl.disabled = false
+    }
+  })
+
+  atualizarModelos()
 }
