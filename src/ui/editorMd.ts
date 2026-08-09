@@ -179,51 +179,118 @@ export function editorParaTexto(ed: HTMLElement): string {
 
 /* ---------- caret por posição de caractere ---------- */
 
-/** Retorna a posição global (índice no texto puro) do caret atual. */
-export function caretParaPosicao(ed: HTMLElement): number {
-  const sel = document.getSelection()
-  if (!sel || sel.rangeCount === 0) return 0
-  const range = sel.getRangeAt(0)
-  if (!ed.contains(range.startContainer)) return 0
-
-  const walker = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT)
+/** Conta os caracteres de texto dentro de um elemento até o caret. */
+function posicaoDentroDe(el: Element, start: Node, offset: number): number {
+  if (start === el) return offset
   let pos = 0
-  let node: Node | null = walker.nextNode()
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+  let node = walker.nextNode()
   while (node) {
-    if (node === range.startContainer) return pos + range.startOffset
+    if (node === start) return pos + offset
     pos += (node.textContent ?? '').length
     node = walker.nextNode()
   }
   return pos
 }
 
-/** Restaura o caret numa posição de caractere do texto puro. */
-export function posicaoParaCaret(ed: HTMLElement, pos: number): void {
+/** Retorna a posição do caret nos TEXT NODES do editor (sem contar \n
+ *  estruturais entre linhas — consistente com posicaoParaCaret). */
+export function caretParaPosicao(ed: HTMLElement): number {
+  const sel = document.getSelection()
+  if (!sel || sel.rangeCount === 0) return 0
+  const range = sel.getRangeAt(0)
+  const start = range.startContainer
+  if (!ed.contains(start)) return 0
+
   const walker = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT)
-  let acumulado = 0
+  let pos = 0
   let node: Node | null = walker.nextNode()
   while (node) {
-    const len = (node.textContent ?? '').length
-    if (acumulado + len >= pos) {
-      const offset = Math.min(pos - acumulado, len)
+    if (node === start) return pos + range.startOffset
+    pos += (node.textContent ?? '').length
+    node = walker.nextNode()
+  }
+  return pos
+}
+
+/** Divide a linha onde está o caret em duas (Enter). DOM puro — sem posições
+ *  globais, imune a inconsistências de \n estruturais entre linhas. */
+export function quebrarLinhaNoCaret(ed: HTMLElement): boolean {
+  const sel = document.getSelection()
+  if (!sel || sel.rangeCount === 0) return false
+  const range = sel.getRangeAt(0)
+  const start = range.startContainer
+  if (!ed.contains(start)) return false
+
+  const linhaEl = start instanceof HTMLElement
+    ? start.closest('.md-linha')
+    : start.parentElement?.closest('.md-linha')
+  if (!linhaEl) return false
+
+  // texto puro da linha: prefixo ORIGINAL + conteúdo serializado de volta a markdown
+  const prefOrig = linhaEl.getAttribute('data-prefixo-orig') ?? ''
+  const conteudoEl = linhaEl.querySelector('.md-conteudo')
+  const textoLinha = conteudoEl
+    ? prefOrig + Array.from(conteudoEl.childNodes).map(serializarNode).join('')
+    : (linhaEl.textContent ?? '')
+
+  // offset do caret DENTRO da linha (inclui o prefixo decorativo, que tem o
+  // mesmo comprimento do original — consistente)
+  const offset = posicaoDentroDe(linhaEl, start, range.startOffset)
+
+  const parteA = textoLinha.slice(0, offset)
+  const parteB = textoLinha.slice(offset)
+
+  // insere a linha B DEPOIS da atual, depois substitui a A pela metade A
+  linhaEl.insertAdjacentHTML('afterend', compilarLinha(parteB))
+  const linhaB = linhaEl.nextElementSibling as HTMLElement | null
+  linhaEl.outerHTML = compilarLinha(parteA)
+
+  // caret no início do conteúdo da linha B
+  if (linhaB) {
+    const conteudoB = linhaB.querySelector<HTMLElement>('.md-conteudo')
+    const destino = conteudoB ?? linhaB
+    const range2 = document.createRange()
+    range2.setStart(destino, 0)
+    range2.collapse(true)
+    sel.removeAllRanges()
+    sel.addRange(range2)
+  }
+  return true
+}
+
+/** Restaura o caret numa posição de caractere do texto puro.
+ *  Pousa no text node correto MESMO quando ele é vazio (ex.: linha nova). */
+export function posicaoParaCaret(ed: HTMLElement, pos: number): void {
+  const textNodes: Text[] = []
+  const walker = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT)
+  let node = walker.nextNode()
+  while (node) {
+    textNodes.push(node as Text)
+    node = walker.nextNode()
+  }
+  if (textNodes.length === 0) return
+
+  let acumulado = 0
+  for (const tn of textNodes) {
+    if (pos <= acumulado + tn.length) {
+      const offset = Math.max(0, Math.min(pos - acumulado, tn.length))
       const range = document.createRange()
-      range.setStart(node, offset)
+      range.setStart(tn, offset)
       range.collapse(true)
       const sel = document.getSelection()
       sel?.removeAllRanges()
       sel?.addRange(range)
       return
     }
-    acumulado += len
-    node = walker.nextNode()
+    acumulado += tn.length
   }
-  // caiu no fim
+  // pos além do fim → fim do último text node (nunca fora das linhas)
+  const ultimo = textNodes[textNodes.length - 1]
+  const range = document.createRange()
+  range.setStart(ultimo, ultimo.length)
+  range.collapse(true)
   const sel = document.getSelection()
-  if (sel && ed.lastChild) {
-    const range = document.createRange()
-    range.selectNodeContents(ed)
-    range.collapse(false)
-    sel.removeAllRanges()
-    sel.addRange(range)
-  }
+  sel?.removeAllRanges()
+  sel?.addRange(range)
 }

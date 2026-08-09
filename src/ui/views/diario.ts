@@ -7,7 +7,7 @@ import { appStore, excluirEntrada, moverEntrada, salvarEntrada } from '../../sto
 import { confirmar } from '../modal'
 import { notificar } from '../toast'
 import { escapar } from '../formTarefa'
-import { compilarEditor, editorParaTexto, caretParaPosicao, posicaoParaCaret, analisarLinha } from '../editorMd'
+import { compilarEditor, editorParaTexto, caretParaPosicao, posicaoParaCaret, analisarLinha, quebrarLinhaNoCaret } from '../editorMd'
 
 /** Data da entrada aberta no editor (módulo — sobrevive a re-renders). */
 let aberta: string | null = null
@@ -59,7 +59,7 @@ export function montarDiario(raiz: HTMLElement, dados: AppData): void {
           </div>
         </div>
 
-        <input class="diario-titulo" data-diario-titulo type="text" placeholder="Título (opcional)" maxlength="120"
+        <input class="diario-titulo" data-diario-titulo type="text" placeholder="Título" maxlength="120"
           value="${escapar(entrada?.titulo ?? '')}" autocomplete="off" />
 
         <div class="diario-editor-area" data-diario-editor contenteditable="true" spellcheck="true" aria-label="Crônica em markdown">
@@ -194,18 +194,11 @@ function instalarEditor(raiz: HTMLElement, hoje: string): void {
     }
   })
 
-  // Enter: insere a quebra nós mesmos (determinístico). Sem preventDefault,
-  // o browser cria estruturas fora do formato .md-linha e a recompilação
-  // perderia a linha anterior.
+  // Enter: divide a linha atual em duas (DOM puro, determinístico).
   areaEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      const pos = caretParaPosicao(areaEl)
-      const texto = editorParaTexto(areaEl)
-      const novoTexto = texto.slice(0, pos) + '\n' + texto.slice(pos)
-      areaEl.innerHTML = compilarEditor(novoTexto)
-      // caret no início da nova linha
-      posicaoParaCaret(areaEl, pos + 1)
+      quebrarLinhaNoCaret(areaEl)
       agendarSalvar()
     }
   })
