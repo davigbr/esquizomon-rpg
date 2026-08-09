@@ -7,7 +7,7 @@ import { appStore, excluirEntrada, moverEntrada, salvarEntrada } from '../../sto
 import { confirmar } from '../modal'
 import { notificar } from '../toast'
 import { escapar } from '../formTarefa'
-import { compilarEditor, editorParaTexto, caretParaPosicao, posicaoParaCaret, analisarLinha, quebrarLinhaNoCaret } from '../editorMd'
+import { compilarEditor, editorParaTexto, caretParaPosicao, posicaoParaCaret, analisarLinha, quebrarLinhaNoCaret, normalizarEstrutura } from '../editorMd'
 
 /** Data da entrada aberta no editor (módulo — sobrevive a re-renders). */
 let aberta: string | null = null
@@ -17,6 +17,20 @@ const timersAutosave = new Map<string, ReturnType<typeof setTimeout>>()
 
 export function montarDiario(raiz: HTMLElement, dados: AppData): void {
   const hoje = hojeISO()
+
+  // ⚠️ CRÍTICO: se o editor está FOCADO (usuário digitando), NÃO re-renderizar.
+  // O re-render via appStore.set (autosave, etc.) substitui o editor inteiro,
+  // mata o foco/caret e a digitação seguinte vai para lugar nenhum — é a causa
+  // de 'enter apaga linha' em uso real que testes sintéticos não pegam.
+  const editorAtual = raiz.querySelector<HTMLElement>('[data-diario-editor]')
+  if (editorAtual && document.activeElement === editorAtual) {
+    // Só atualiza o status de salvamento, sem tocar no editor.
+    const entradaNova = (dados.diario ?? []).find((e) => e.data === aberta)
+    const statusEl = raiz.querySelector<HTMLElement>('[data-diario-status]')
+    if (statusEl && entradaNova?.texto) statusEl.textContent = 'Salvo'
+    return
+  }
+
   const entradas = [...(dados.diario ?? [])].sort((a, b) => b.data.localeCompare(a.data))
   if (!aberta) aberta = entradas[0]?.data ?? hoje
   // Se a data aberta não tem entrada ainda (ex.: hoje, sem registro), cria em branco na hora de editar.
@@ -112,15 +126,15 @@ function instalarNovaEntrada(raiz: HTMLElement): void {
   raiz.querySelector('[data-diario-novo]')?.addEventListener('click', () => {
     const hoje = hojeISO()
     aberta = hoje
-    // garante a entrada de hoje existe (vazia) — salvarEntrada cria com texto vazio; mas não
-    // queremos criar registro só por abrir. Em vez disso: só seleciona; o editor cria ao salvar.
     const dados = appStore.get()
     const jaExiste = (dados.diario ?? []).some((e) => e.data === hoje)
     if (!jaExiste) {
-      // abrir em branco sem persistir ainda
-      aberta = hoje
+      // cria a entrada AGORA (vazia) — o editor nasce com estrutura .md-linha,
+      // senão o Enter na primeira digitação é engolido (sem linha pra dividir)
+      salvarEntrada(hoje, { texto: '' })
+    } else {
+      appStore.set({ ...appStore.get() })
     }
-    appStore.set({ ...appStore.get() })
     setTimeout(() => raiz.querySelector<HTMLElement>('[data-diario-editor]')?.focus(), 50)
   })
 }
@@ -176,9 +190,12 @@ function instalarEditor(raiz: HTMLElement, hoje: string): void {
     posicaoParaCaret(areaEl, pos)
   }
 
-  // Input: se a linha atual mudou de tipo de bloco, recompila (live preview); senão só agenda salvar.
+  // Input: normaliza estrutura solta, detecta mudança de tipo de bloco
+  // (live preview) e agenda salvar.
   areaEl.addEventListener('input', () => {
     agendarSalvar()
+
+    if (normalizarEstrutura(areaEl)) return // recompilou com caret restaurado
 
     const sel = document.getSelection()
     if (!sel || sel.rangeCount === 0) return
@@ -194,10 +211,12 @@ function instalarEditor(raiz: HTMLElement, hoje: string): void {
     }
   })
 
-  // Enter: divide a linha atual em duas (DOM puro, determinístico).
+  // Enter: normaliza estrutura (se o browser criou text node solto) e
+  // divide a linha atual em duas (DOM puro, determinístico).
   areaEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault()
+      normalizarEstrutura(areaEl)
       quebrarLinhaNoCaret(areaEl)
       agendarSalvar()
     }

@@ -213,6 +213,30 @@ export function caretParaPosicao(ed: HTMLElement): number {
   return pos
 }
 
+/** Serializa UMA linha .md-linha de volta a markdown puro.
+ *  Robusto: captura o .md-conteudo formatado E text nodes soltos que o
+ *  browser possa ter criado fora do span (ex.: quando o caret pousa
+ *  fora do span). O prefixo decorativo é substituído pelo ORIGINAL. */
+function serializarLinha(linhaEl: HTMLElement): string {
+  const prefOrig = linhaEl.getAttribute('data-prefixo-orig') ?? ''
+  let corpo = ''
+  for (const no of Array.from(linhaEl.childNodes)) {
+    if (no.nodeType === Node.TEXT_NODE) {
+      corpo += no.textContent ?? ''
+    } else if (no.nodeType === Node.ELEMENT_NODE) {
+      const el = no as HTMLElement
+      if (el.classList.contains('md-prefixo')) continue // decorativo → usa prefOrig
+      if (el.classList.contains('md-conteudo')) {
+        corpo += Array.from(el.childNodes).map(serializarNode).join('')
+      } else {
+        // qualquer outro elemento (ex.: strong solto, div do browser) — serializa filhos
+        corpo += Array.from(el.childNodes).map(serializarNode).join('')
+      }
+    }
+  }
+  return prefOrig + corpo
+}
+
 /** Divide a linha onde está o caret em duas (Enter). DOM puro — sem posições
  *  globais, imune a inconsistências de \n estruturais entre linhas. */
 export function quebrarLinhaNoCaret(ed: HTMLElement): boolean {
@@ -222,17 +246,13 @@ export function quebrarLinhaNoCaret(ed: HTMLElement): boolean {
   const start = range.startContainer
   if (!ed.contains(start)) return false
 
-  const linhaEl = start instanceof HTMLElement
+  const linhaEl = (start instanceof HTMLElement
     ? start.closest('.md-linha')
-    : start.parentElement?.closest('.md-linha')
+    : start.parentElement?.closest('.md-linha')) as HTMLElement | null
   if (!linhaEl) return false
 
-  // texto puro da linha: prefixo ORIGINAL + conteúdo serializado de volta a markdown
-  const prefOrig = linhaEl.getAttribute('data-prefixo-orig') ?? ''
-  const conteudoEl = linhaEl.querySelector('.md-conteudo')
-  const textoLinha = conteudoEl
-    ? prefOrig + Array.from(conteudoEl.childNodes).map(serializarNode).join('')
-    : (linhaEl.textContent ?? '')
+  // texto puro da linha (robusto a text nodes soltos)
+  const textoLinha = serializarLinha(linhaEl)
 
   // offset do caret DENTRO da linha (inclui o prefixo decorativo, que tem o
   // mesmo comprimento do original — consistente)
@@ -246,16 +266,39 @@ export function quebrarLinhaNoCaret(ed: HTMLElement): boolean {
   const linhaB = linhaEl.nextElementSibling as HTMLElement | null
   linhaEl.outerHTML = compilarLinha(parteA)
 
-  // caret no início do conteúdo da linha B
+  // caret no início do conteúdo da linha B — GARANTE um text node vazio
+  // dentro do span, senão o texto digitado cai fora do .md-conteudo.
   if (linhaB) {
-    const conteudoB = linhaB.querySelector<HTMLElement>('.md-conteudo')
-    const destino = conteudoB ?? linhaB
+    let conteudoB = linhaB.querySelector<HTMLElement>('.md-conteudo')
+    if (conteudoB && conteudoB.childNodes.length === 0) {
+      conteudoB.appendChild(document.createTextNode(''))
+    }
+    const destino: Node = conteudoB ?? linhaB
     const range2 = document.createRange()
     range2.setStart(destino, 0)
     range2.collapse(true)
     sel.removeAllRanges()
     sel.addRange(range2)
   }
+  return true
+}
+
+/** Normaliza a estrutura do editor se o browser criou conteúdo fora do
+ *  formato .md-linha (text nodes soltos, divs sem classe). Recompila
+ *  preservando o caret. */
+export function normalizarEstrutura(ed: HTMLElement): boolean {
+  const temLinha = ed.querySelector('.md-linha') !== null
+  const soltos = Array.from(ed.childNodes).some(
+    (no) =>
+      no.nodeType === Node.TEXT_NODE ||
+      (no.nodeType === Node.ELEMENT_NODE && !(no as HTMLElement).classList?.contains('md-linha') && (no as HTMLElement).tagName !== 'BR'),
+  )
+  if (temLinha && !soltos) return false
+
+  const pos = caretParaPosicao(ed)
+  const texto = editorParaTexto(ed)
+  ed.innerHTML = compilarEditor(texto)
+  posicaoParaCaret(ed, pos)
   return true
 }
 
