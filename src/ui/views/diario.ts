@@ -17,24 +17,35 @@ const timersAutosave = new Map<string, ReturnType<typeof setTimeout>>()
 
 export function montarDiario(raiz: HTMLElement, dados: AppData): void {
   const hoje = hojeISO()
-
-  // ⚠️ CRÍTICO: se o editor está FOCADO (usuário digitando), NÃO re-renderizar.
-  // O re-render via appStore.set (autosave, etc.) substitui o editor inteiro,
-  // mata o foco/caret e a digitação seguinte vai para lugar nenhum — é a causa
-  // de 'enter apaga linha' em uso real que testes sintéticos não pegam.
-  const editorAtual = raiz.querySelector<HTMLElement>('[data-diario-editor]')
-  if (editorAtual && document.activeElement === editorAtual) {
-    // Só atualiza o status de salvamento, sem tocar no editor.
-    const entradaNova = (dados.diario ?? []).find((e) => e.data === aberta)
-    const statusEl = raiz.querySelector<HTMLElement>('[data-diario-status]')
-    if (statusEl && entradaNova?.texto) statusEl.textContent = 'Salvo'
-    return
-  }
-
   const entradas = [...(dados.diario ?? [])].sort((a, b) => b.data.localeCompare(a.data))
   if (!aberta) aberta = entradas[0]?.data ?? hoje
-  // Se a data aberta não tem entrada ainda (ex.: hoje, sem registro), cria em branco na hora de editar.
   const entrada = entradas.find((e) => e.data === aberta)
+  const entradaExiste = !!entrada
+
+  // ⚠️ Preserva a digitação: se o editor tem texto/título ainda não salvos
+  // (difere do storage), NÃO substitui o editor inteiro — isso mata foco/caret
+  // e causa 'enter apaga linha' em uso real. MAS a LISTA LATERAL sempre
+  // atualiza, senão os botões '+' e '🗑' parecem mortos quando o editor está
+  // focado (no macOS/Safari o clique num botão não tira o foco do editor).
+  const editorAtual = raiz.querySelector<HTMLElement>('[data-diario-editor]')
+  let edicaoAtiva = false
+  if (editorAtual) {
+    const textoAtual = editorParaTexto(editorAtual)
+    const tituloAtual = (raiz.querySelector<HTMLInputElement>('[data-diario-titulo]')?.value ?? '')
+    edicaoAtiva = textoAtual !== (entrada?.texto ?? '') || tituloAtual !== (entrada?.titulo ?? '')
+  }
+  if (edicaoAtiva && entradaExiste) {
+    // atualiza só a lista lateral + status; o editor fica intacto
+    const listaEl = raiz.querySelector<HTMLElement>('.diario-arquivos')
+    if (listaEl) {
+      listaEl.innerHTML = entradas.length === 0
+        ? '<div class="diario-vazio">Nenhuma crônica ainda.<br>Clique em + pra começar hoje.</div>'
+        : entradas.map((e) => arquivoHtml(e, e.data === aberta)).join('')
+    }
+    const statusEl = raiz.querySelector<HTMLElement>('[data-diario-status]')
+    if (statusEl) statusEl.textContent = 'Salvando…'
+    return
+  }
 
   raiz.innerHTML = `
     <header class="view-header">
