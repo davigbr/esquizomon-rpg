@@ -8,14 +8,16 @@
  *  posição → text node via caminhada em ordem document.
  */
 
-/** Detecta o tipo de bloco de uma linha e devolve { tipo, prefixo, resto }. */
+/** Detecta o tipo de bloco de uma linha e devolve { tipo, prefixo, resto }.
+ *  `prefixo` é o marcador ORIGINAL (ex.: "- ", "## ") — o decorativo é
+ *  derivado no compilarLinha (ul vira "• "). */
 export function analisarLinha(texto: string): { tipo: string; prefixo: string; resto: string } {
   // Títulos: #, ##, ###
   const h = /^(#{1,3})\s+(.*)$/.exec(texto)
   if (h) return { tipo: `h${h[1].length}`, prefixo: `${h[1]} `, resto: h[2] }
   // Lista: - ou *
-  const ul = /^[-*]\s+(.*)$/.exec(texto)
-  if (ul) return { tipo: 'ul', prefixo: '• ', resto: ul[1] }
+  const ul = /^([-*])\s+(.*)$/.exec(texto)
+  if (ul) return { tipo: 'ul', prefixo: `${ul[1]} `, resto: ul[2] }
   // Lista numerada: 1.
   const ol = /^(\d+)\.\s+(.*)$/.exec(texto)
   if (ol) return { tipo: 'ol', prefixo: `${ol[1]}. `, resto: ol[2] }
@@ -25,6 +27,12 @@ export function analisarLinha(texto: string): { tipo: string; prefixo: string; r
   // Código em bloco: ``` (linha inteira)
   if (/^```/.test(texto)) return { tipo: 'code', prefixo: '', resto: texto }
   return { tipo: 'p', prefixo: '', resto: texto }
+}
+
+/** Prefixo VISUAL de cada tipo de bloco (o original pode ser "-", exibimos "•"). */
+function prefixoDecorativo(tipo: string, prefixo: string): string {
+  if (tipo === 'ul') return '• '
+  return prefixo
 }
 
 /** Escapa HTML (seguro para qualquer entrada). */
@@ -39,7 +47,21 @@ export function escaparHtml(s: string): string {
 
 /** Formata inline: links → strong → em → code. Recebe texto JÁ escapado. */
 export function formatarInline(esc: string): string {
-  let s = esc.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+  // links markdown [texto](url) E URLs cruas numa ÚNICA passada — se
+  // processássemos separado, o 2º regex re-escaneava o HTML já gerado
+  // (casa a URL dentro do href e aninha tags).
+  let s = esc.replace(
+    /\[([^\]]+)\]\(([^)\s]+)\)|(https?:\/\/[^\s<>"']+)/g,
+    (_m, texto: string | undefined, url: string | undefined, crua: string | undefined) => {
+      const href = (url ?? crua ?? '').replace(/"/g, '&quot;')
+      if (url) {
+        // link markdown [texto](url)
+        return `<a href="${href}" target="_blank" rel="noopener noreferrer">${texto ?? ''}</a>`
+      }
+      // URL crua — marca data-raw-url pra serializar de volta sem o wrap [t](u)
+      return `<a href="${href}" data-raw-url="1" target="_blank" rel="noopener noreferrer">${href}</a>`
+    },
+  )
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>')
   s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>')
@@ -51,8 +73,12 @@ export function compilarLinha(texto: string): string {
   const { tipo, prefixo, resto } = analisarLinha(texto)
   const esc = escaparHtml(resto)
   const conteudo = tipo === 'code' ? `<code>${esc}</code>` : formatarInline(esc)
-  const prefixoHtml = prefixo ? `<span class="md-prefixo" contenteditable="false">${escaparHtml(prefixo)}</span>` : ''
-  return `<div class="md-linha md-linha--${tipo}" data-tipo="${tipo}">${prefixoHtml}<span class="md-conteudo">${conteudo}</span></div>`
+  const decorativo = prefixoDecorativo(tipo, prefixo)
+  const prefixoHtml = decorativo ? `<span class="md-prefixo" contenteditable="false">${escaparHtml(decorativo)}</span>` : ''
+  // data-prefixo-orig guarda o marcador ORIGINAL (ex.: "- ") pra reconstruir
+  // o markdown na extração (em vez do decorativo "• ").
+  const origAttr = prefixo ? ` data-prefixo-orig="${escaparHtml(prefixo)}"` : ''
+  return `<div class="md-linha md-linha--${tipo}" data-tipo="${tipo}"${origAttr}>${prefixoHtml}<span class="md-conteudo">${conteudo}</span></div>`
 }
 
 /** Compila um texto inteiro (múltiplas linhas) em HTML do editor. */
@@ -63,19 +89,92 @@ export function compilarEditor(texto: string): string {
     .join('')
 }
 
-/** Extrai o texto puro do editor (incluindo prefixos decorativos), reconstruindo as linhas. */
+/** Serializa um nó do DOM formatado DE VOLTA a markdown puro.
+ *  strong → **x**, em → *x*, a → [t](href), code → `x`. */
+function serializarNode(no: Node): string {
+  if (no.nodeType === Node.TEXT_NODE) return no.textContent ?? ''
+  if (no.nodeType !== Node.ELEMENT_NODE) return ''
+  const el = no as HTMLElement
+  const tag = el.tagName.toLowerCase()
+  if (tag === 'br') return '\n'
+  const filhos = Array.from(el.childNodes).map(serializarNode).join('')
+  switch (tag) {
+    case 'strong':
+    case 'b':
+      return `**${filhos}**`
+    case 'em':
+    case 'i':
+      return `*${filhos}*`
+    case 'code':
+      return `\`${filhos}\``
+    case 'a': {
+      const href = el.getAttribute('href') ?? ''
+      // URL crua (data-raw-url) volta como URL pura; link markdown vira [t](u)
+      if (el.hasAttribute('data-raw-url')) return filhos
+      return `[${filhos}](${href})`
+    }
+    default:
+      return filhos
+  }
+}
+
+/** Extrai o texto puro do editor, reconstruindo as linhas E o markdown.
+ *  Robusto a QUALQUER estrutura que o browser crie no contenteditable
+ *  (divs sem classe, <br>, text nodes soltos) — cada elemento filho de
+ *  nível raiz conta como uma linha. Linhas vazias no MEIO são preservadas;
+ *  só as vazias do FINAL (trailing newline) são removidas. */
 export function editorParaTexto(ed: HTMLElement): string {
-  const linhas = ed.querySelectorAll<HTMLElement>('.md-linha')
-  if (linhas.length === 0) return ''
-  return Array.from(linhas)
-    .map((linha) => {
-      const pref = linha.querySelector<HTMLElement>('.md-prefixo')
-      const conteudo = linha.querySelector<HTMLElement>('.md-conteudo')
-      const pre = pref ? pref.textContent ?? '' : ''
-      const corpo = conteudo ? conteudo.textContent ?? '' : ''
-      return pre + corpo
-    })
-    .join('\n')
+  const linhas: string[] = []
+  let atual = ''
+
+  const flush = (): void => {
+    linhas.push(atual)
+    atual = ''
+  }
+
+  for (const no of Array.from(ed.childNodes)) {
+    if (no.nodeType === Node.ELEMENT_NODE) {
+      const el = no as HTMLElement
+      if (el.tagName === 'BR') {
+        atual += '\n'
+        continue
+      }
+      // linha: prefixo original (data-prefixo-orig) + conteúdo serializado de volta a markdown
+      const prefOrig = el.getAttribute?.('data-prefixo-orig')
+      const conteudo = el.querySelector?.('.md-conteudo')
+      if (conteudo) {
+        const pref = prefOrig ?? (el.querySelector('.md-prefixo')?.textContent ?? '')
+        atual += pref + Array.from(conteudo.childNodes).map(serializarNode).join('')
+      } else {
+        // div sem nossa estrutura (criada pelo browser) — textContent puro
+        atual += el.textContent ?? ''
+      }
+      flush()
+    } else if (no.nodeType === Node.TEXT_NODE) {
+      const t = no.textContent ?? ''
+      if (t.trim() === '' && atual === '') continue
+      atual += t
+    }
+  }
+  flush()
+
+  // Normaliza quebras internas (ex.: <br> serializado como \n).
+  const resultado: string[] = []
+  for (const linha of linhas) {
+    const partes = linha.split('\n')
+    if (partes.length > 1) {
+      resultado.push(...partes)
+    } else {
+      resultado.push(linha)
+    }
+  }
+
+  // Remove linhas vazias apenas no FINAL (trailing newline não conta como conteúdo).
+  while (resultado.length > 0 && resultado[resultado.length - 1] === '') {
+    resultado.pop()
+  }
+
+  return resultado.join('\n')
 }
 
 /* ---------- caret por posição de caractere ---------- */

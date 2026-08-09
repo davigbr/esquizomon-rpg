@@ -194,10 +194,19 @@ function instalarEditor(raiz: HTMLElement, hoje: string): void {
     }
   })
 
-  // Enter: o browser cria nova linha; recompilamos para dar estrutura (tipo) à linha nova.
+  // Enter: insere a quebra nós mesmos (determinístico). Sem preventDefault,
+  // o browser cria estruturas fora do formato .md-linha e a recompilação
+  // perderia a linha anterior.
   areaEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-      setTimeout(recompilar, 0)
+      e.preventDefault()
+      const pos = caretParaPosicao(areaEl)
+      const texto = editorParaTexto(areaEl)
+      const novoTexto = texto.slice(0, pos) + '\n' + texto.slice(pos)
+      areaEl.innerHTML = compilarEditor(novoTexto)
+      // caret no início da nova linha
+      posicaoParaCaret(areaEl, pos + 1)
+      agendarSalvar()
     }
   })
 
