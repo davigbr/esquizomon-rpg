@@ -1,6 +1,6 @@
 /** Persistência versionada + wrapper seguro (fallback em memória quando localStorage é bloqueado). */
 
-import type { AppData, ConfigIa, Configuracao, Conversa, LogEvento, MensagemIA, Personagem, ProviderIA, Tarefa, Tema, TipoLog } from '../core/tipos'
+import type { AppData, ConfigIa, Configuracao, Conversa, EntradaDiario, LogEvento, MensagemIA, Personagem, ProviderIA, Tarefa, Tema, TipoLog } from '../core/tipos'
 import { STORAGE_KEY, TEMA_KEY, VERSAO_DADOS } from '../core/tipos'
 import { hpMaxDe, manaMaxDe, personagemInicial, xpProximoDe } from '../core/jogo'
 
@@ -181,6 +181,8 @@ function normalizarConfigIa(v: unknown): ConfigIa | undefined {
 const MAX_MSG_POR_CONVERSA = 200
 /** Limite de conversas guardadas. */
 export const MAX_CONVERSAS = 30
+/** Limite de entradas do diário guardadas (~1 ano se escrever 1/dia). */
+const MAX_DIARIO = 730
 
 function normalizarConversa(v: unknown): Conversa | null {
   if (!ehObjeto(v)) return null
@@ -218,6 +220,39 @@ function normalizarConversas(v: unknown): Conversa[] {
   return out.slice(0, MAX_CONVERSAS)
 }
 
+function normalizarEntradaDiario(v: unknown): EntradaDiario | null {
+  if (!ehObjeto(v)) return null
+  const id = typeof v.id === 'string' && v.id ? v.id : null
+  const data = typeof v.data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.data) ? v.data : null
+  if (!id || !data) return null
+  return {
+    id,
+    data,
+    titulo: typeof v.titulo === 'string' ? v.titulo : '',
+    texto: typeof v.texto === 'string' ? v.texto : '',
+    criadaEm: typeof v.criadaEm === 'string' ? v.criadaEm : new Date(data).toISOString(),
+    editadaEm: typeof v.editadaEm === 'string' ? v.editadaEm : undefined,
+  }
+}
+
+function normalizarDiario(v: unknown): EntradaDiario[] {
+  if (!Array.isArray(v)) return []
+  const out: EntradaDiario[] = []
+  const seen = new Set<string>()
+  for (const e of v) {
+    const entrada = normalizarEntradaDiario(e)
+    if (!entrada) continue
+    // Garante unicidade por data (1 entrada/dia): se vier duplicada, mantém a mais recente.
+    if (seen.has(entrada.data)) continue
+    seen.add(entrada.data)
+    out.push(entrada)
+    if (out.length >= MAX_DIARIO) break
+  }
+  // Ordena mais recente primeiro.
+  out.sort((a, b) => b.data.localeCompare(a.data))
+  return out
+}
+
 /** Valida e normaliza um dado bruto (de localStorage ou import). Null se irreparável. */
 export function normalizarDados(bruto: unknown): AppData | null {
   if (!ehObjeto(bruto)) return null
@@ -230,6 +265,7 @@ export function normalizarDados(bruto: unknown): AppData | null {
   }
   const log = normalizarLog(b.log)
   const conversas = normalizarConversas(b.conversas)
+  const diario = normalizarDiario(b.diario)
   return {
     versao: VERSAO_DADOS,
     tarefas,
@@ -237,6 +273,7 @@ export function normalizarDados(bruto: unknown): AppData | null {
     configuracao: normalizarConfiguracao(b.configuracao),
     log,
     conversas,
+    diario,
   }
 }
 
@@ -271,6 +308,7 @@ export function estadoVazio(): AppData {
     configuracao: { tema: temaInicial() },
     log: [],
     conversas: [],
+    diario: [],
   }
 }
 

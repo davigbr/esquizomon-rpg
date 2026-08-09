@@ -128,8 +128,25 @@ export interface AppData {
   log: LogEvento[]
   /** Conversas com a Fábula (chat com IA). Múltiplas, persistidas. */
   conversas?: Conversa[]
+  /** Diário de bordo (1 entrada por dia, com texto/voz). Persistido. */
+  diario?: EntradaDiario[]
 }
 
-export const VERSAO_DADOS = 2
+export const VERSAO_DADOS = 3
+
+/** Entrada do diário. Uma por dia (chave = data YYYY-MM-DD). */
+export interface EntradaDiario {
+  id: string
+  /** Data da entrada (YYYY-MM-DD) — chave de unicidade. */
+  data: string
+  /** Título curto (opcional, o usuário pode deixar em branco). */
+  titulo: string
+  /** Texto da entrada (markdown-lite, como em notas de tarefa). */
+  texto: string
+  /** ISO timestamp de criação. */
+  criadaEm: string
+  /** ISO timestamp da última edição (undefined se nunca editada). */
+  editadaEm?: string
+}
 export const STORAGE_KEY = 'esquizomon-rpg:v1'
 export const TEMA_KEY = 'esquizomon-rpg:tema'

@@ -2,7 +2,7 @@
 
 import { atom, computed } from 'nanostores'
 
-import type { Agenda, AppData, Configuracao, Conversa, Dificuldade, Personagem, Tarefa, Tema, TipoLog, TipoTarefa } from '../core/tipos'
+import type { Agenda, AppData, Configuracao, Conversa, Dificuldade, EntradaDiario, Personagem, Tarefa, Tema, TipoLog, TipoTarefa } from '../core/tipos'
 import { DANO_HABITO_NEGATIVO, cartasPorNivel, custoInvocacao, danoDe, diaDaSemana, diaDoMes, hojeISO, novoId, personagemInicial, somarDias, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../core/jogo'
 import type { Carta } from '../core/baralho'
 import { sortearIds, sortearIniciais } from '../core/baralho'
@@ -495,6 +495,69 @@ export function excluirConversa(id: string): void {
   salvarConversas(conversasAtuais().filter((c) => c.id !== id))
 }
 
+/* ---------- diário (1 entrada por dia) ---------- */
+
+export function diarioAtual(): EntradaDiario[] {
+  return appStore.get().diario ?? []
+}
+
+function salvarDiario(diario: EntradaDiario[]): void {
+  appStore.set({ ...appStore.get(), diario })
+}
+
+/** Busca a entrada de uma data específica (YYYY-MM-DD). Retorna undefined se não houver. */
+export function entradaDoDia(data: string): EntradaDiario | undefined {
+  return diarioAtual().find((e) => e.data === data)
+}
+
+/** Cria ou atualiza a entrada de uma data (idempotente na data — 1/dia). */
+export function salvarEntrada(data: string, campos: { titulo?: string; texto: string }): EntradaDiario {
+  const atual = entradaDoDia(data)
+  if (atual) {
+    const patch: Partial<EntradaDiario> = {
+      texto: campos.texto,
+      editadaEm: new Date().toISOString(),
+    }
+    if (campos.titulo !== undefined) patch.titulo = campos.titulo
+    const atualizada: EntradaDiario = { ...atual, ...patch }
+    salvarDiario(diarioAtual().map((e) => (e.id === atual.id ? atualizada : e)))
+    return atualizada
+  }
+  const nova: EntradaDiario = {
+    id: novoId(),
+    data,
+    titulo: campos.titulo ?? '',
+    texto: campos.texto,
+    criadaEm: new Date().toISOString(),
+  }
+  salvarDiario([nova, ...diarioAtual()])
+  return nova
+}
+
+export function excluirEntrada(id: string): void {
+  salvarDiario(diarioAtual().filter((e) => e.id !== id))
+}
+
+/* ---------- tools da IA (acessadas pelo chat) ---------- */
+
+/** Lista entradas do diário em ordem decrescente. Usado pelo system prompt e pela tool. */
+export function listarDiario(opts?: { limite?: number; desde?: string; ate?: string }): EntradaDiario[] {
+  let lista = diarioAtual()
+  if (opts?.desde) lista = lista.filter((e) => e.data >= opts.desde!)
+  if (opts?.ate) lista = lista.filter((e) => e.data <= opts.ate!)
+  const limite = opts?.limite ?? lista.length
+  return lista.slice(0, limite)
+}
+
+/** Busca entradas por palavras-chave (case-insensitive, no titulo OU texto). */
+export function buscarDiario(termo: string, limite = 5): EntradaDiario[] {
+  const t = termo.trim().toLowerCase()
+  if (!t) return []
+  return diarioAtual()
+    .filter((e) => e.titulo.toLowerCase().includes(t) || e.texto.toLowerCase().includes(t))
+    .slice(0, limite)
+}
+
 /* ---------- import/export ---------- */
 
 export function exportarJSON(): string {
@@ -525,6 +588,7 @@ export function apagarTodosDados(): void {
     configuracao: appStore.get().configuracao,
     log: [],
     conversas: [],
+    diario: [],
   })
   // o deck já carregou no boot — re-sorteia as cartas iniciais do baralho zerado
   if (deckCarregado) {

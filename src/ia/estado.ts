@@ -2,7 +2,13 @@
  *  A função principal é `montarContexto(dados)` — texto que vai no system prompt. */
 
 import type { AppData } from '../core/tipos'
+import { listarDiario } from '../stores/app'
 import { hojeISO } from '../core/jogo'
+
+/** Quantas entradas recentes do diário entram automaticamente no system prompt. */
+const DIARIO_RECENTE_NO_CONTEXTO = 3
+/** Tamanho máximo de cada entrada no contexto (chars). */
+const DIARIO_RECENTE_TRUNCAR = 600
 
 /** Serializa o estado do app em texto legível. */
 export function montarContexto(dados: AppData): string {
@@ -42,6 +48,16 @@ export function montarContexto(dados: AppData): string {
     .map((e) => `- ${e.tipo}: ${e.texto}`)
     .join('\n')
 
+  const diarioRecente = listarDiario({ limite: DIARIO_RECENTE_NO_CONTEXTO })
+    .map((e) => {
+      const titulo = e.titulo ? ` — ${e.titulo}` : ''
+      const texto = e.texto.length > DIARIO_RECENTE_TRUNCAR
+        ? e.texto.slice(0, DIARIO_RECENTE_TRUNCAR) + '…'
+        : e.texto
+      return `- [${e.data}]${titulo}\n  ${texto}`
+    })
+    .join('\n')
+
   return `DATA DE HOJE: ${hoje}
 PERSONAGEM:
 - Nível ${p.nivel} · XP ${p.xp}/${p.xpProximo}${p.esgotado ? ' (ESGOTADO)' : ''}
@@ -56,6 +72,11 @@ ${esferasTxt}
 
 MODO RELAXADO: ${dados.configuracao.modoRelaxado ? 'sim (sem dano)' : 'não'}
 
-HISTÓRICO RECENTE (últimos 5 eventos):
-${historicoRecente || '- sem eventos ainda'}`
+HISTÓRICO RECENTE (últimos 5 eventos do jogo):
+${historicoRecente || '- sem eventos ainda'}
+
+DIÁRIO — ÚLTIMAS ${DIARIO_RECENTE_NO_CONTEXTO} ENTRADAS (mais recente primeiro):
+${diarioRecente || '- sem entradas ainda'}
+
+O diário tem mais entradas além das ${DIARIO_RECENTE_NO_CONTEXTO} mostradas acima. Se o jogador perguntar sobre algo que pode estar numa entrada antiga, diga que não viu essa entrada ainda e peça a data ou o tema — ou sugira abrir a página Diário.`
 }
