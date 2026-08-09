@@ -1,189 +1,225 @@
-/** Visão Diário — 1 entrada por dia (texto ou voz), lista cronológica reversa. */
+/** Visão Diário — lista de entradas à esquerda (como arquivos), editor à direita
+ *  com live preview de markdown (linhas vivas, estilo Obsidian) e salvamento automático. */
 
 import type { AppData, EntradaDiario } from '../../core/tipos'
-import { hojeISO, dataPorExtenso, diaSemanaPorExtenso } from '../../core/jogo'
-import { appStore, diarioAtual, excluirEntrada, salvarEntrada } from '../../stores/app'
+import { hojeISO, dataPorExtenso } from '../../core/jogo'
+import { appStore, excluirEntrada, moverEntrada, salvarEntrada } from '../../stores/app'
 import { confirmar } from '../modal'
 import { notificar } from '../toast'
 import { escapar } from '../formTarefa'
-import { renderizarNotas } from '../notas'
-import { gravarVoz, suportaVoz } from '../diario'
+import { compilarEditor, editorParaTexto, caretParaPosicao, posicaoParaCaret, analisarLinha } from '../editorMd'
 
-/** Estado da view (módulo — sobrevive a re-renders). */
-let editandoData: string | null = null
+/** Data da entrada aberta no editor (módulo — sobrevive a re-renders). */
+let aberta: string | null = null
 
-function reRender(): void {
-  appStore.set({ ...appStore.get() })
-}
+/** Timers de autosave (por data). */
+const timersAutosave = new Map<string, ReturnType<typeof setTimeout>>()
 
 export function montarDiario(raiz: HTMLElement, dados: AppData): void {
   const hoje = hojeISO()
-  const entradas = dados.diario ?? []
-  const entradaHoje = entradas.find((e) => e.data === hoje)
-  const editando = editandoData ? entradas.find((e) => e.data === editandoData) : undefined
-  const temVoz = suportaVoz()
+  const entradas = [...(dados.diario ?? [])].sort((a, b) => b.data.localeCompare(a.data))
+  if (!aberta) aberta = entradas[0]?.data ?? hoje
+  // Se a data aberta não tem entrada ainda (ex.: hoje, sem registro), cria em branco na hora de editar.
+  const entrada = entradas.find((e) => e.data === aberta)
 
   raiz.innerHTML = `
     <header class="view-header">
       <h1>Diário</h1>
-      <p class="view-sub">Uma crônica por dia. O que você registra aqui não vai a lugar nenhum — fica só no seu dispositivo.</p>
+      <p class="view-sub">Uma crônica por dia. Edição em markdown com salvamento automático — tudo fica no seu dispositivo.</p>
     </header>
 
-    <div class="config-secao diario-form-secao">
-      <h3>${editando && editando.data !== hoje ? `Editando — ${dataPorExtenso(editando.data)}` : 'Hoje'}</h3>
-      ${editando && editando.data !== hoje
-        ? `<p class="config-dica">Você está editando uma entrada antiga. Salvar substitui a entrada daquele dia.</p>`
-        : ''}
-      <form class="diario-form" data-diario-form>
-        <input class="diario-titulo" data-diario-titulo type="text" placeholder="Título (opcional)" maxlength="120"
-          value="${escapar(editando?.titulo ?? entradaHoje?.titulo ?? '')}" autocomplete="off" />
-        <div class="diario-texto-linha">
-          <textarea class="diario-texto" data-diario-texto rows="6" placeholder="O que aconteceu hoje? Escreve ou dita…">${escapar(editando?.texto ?? entradaHoje?.texto ?? '')}</textarea>
-          ${temVoz
-            ? `<button type="button" class="btn btn-icon diario-mic" data-diario-mic title="Dictar por voz" aria-label="Dictar por voz">
-                <i class="fa-solid fa-microphone" aria-hidden="true"></i>
-              </button>`
-            : ''}
+    <div class="diario-layout">
+      <aside class="diario-lista" aria-label="Entradas do diário">
+        <div class="diario-lista-cabecalho">
+          <span class="diario-lista-titulo">Entradas</span>
+          <button class="btn btn-icon diario-novo" data-diario-novo title="Nova entrada de hoje" aria-label="Nova entrada de hoje">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i>
+          </button>
         </div>
-        <div class="diario-form-acoes">
-          <span class="config-dica" data-diario-status></span>
-          <div class="diario-botoes">
-            ${editando && editando.data !== hoje
-              ? `<button type="button" class="btn btn--texto" data-diario-cancelar>Cancelar</button>`
-              : ''}
-            <button type="submit" class="btn btn-primary" data-diario-salvar>
-              <i class="fa-solid fa-feather-pointed" aria-hidden="true"></i> Salvar crônica
-            </button>
+        <div class="diario-arquivos">
+          ${entradas.length === 0
+            ? '<div class="diario-vazio">Nenhuma crônica ainda.<br>Clique em + pra começar hoje.</div>'
+            : entradas.map((e) => arquivoHtml(e, e.data === aberta)).join('')}
+        </div>
+      </aside>
+
+      <section class="diario-editor" aria-label="Editor da entrada">
+        <div class="diario-editor-cabecalho">
+          <div class="diario-editor-data">
+            ${entrada?.data === hoje ? '<span class="badge badge--hoje">Hoje</span>' : ''}
+            <input type="date" class="diario-data-input" data-diario-data value="${entrada?.data ?? hoje}"
+              max="${new Date().toISOString().slice(0, 10)}" title="Data da crônica" aria-label="Data da crônica" />
+          </div>
+          <div class="diario-editor-acoes">
+            <span class="diario-status" data-diario-status>${entrada ? '' : 'Sem conteúdo ainda'}</span>
+            ${entrada ? `
+              <button class="btn btn-icon" data-diario-excluir="${escapar(entrada.id)}" title="Excluir crônica" aria-label="Excluir crônica">
+                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+              </button>` : ''}
           </div>
         </div>
-      </form>
-    </div>
 
-    <div class="config-secao">
-      <h3>Entradas anteriores</h3>
-      ${entradas.length === 0
-        ? '<p class="config-dica">Nenhuma crônica ainda. Escreva a primeira hoje — mesmo que seja uma linha.</p>'
-        : `<div class="diario-lista">
-            ${entradas
-              .map((e) => cardEntrada(e, e.data === hoje))
-              .join('')}
-          </div>`}
+        <input class="diario-titulo" data-diario-titulo type="text" placeholder="Título (opcional)" maxlength="120"
+          value="${escapar(entrada?.titulo ?? '')}" autocomplete="off" />
+
+        <div class="diario-editor-area" data-diario-editor contenteditable="true" spellcheck="true" aria-label="Crônica em markdown">
+          ${entrada ? compilarEditor(entrada.texto) : ''}
+        </div>
+        <p class="config-dica diario-dica">Markdown: <code>## título</code> · <code>- lista</code> · <code>1.</code> · <code>&gt; citação</code> · <code>**negrito**</code> · <code>*itálico*</code> · <code>[link](url)</code></p>
+      </section>
     </div>
   `
 
-  instalarForm(raiz, hoje)
+  instalarNovaEntrada(raiz)
   instalarLista(raiz)
+  instalarEditor(raiz, hoje)
+  instalarMudancaData(raiz)
 }
 
-function cardEntrada(e: EntradaDiario, ehHoje: boolean): string {
-  const titulo = e.titulo
-    ? `<h4 class="diario-card-titulo">${escapar(e.titulo)}</h4>`
-    : ''
-  const corpo = renderizarNotas(e.texto)
-  return `
-    <article class="diario-card${ehHoje ? ' diario-card--hoje' : ''}">
-      <div class="diario-card-cabecalho">
-        <div class="diario-card-data">
-          ${ehHoje ? '<span class="badge badge--hoje">Hoje</span>' : ''}
-          <span>${diaSemanaPorExtenso(e.data)} · ${dataPorExtenso(e.data)}</span>
-        </div>
-        <div class="diario-card-acoes">
-          <button class="btn btn-icon" data-diario-editar="${escapar(e.id)}" title="Editar" aria-label="Editar">
-            <i class="fa-solid fa-pen" aria-hidden="true"></i>
-          </button>
-          <button class="btn btn-icon" data-diario-excluir="${escapar(e.id)}" title="Excluir" aria-label="Excluir">
-            <i class="fa-solid fa-trash" aria-hidden="true"></i>
-          </button>
-        </div>
-      </div>
-      ${titulo}
-      <div class="diario-card-texto">${corpo}</div>
-    </article>
-  `
-}
-
-function instalarForm(raiz: HTMLElement, hoje: string): void {
-  const form = raiz.querySelector<HTMLFormElement>('[data-diario-form]')
-  const tituloEl = raiz.querySelector<HTMLInputElement>('[data-diario-titulo]')
-  const textoEl = raiz.querySelector<HTMLTextAreaElement>('[data-diario-texto]')
-  const micEl = raiz.querySelector<HTMLButtonElement>('[data-diario-mic]')
-  const statusEl = raiz.querySelector<HTMLElement>('[data-diario-status]')
-
-  let gravacao: ReturnType<typeof gravarVoz> | null = null
-  let gravando = false
-
-  form?.addEventListener('submit', (e) => {
-    e.preventDefault()
-    const texto = textoEl?.value.trim() ?? ''
-    const titulo = tituloEl?.value.trim() ?? ''
-    if (!texto) {
-      notificar('Escreva ou dite alguma coisa antes de salvar.', 'erro')
+/** Troca a data da entrada aberta (moverEntrada respeita 1/dia). */
+function instalarMudancaData(raiz: HTMLElement): void {
+  const input = raiz.querySelector<HTMLInputElement>('[data-diario-data]')
+  if (!input) return
+  input.addEventListener('change', () => {
+    const nova = input.value
+    const id = raiz.querySelector('[data-diario-excluir]')?.getAttribute('data-diario-excluir')
+    if (!id) return
+    const resultado = moverEntrada(id, nova)
+    if (!resultado.ok) {
+      notificar(resultado.motivo ?? 'Não deu para mudar a data.', 'erro')
+      // reverte o input pra data atual
+      const entrada = appStore.get().diario?.find((e) => e.id === id)
+      input.value = entrada?.data ?? hojeISO()
       return
     }
-    const dataAlvo = editandoData ?? hoje
-    salvarEntrada(dataAlvo, { titulo, texto })
-    editandoData = null
-    notificar('Crônica salva.')
+    aberta = nova
+    notificar('Crônica movida para ' + dataPorExtenso(nova) + '.')
+    appStore.set({ ...appStore.get() })
   })
+}
 
-  raiz.querySelector<HTMLButtonElement>('[data-diario-cancelar]')?.addEventListener('click', () => {
-    editandoData = null
-    reRender()
+function arquivoHtml(e: EntradaDiario, ativo: boolean): string {
+  const titulo = e.titulo.trim() || 'Sem título'
+  return `
+    <button class="diario-arquivo${ativo ? ' diario-arquivo--ativo' : ''}" data-diario-abrir="${escapar(e.data)}" title="${escapar(dataPorExtenso(e.data))}">
+      <span class="diario-arquivo-data">${e.data.slice(8, 10)}/${e.data.slice(5, 7)}/${e.data.slice(0, 4)}</span>
+      <span class="diario-arquivo-titulo">${escapar(titulo)}</span>
+    </button>
+  `
+}
+
+function instalarNovaEntrada(raiz: HTMLElement): void {
+  raiz.querySelector('[data-diario-novo]')?.addEventListener('click', () => {
+    const hoje = hojeISO()
+    aberta = hoje
+    // garante a entrada de hoje existe (vazia) — salvarEntrada cria com texto vazio; mas não
+    // queremos criar registro só por abrir. Em vez disso: só seleciona; o editor cria ao salvar.
+    const dados = appStore.get()
+    const jaExiste = (dados.diario ?? []).some((e) => e.data === hoje)
+    if (!jaExiste) {
+      // abrir em branco sem persistir ainda
+      aberta = hoje
+    }
+    appStore.set({ ...appStore.get() })
+    setTimeout(() => raiz.querySelector<HTMLElement>('[data-diario-editor]')?.focus(), 50)
   })
-
-  // Voz
-  if (micEl && textoEl) {
-    micEl.addEventListener('click', () => {
-      if (gravando) {
-        gravacao?.parar()
-        return
-      }
-      gravacao = gravarVoz({
-        aoParcial: (texto) => {
-          textoEl.value = texto
-          textoEl.dispatchEvent(new Event('input'))
-        },
-        aoFinal: (texto) => {
-          textoEl.value = texto
-          gravando = false
-          micEl.classList.remove('diario-mic--gravando')
-          if (statusEl) statusEl.textContent = ''
-        },
-        aoErro: (msg) => {
-          gravando = false
-          micEl.classList.remove('diario-mic--gravando')
-          notificar(msg, 'erro')
-        },
-      })
-      if (gravacao) {
-        gravando = true
-        micEl.classList.add('diario-mic--gravando')
-        if (statusEl) statusEl.textContent = 'Escutando…'
-      }
-    })
-  }
 }
 
 function instalarLista(raiz: HTMLElement): void {
-  raiz.querySelectorAll<HTMLButtonElement>('[data-diario-editar]').forEach((btn) => {
+  raiz.querySelectorAll<HTMLButtonElement>('[data-diario-abrir]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const id = btn.dataset.diarioEditar ?? ''
-      const entrada = diarioAtual().find((e) => e.id === id)
-      if (!entrada) return
-      editandoData = entrada.data
-      reRender()
+      aberta = btn.dataset.diarioAbrir ?? null
+      appStore.set({ ...appStore.get() })
     })
   })
+}
 
-  raiz.querySelectorAll<HTMLButtonElement>('[data-diario-excluir]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.diarioExcluir ?? ''
-      void confirmar('Apagar esta crônica? Isso não pode ser desfeito.', 'Apagar crônica').then((ok) => {
-        if (!ok) return
-        excluirEntrada(id)
-        if (editandoData) editandoData = null
-        notificar('Crônica apagada.')
-      })
+function instalarEditor(raiz: HTMLElement, hoje: string): void {
+  const area = raiz.querySelector<HTMLElement>('[data-diario-editor]')
+  const tituloEl = raiz.querySelector<HTMLInputElement>('[data-diario-titulo]')
+  const statusEl = raiz.querySelector<HTMLElement>('[data-diario-status]')
+  if (!area || !tituloEl) return
+
+  const areaEl: HTMLElement = area
+  const titulo: HTMLInputElement = tituloEl
+  const dataAlvo = aberta ?? hoje
+
+  /** Salva imediatamente (força o write, limpa timer). */
+  function salvarAgora(): void {
+    const timer = timersAutosave.get(dataAlvo)
+    if (timer) clearTimeout(timer)
+    timersAutosave.delete(dataAlvo)
+    const texto = editorParaTexto(areaEl)
+    const tituloValor = titulo.value.trim()
+    if (texto.trim() || tituloValor) {
+      salvarEntrada(dataAlvo, { titulo: tituloValor, texto })
+      if (statusEl) statusEl.textContent = `Salvo ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+    }
+  }
+
+  /** Autosave com debounce. */
+  function agendarSalvar(): void {
+    const timer = timersAutosave.get(dataAlvo)
+    if (timer) clearTimeout(timer)
+    if (statusEl) statusEl.textContent = 'Salvando…'
+    timersAutosave.set(
+      dataAlvo,
+      setTimeout(() => salvarAgora(), 800),
+    )
+  }
+
+  /** Recompila o editor preservando o caret por posição. */
+  function recompilar(): void {
+    const pos = caretParaPosicao(areaEl)
+    const texto = editorParaTexto(areaEl)
+    areaEl.innerHTML = compilarEditor(texto)
+    posicaoParaCaret(areaEl, pos)
+  }
+
+  // Input: se a linha atual mudou de tipo de bloco, recompila (live preview); senão só agenda salvar.
+  areaEl.addEventListener('input', () => {
+    agendarSalvar()
+
+    const sel = document.getSelection()
+    if (!sel || sel.rangeCount === 0) return
+    const no = sel.getRangeAt(0).startContainer
+    const linha = no instanceof HTMLElement ? no.closest('.md-linha') : (no.parentElement?.closest('.md-linha'))
+    if (!linha) return
+
+    const textoLinha = (linha.querySelector('.md-prefixo')?.textContent ?? '') + (linha.querySelector('.md-conteudo')?.textContent ?? '')
+    const tipoAtual = linha.getAttribute('data-tipo') ?? ''
+    const novoTipo = analisarLinha(textoLinha).tipo
+    if (novoTipo !== tipoAtual) {
+      recompilar()
+    }
+  })
+
+  // Enter: o browser cria nova linha; recompilamos para dar estrutura (tipo) à linha nova.
+  areaEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      setTimeout(recompilar, 0)
+    }
+  })
+
+  // Título também salva automático.
+  titulo.addEventListener('input', agendarSalvar)
+
+  // Blur: recompila (formatação inline final) e salva.
+  areaEl.addEventListener('blur', () => {
+    recompilar()
+    salvarAgora()
+  })
+  titulo.addEventListener('blur', () => salvarAgora())
+
+  // Excluir
+  raiz.querySelector<HTMLButtonElement>('[data-diario-excluir]')?.addEventListener('click', () => {
+    const id = raiz.querySelector('[data-diario-excluir]')?.getAttribute('data-diario-excluir') ?? ''
+    void confirmar('Apagar esta crônica? Isso não pode ser desfeito.', 'Apagar crônica').then((ok) => {
+      if (!ok) return
+      excluirEntrada(id)
+      aberta = null // reabre na mais recente
+      appStore.set({ ...appStore.get() })
+      notificar('Crônica apagada.')
     })
   })
 }

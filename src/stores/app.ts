@@ -538,6 +538,19 @@ export function excluirEntrada(id: string): void {
   salvarDiario(diarioAtual().filter((e) => e.id !== id))
 }
 
+/** Move uma entrada para outra data (respeitando 1/dia). Retorna resultado. */
+export function moverEntrada(id: string, novaData: string): Resultado {
+  const entrada = diarioAtual().find((e) => e.id === id)
+  if (!entrada) return { ok: false, motivo: 'Entrada não encontrada.' }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(novaData)) return { ok: false, motivo: 'Data inválida.' }
+  if (entrada.data === novaData) return { ok: true }
+  const conflito = diarioAtual().find((e) => e.data === novaData && e.id !== id)
+  if (conflito) return { ok: false, motivo: `Já existe uma crônica em ${novaData}.` }
+  const movida: EntradaDiario = { ...entrada, data: novaData, editadaEm: new Date().toISOString() }
+  salvarDiario(diarioAtual().map((e) => (e.id === id ? movida : e)))
+  return { ok: true }
+}
+
 /* ---------- tools da IA (acessadas pelo chat) ---------- */
 
 /** Lista entradas do diário em ordem decrescente. Usado pelo system prompt e pela tool. */
