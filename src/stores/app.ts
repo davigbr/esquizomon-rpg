@@ -411,14 +411,18 @@ function reverterRecompensa(t: Tarefa, data: string): void {
     personagem.manaMax = r.manaMaxAntes ?? manaMaxDe(nivelAntes)
     personagem.hp = Math.min(p.hp, personagem.hpMax)
     personagem.mana = Math.min(p.mana, personagem.manaMax)
-    if (r.cartas?.length) {
-      const atuais = p.cartas ?? []
-      const removidas = new Set(r.cartas)
-      personagem.cartas = atuais.filter((c) => !removidas.has(c))
-      const inv = { ...(p.invocacoes ?? {}) }
-      for (const c of r.cartas) delete inv[c]
-      personagem.invocacoes = inv
-    }
+  }
+  // cartas: SEMPRE re-bloqueadas quando esta conclusão as desbloqueou —
+  // mesmo que o usuário já tenha subido outro nível depois (o nível não
+  // rebaixa nesse caso, mas a carta específica da ação desfeita volta a
+  // ficar bloqueada).
+  if (r.subiu && r.cartas?.length) {
+    const atuais = p.cartas ?? []
+    const removidas = new Set(r.cartas)
+    personagem.cartas = atuais.filter((c) => !removidas.has(c))
+    const inv = { ...(p.invocacoes ?? {}) }
+    for (const c of r.cartas) delete inv[c]
+    personagem.invocacoes = inv
   }
   appStore.set({ ...appStore.get(), personagem })
   registrarLog('tarefa', `Recompensa revertida (−${r.xp} XP)`)
