@@ -1,6 +1,6 @@
 /** Persistência versionada + wrapper seguro (fallback em memória quando localStorage é bloqueado). */
 
-import type { AppData, ConfigIa, Configuracao, Conversa, EntradaDiario, LogEvento, MensagemIA, Personagem, ProviderIA, Tarefa, Tema, TipoLog } from '../core/tipos'
+import type { AppData, ConfigIa, Configuracao, Conversa, EntradaDiario, LogEvento, MensagemIA, Personagem, ProviderIA, RecompensaConclusao, Tarefa, Tema, TipoLog } from '../core/tipos'
 import { STORAGE_KEY, TEMA_KEY, VERSAO_DADOS } from '../core/tipos'
 import { hpMaxDe, manaMaxDe, personagemInicial, xpProximoDe } from '../core/jogo'
 
@@ -90,6 +90,29 @@ function normalizarTarefa(v: unknown): Tarefa | null {
   const dueDate =
     typeof t.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate) ? t.dueDate : undefined
   const esfera = typeof t.esfera === 'string' && t.esfera.trim() ? t.esfera.trim() : undefined
+  let recompensas: Record<string, RecompensaConclusao> | undefined
+  if (t.recompensas && typeof t.recompensas === 'object') {
+    const rec: Record<string, RecompensaConclusao> = {}
+    for (const [data, r] of Object.entries(t.recompensas as Record<string, unknown>)) {
+      if (typeof data !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data)) continue
+      if (!r || typeof r !== 'object') continue
+      const rr = r as Record<string, unknown>
+      if (typeof rr.xp !== 'number') continue
+      rec[data] = {
+        xp: rr.xp,
+        esfera: typeof rr.esfera === 'string' ? rr.esfera : undefined,
+        subiu: rr.subiu === true,
+        nivel: typeof rr.nivel === 'number' ? rr.nivel : undefined,
+        xpAntes: typeof rr.xpAntes === 'number' ? rr.xpAntes : undefined,
+        nivelAntes: typeof rr.nivelAntes === 'number' ? rr.nivelAntes : undefined,
+        xpProximoAntes: typeof rr.xpProximoAntes === 'number' ? rr.xpProximoAntes : undefined,
+        hpMaxAntes: typeof rr.hpMaxAntes === 'number' ? rr.hpMaxAntes : undefined,
+        manaMaxAntes: typeof rr.manaMaxAntes === 'number' ? rr.manaMaxAntes : undefined,
+        cartas: Array.isArray(rr.cartas) ? rr.cartas.filter((c): c is string => typeof c === 'string') : undefined,
+      }
+    }
+    if (Object.keys(rec).length > 0) recompensas = rec
+  }
   return {
     id: t.id,
     tipo: t.tipo,
@@ -104,6 +127,7 @@ function normalizarTarefa(v: unknown): Tarefa | null {
     contador,
     concluida: t.concluida === true,
     historico: t.historico.filter((x): x is string => typeof x === 'string'),
+    recompensas,
     criadaEm: typeof t.criadaEm === 'string' ? t.criadaEm : new Date().toISOString(),
   }
 }

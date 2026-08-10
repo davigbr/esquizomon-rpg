@@ -11,6 +11,7 @@ import { montarHistorico } from './ui/views/historico'
 import { montarConfig } from './ui/views/config'
 import { montarDiario } from './ui/views/diario'
 import { alternarChat, montarChat, reagirMudancaStore } from './ui/chat'
+import { verificarCheckin } from './ui/checkin'
 import { carregarDeck } from './core/baralho'
 import { storageGet } from './db/storage'
 import type { Tema } from './core/tipos'
@@ -195,6 +196,7 @@ document.getElementById('fabula-toggle')!.addEventListener('click', () => {
 /* ---------- dia novo ---------- */
 
 renovarDia()
+verificarCheckin()
 
 /* ---------- baralho (carrega o deck e sorteia as cartas iniciais) ---------- */
 

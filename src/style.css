@@ -317,6 +317,13 @@ body {
   border-color: var(--accent-gold);
 }
 
+/* o glifo do Font Awesome tem bearing próprio (deslocado ~2px p/ direita e
+   1px p/ baixo dentro do box) — compensa o deslocamento óptico do V/seta */
+.tarefa-check i {
+  display: inline-block;
+  transform: translate(-2px, -1px);
+}
+
 .tarefa-check.marcado {
   background: var(--accent-gold);
   border-color: var(--accent-gold);
@@ -952,6 +959,72 @@ select.campo {
   font-size: 19px;
   font-weight: 700;
   margin: 0 0 18px;
+}
+
+/* ========== Check-in diário (estilo Habitica) ========== */
+.checkin-sub {
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 0 0 16px;
+}
+
+.checkin-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+
+.checkin-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.checkin-item:hover {
+  border-color: var(--border-gold);
+}
+
+.checkin-item:has(.checkin-check:checked) {
+  border-color: var(--border-gold);
+}
+
+.checkin-check {
+  accent-color: var(--accent-gold);
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.checkin-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.checkin-titulo {
+  font-size: 14px;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.checkin-meta {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.checkin-item:has(.checkin-check:not(:checked)) .checkin-titulo {
+  color: var(--text-muted);
+  text-decoration: line-through;
 }
 
 /* ========== Empty states ========== */

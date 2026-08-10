@@ -60,7 +60,28 @@ export interface Tarefa {
   concluida?: boolean
   /** Datas ISO (YYYY-MM-DD) de conclusões — recorrentes: dias concluídos; hábitos: dias com repetição positiva. */
   historico: string[]
+  /** Recompensas concedidas por data de conclusão (para reverter ao desmarcar). */
+  recompensas?: Record<string, RecompensaConclusao>
   criadaEm: string
+}
+
+/** Snapshot da recompensa de UMA conclusão — permite reverter XP/esfera/nível/cartas ao desmarcar.
+ *  Guarda o estado ANTES do ganho (para restaurar) e o nível PÓS-ganho (para a guarda de reversão). */
+export interface RecompensaConclusao {
+  xp: number
+  esfera?: string
+  /** true se a conclusão subiu de nível. */
+  subiu?: boolean
+  /** Nível atingido por esta conclusão (reverte só se ninguém subiu depois). */
+  nivel?: number
+  /** Estado do personagem ANTES do ganho (restaurado ao desmarcar). */
+  xpAntes?: number
+  nivelAntes?: number
+  xpProximoAntes?: number
+  hpMaxAntes?: number
+  manaMaxAntes?: number
+  /** Cartas desbloqueadas por subir de nível (para remover ao reverter). */
+  cartas?: string[]
 }
 
 export interface Configuracao {
