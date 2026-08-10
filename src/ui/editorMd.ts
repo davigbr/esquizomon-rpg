@@ -159,7 +159,9 @@ export function renderizarMarkdown(texto: string): string {
         buf.push(linhas[i])
         i++
       }
-      blocos.push(`<p>${inline(buf.join('<br>'))}</p>`)
+      // cada linha é escapada+formatada ANTES do join — o <br> é HTML legítimo,
+      // escapá-lo depois faria o usuário ver "<br>" literal no lugar do Enter
+      blocos.push(`<p>${buf.map(inline).join('<br>')}</p>`)
     }
   }
 
