@@ -1,5 +1,6 @@
 /** Visão Diário — lista de entradas à esquerda (como arquivos), editor à direita
- *  com live preview de markdown (linhas vivas, estilo Obsidian) e salvamento automático. */
+ *  com textarea markdown nativo + toggle Editar/Ver (preview renderizado) e
+ *  salvamento automático. */
 
 import type { AppData, EntradaDiario } from '../../core/tipos'
 import { hojeISO, dataPorExtenso } from '../../core/jogo'
@@ -7,10 +8,13 @@ import { appStore, excluirEntrada, moverEntrada, salvarEntrada } from '../../sto
 import { confirmar } from '../modal'
 import { notificar } from '../toast'
 import { escapar } from '../formTarefa'
-import { compilarEditor, editorParaTexto, caretParaPosicao, posicaoParaCaret, analisarLinha, quebrarLinhaNoCaret, normalizarEstrutura } from '../editorMd'
+import { renderizarMarkdown } from '../editorMd'
 
 /** Data da entrada aberta no editor (módulo — sobrevive a re-renders). */
 let aberta: string | null = null
+
+/** Modo do editor: false = edição (textarea), true = visualização (preview). */
+let modoVisualizacao = false
 
 /** Timers de autosave (por data). */
 const timersAutosave = new Map<string, ReturnType<typeof setTimeout>>()
@@ -22,18 +26,22 @@ export function montarDiario(raiz: HTMLElement, dados: AppData): void {
   const entrada = entradas.find((e) => e.data === aberta)
   const entradaExiste = !!entrada
 
-  // ⚠️ Preserva a digitação: se o editor tem texto/título ainda não salvos
-  // (difere do storage), NÃO substitui o editor inteiro — isso mata foco/caret
-  // e causa 'enter apaga linha' em uso real. MAS a LISTA LATERAL sempre
-  // atualiza, senão os botões '+' e '🗑' parecem mortos quando o editor está
-  // focado (no macOS/Safari o clique num botão não tira o foco do editor).
-  const editorAtual = raiz.querySelector<HTMLElement>('[data-diario-editor]')
+  // ⚠️ Preserva a edição: se o textarea/título têm conteúdo ainda não salvo
+  // (difere do storage), NÃO substitui o editor inteiro (isso mataria caret
+  // e undo stack). MAS a LISTA LATERAL sempre atualiza, senão os botões '+'
+  // e '🗑' parecem mortos (no macOS/Safari o clique num botão não tira o
+  // foco do editor).
+  const editorAtual = raiz.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
   let edicaoAtiva = false
   if (editorAtual) {
-    const textoAtual = editorParaTexto(editorAtual)
+    const textoAtual = editorAtual.value
     const tituloAtual = (raiz.querySelector<HTMLInputElement>('[data-diario-titulo]')?.value ?? '')
     edicaoAtiva = textoAtual !== (entrada?.texto ?? '') || tituloAtual !== (entrada?.titulo ?? '')
   }
+  // Preserva caret/foco do textarea caso o re-render seja só do autosave
+  // (valor já salvo → edicaoAtiva false → render completo).
+  const selAntes = editorAtual ? { start: editorAtual.selectionStart, end: editorAtual.selectionEnd } : null
+  const focoAntes = !!editorAtual && document.activeElement === editorAtual
   if (edicaoAtiva && entradaExiste) {
     // atualiza só a lista lateral + status; o editor fica intacto
     const listaEl = raiz.querySelector<HTMLElement>('.diario-arquivos')
@@ -87,8 +95,14 @@ export function montarDiario(raiz: HTMLElement, dados: AppData): void {
         <input class="diario-titulo" data-diario-titulo type="text" placeholder="Título" maxlength="120"
           value="${escapar(entrada?.titulo ?? '')}" autocomplete="off" />
 
-        <div class="diario-editor-area" data-diario-editor contenteditable="true" spellcheck="true" aria-label="Crônica em markdown">
-          ${entrada ? compilarEditor(entrada.texto) : ''}
+        <div class="diario-ferramentas">
+          <button class="btn btn-pequeno" data-diario-toggle title="Alternar entre editar e visualizar">Ver</button>
+        </div>
+
+        <div class="diario-editor-area">
+          <textarea class="diario-textarea" data-diario-editor placeholder="Escreva sua crônica em markdown…"
+            spellcheck="true" aria-label="Crônica em markdown">${escapar(entrada?.texto ?? '')}</textarea>
+          <div class="diario-preview" data-diario-preview hidden></div>
         </div>
         <p class="config-dica diario-dica">Markdown: <code>## título</code> · <code>- lista</code> · <code>1.</code> · <code>&gt; citação</code> · <code>**negrito**</code> · <code>*itálico*</code> · <code>[link](url)</code></p>
       </section>
@@ -99,6 +113,34 @@ export function montarDiario(raiz: HTMLElement, dados: AppData): void {
   instalarLista(raiz)
   instalarEditor(raiz, hoje)
   instalarMudancaData(raiz)
+  aplicarModo(raiz)
+
+  // Restaura caret/foco se o re-render pegou o usuário no meio do editor.
+  if (focoAntes && selAntes) {
+    const novo = raiz.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
+    if (novo) {
+      novo.focus()
+      novo.setSelectionRange(Math.min(selAntes.start, novo.value.length), Math.min(selAntes.end, novo.value.length))
+    }
+  }
+}
+
+/** Aplica o modo atual (edição/visualização) depois de um re-render. */
+function aplicarModo(raiz: HTMLElement): void {
+  const area = raiz.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
+  const preview = raiz.querySelector<HTMLElement>('[data-diario-preview]')
+  const btn = raiz.querySelector<HTMLButtonElement>('[data-diario-toggle]')
+  if (!area || !preview || !btn) return
+  if (modoVisualizacao) {
+    preview.innerHTML = renderizarMarkdown(area.value)
+    preview.hidden = false
+    area.hidden = true
+    btn.textContent = 'Editar'
+  } else {
+    preview.hidden = true
+    area.hidden = false
+    btn.textContent = 'Ver'
+  }
 }
 
 /** Troca a data da entrada aberta (moverEntrada respeita 1/dia). */
@@ -160,23 +202,32 @@ function instalarLista(raiz: HTMLElement): void {
 }
 
 function instalarEditor(raiz: HTMLElement, hoje: string): void {
-  const area = raiz.querySelector<HTMLElement>('[data-diario-editor]')
+  const areaEl = raiz.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
+  const previewEl = raiz.querySelector<HTMLElement>('[data-diario-preview]')
   const tituloEl = raiz.querySelector<HTMLInputElement>('[data-diario-titulo]')
   const statusEl = raiz.querySelector<HTMLElement>('[data-diario-status]')
-  if (!area || !tituloEl) return
+  if (!areaEl || !tituloEl) return
 
-  const areaEl: HTMLElement = area
-  const titulo: HTMLInputElement = tituloEl
   const dataAlvo = aberta ?? hoje
+  const area = areaEl // não-nulo a partir daqui (guard acima)
+  const titulo = tituloEl
+
+  /** Último estado salvo — usado pra pular saves redundantes (o blur do
+   *  textarea substituído por um re-render NÃO pode re-salvar e re-renderizar
+   *  em loop infinito). */
+  let ultimoSalvo = { texto: area.value, titulo: titulo.value.trim() }
 
   /** Salva imediatamente (força o write, limpa timer). */
   function salvarAgora(): void {
+    const texto = area.value
+    const tituloValor = titulo.value.trim()
+    // nada mudou desde o último save → não faz set (evita loop blur→set→re-render→blur)
+    if (texto === ultimoSalvo.texto && tituloValor === ultimoSalvo.titulo) return
     const timer = timersAutosave.get(dataAlvo)
     if (timer) clearTimeout(timer)
     timersAutosave.delete(dataAlvo)
-    const texto = editorParaTexto(areaEl)
-    const tituloValor = titulo.value.trim()
     if (texto.trim() || tituloValor) {
+      ultimoSalvo = { texto, titulo: tituloValor }
       salvarEntrada(dataAlvo, { titulo: tituloValor, texto })
       if (statusEl) statusEl.textContent = `Salvo ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
     }
@@ -193,54 +244,26 @@ function instalarEditor(raiz: HTMLElement, hoje: string): void {
     )
   }
 
-  /** Recompila o editor preservando o caret por posição. */
-  function recompilar(): void {
-    const pos = caretParaPosicao(areaEl)
-    const texto = editorParaTexto(areaEl)
-    areaEl.innerHTML = compilarEditor(texto)
-    posicaoParaCaret(areaEl, pos)
-  }
-
-  // Input: normaliza estrutura solta, detecta mudança de tipo de bloco
-  // (live preview) e agenda salvar.
-  areaEl.addEventListener('input', () => {
-    agendarSalvar()
-
-    if (normalizarEstrutura(areaEl)) return // recompilou com caret restaurado
-
-    const sel = document.getSelection()
-    if (!sel || sel.rangeCount === 0) return
-    const no = sel.getRangeAt(0).startContainer
-    const linha = no instanceof HTMLElement ? no.closest('.md-linha') : (no.parentElement?.closest('.md-linha'))
-    if (!linha) return
-
-    const textoLinha = (linha.querySelector('.md-prefixo')?.textContent ?? '') + (linha.querySelector('.md-conteudo')?.textContent ?? '')
-    const tipoAtual = linha.getAttribute('data-tipo') ?? ''
-    const novoTipo = analisarLinha(textoLinha).tipo
-    if (novoTipo !== tipoAtual) {
-      recompilar()
-    }
+  // Toggle Editar/Ver
+  raiz.querySelector<HTMLButtonElement>('[data-diario-toggle]')?.addEventListener('click', () => {
+    modoVisualizacao = !modoVisualizacao
+    aplicarModo(raiz)
+    if (!modoVisualizacao) area.focus()
   })
 
-  // Enter: normaliza estrutura (se o browser criou text node solto) e
-  // divide a linha atual em duas (DOM puro, determinístico).
-  areaEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      normalizarEstrutura(areaEl)
-      quebrarLinhaNoCaret(areaEl)
-      agendarSalvar()
+  // Digitação: agenda salvar e, no modo Ver, atualiza o preview ao vivo.
+  area.addEventListener('input', () => {
+    agendarSalvar()
+    if (modoVisualizacao && previewEl) {
+      previewEl.innerHTML = renderizarMarkdown(area.value)
     }
   })
 
   // Título também salva automático.
   titulo.addEventListener('input', agendarSalvar)
 
-  // Blur: recompila (formatação inline final) e salva.
-  areaEl.addEventListener('blur', () => {
-    recompilar()
-    salvarAgora()
-  })
+  // Blur salva.
+  area.addEventListener('blur', () => salvarAgora())
   titulo.addEventListener('blur', () => salvarAgora())
 
   // Excluir
@@ -250,6 +273,7 @@ function instalarEditor(raiz: HTMLElement, hoje: string): void {
       if (!ok) return
       excluirEntrada(id)
       aberta = null // reabre na mais recente
+      modoVisualizacao = false
       appStore.set({ ...appStore.get() })
       notificar('Crônica apagada.')
     })

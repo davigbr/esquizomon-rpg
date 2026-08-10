@@ -20,7 +20,7 @@ Sobre isso, existe uma **camada narrativa**: o baralho Esquizomon (65 cartas) vi
 | 4 — IA | Narrador Fábula (BYOK), comandos texto/voz, onboarding guiado | planejado |
 | 5 — Distribuição | Desktop (Tauri), ponte Google Sheets, polish | planejado |
 
-Plano detalhado (mecânica, modelo de dados, decisões, riscos) em [`PLANO.md`](./PLANO.md).
+Lista de features (implementadas e planejadas) em [`FEATURES.md`](./FEATURES.md).
 
 ## Funcionalidades
 
@@ -56,7 +56,7 @@ npm run preview
 
 ```
 esquizomon-rpg/
-├── PLANO.md / NARRATIVA.md   # plano de produto e narrativa oficial
+├── FEATURES.md / NARRATIVA.md   # features (implementadas/planejadas) e narrativa oficial
 ├── public/                   # PWA (manifest, service worker, ícones)
 └── src/
     ├── core/                 # domínio puro: tipos, XP, dano, datas
