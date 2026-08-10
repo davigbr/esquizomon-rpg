@@ -36,6 +36,7 @@
 ## 🔜 Mapa do mundo
 
 **Status: planejada — apenas documentação. Sem implementação.**
+> **Adiado em 2026-08-10:** discutido e considerado complexo demais para o momento — sem data. Decisões e pesquisa registradas abaixo para retomar quando fizer sentido.
 
 ### Conceito
 
@@ -43,7 +44,28 @@ O mapa dá **espacialidade ao mundo escolhido** pelo jogador (os mundos do `NARR
 
 O objetivo do jogo segue valendo: **construir um mundo próprio** — o mapa é o território onde isso acontece.
 
+### Decisão de arquitetura (2026-08-10)
+
+- **Gerador procedural EMBUTIDO no app** (canvas + simplex noise, determinístico por seed) — NÃO usar presets estáticos desenhados à mão como v1, e NÃO embutir ferramentas externas.
+- Terreno rico: **relevo** (altura via noise fractal fBm), **biomas** (elevação × umidade → oceano, praia, floresta, savana, deserto, tundra, neve), **hillshade** (sombreamento do gradiente de altura) e **rios** (opcional).
+- Grafo (pontos + rotas + marcador + objetivos) desenhado **por cima** do terreno, com estética de mapa antigo.
+- Cada mundo do `NARRATIVA.md` = uma seed → 7 mapas visuais únicos e persistíveis.
+- Dependência mínima: `simplex-noise` (~2KB) ou implementação própria; projeto segue vanilla.
+- Por que não o Azgaar: é um app completo, não lib embutível; mapa estático exigiria gerar 7 imagens na mão e calibrar pontos sobre elas. Fica como referência de estilo.
+
+### Pesquisa de projetos open source (2026-08-10)
+
+| Projeto | ★ | Uso possível |
+|---|---|---|
+| Azgaar/Fantasy-Map-Generator | ~5,9k | Referência de estilo/estética; app completo, não embutível |
+| mewo2/terrain | ~3k | Referência de estética de mapa antigo (papel, ruínas) |
+| rlguy/FantasyMapGenerator | ~750 | Referência (baseado nas notas do Martin O'Leary) |
+| jeheydorn/nortantis | ~217 | Referência (placas tectônicas, old-school) |
+| edallen/dungen | ~21 | **Pointcrawl** (pontos + conexões) — o modelo que casa com o nosso grafo; referência de algoritmo para geração futura |
+
 ### 1. Geração do mapa — presets ou algoritmo
+
+> **Decisão (2026-08-10):** a recomendação antiga ([REC] abaixo, "começar com presets") foi **superada** — a abordagem escolhida é o **algoritmo embutido** (ver "Decisão de arquitetura" acima). Presets podem voltar como camada opcional depois, mas não são o caminho da v1.
 
 - **Presets:** um mapa pronto para cada mundo do `NARRATIVA.md` (Império, Grimório, Bestiário, Ferrovia, Jardim do Fim do Mundo, Expedição, Clube da Meia-Noite). Cada preset define:
   - regiões (nome + bioma),
@@ -51,7 +73,7 @@ O objetivo do jogo segue valendo: **construir um mundo próprio** — o mapa é 
   - rotas sugeridas entre pontos,
   - ponto de partida.
 - **Algoritmo:** geração procedural **determinística por seed** (mesma seed → mesmo mapa, persistível). Parâmetros: nº de regiões e pontos, densidade de rotas, conectividade do grafo. Seed digitada pelo usuário ou sorteada.
-- [REC] começar com **presets** (1 mapa por mundo); geração por algoritmo fica como evolução posterior da mesma feature.
+- [REC] ~~começar com **presets** (1 mapa por mundo); geração por algoritmo fica como evolução posterior da mesma feature.~~ *(superada pela decisão de 2026-08-10)*
 
 ### 2. Modelo do mapa (grafo)
 
