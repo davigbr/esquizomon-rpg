@@ -2,7 +2,7 @@
 
 import type { AppData, LogEvento, TipoLog } from '../../core/tipos'
 import { appStore } from '../../stores/app'
-import { escapar } from '../formTarefa'
+import { escapar } from '../util'
 
 /** Ícone FA e rótulo por tipo de evento. */
 const TIPOS: Record<TipoLog, { icone: string; rotulo: string }> = {

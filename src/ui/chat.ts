@@ -12,7 +12,7 @@ import {
 import { enviarParaIA, ErroIA, type MsgChat } from '../ia/cliente'
 import { montarSystemPrompt } from '../ia/prompt'
 import { notificar } from './toast'
-import { escapar } from './formTarefa'
+import { escapar } from './util'
 import { confirmar } from './modal'
 
 const PAINEL_CHAVE = 'esquizomon-rpg:chat-painel'
@@ -270,10 +270,6 @@ export function alternarChat(abrir?: boolean): void {
   salvarEstadoPainel(estado)
   renderizar()
   if (vaiAbrir) inputEl?.focus()
-}
-
-export function chatAberto(): boolean {
-  return estado.aberto
 }
 
 function selecionarConversa(id: string): void {

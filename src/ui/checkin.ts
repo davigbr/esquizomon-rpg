@@ -4,7 +4,7 @@
 
 import { abrirModal, fecharModal } from './modal'
 import { appStore, checkinPendente, concluirCheckin, pularCheckin } from '../stores/app'
-import { escapar } from './formTarefa'
+import { escapar } from './util'
 import { dataPorExtenso, xpDe } from '../core/jogo'
 import type { Dificuldade } from '../core/tipos'
 

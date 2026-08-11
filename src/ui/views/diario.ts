@@ -7,7 +7,7 @@ import { hojeISO, dataPorExtenso } from '../../core/jogo'
 import { appStore, excluirEntrada, moverEntrada, salvarEntrada } from '../../stores/app'
 import { confirmar } from '../modal'
 import { notificar } from '../toast'
-import { escapar } from '../formTarefa'
+import { escapar } from '../util'
 import { renderizarMarkdown } from '../editorMd'
 
 /** Data da entrada aberta no editor (módulo — sobrevive a re-renders). */

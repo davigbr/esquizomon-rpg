@@ -129,15 +129,6 @@ export function hojeISO(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-/** Hoje por extenso em pt-BR, ex.: "segunda-feira, 3 de agosto". */
-export function hojePorExtenso(): string {
-  return new Date().toLocaleDateString('pt-BR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  })
-}
-
 /** Data ISO por extenso em pt-BR (sem o dia da semana), ex.: "3 de agosto de 2026". */
 export function dataPorExtenso(iso: string): string {
   const d = new Date(iso + 'T12:00:00')

@@ -6,15 +6,7 @@ import { DIAS_SEMANA, dificuldadeDe } from '../core/jogo'
 import { appStore, atualizarTarefa, criarTarefa, tagsEmUso } from '../stores/app'
 import { abrirModal } from './modal'
 import { notificar } from './toast'
-
-export function escapar(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
+import { escapar } from './util'
 
 const TIPOS: ReadonlyArray<{ id: TipoTarefa; nome: string; desc: string }> = [
   { id: 'recorrente', nome: 'Recorrente', desc: 'Se repete em dias' },

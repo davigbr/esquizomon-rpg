@@ -6,7 +6,7 @@ import { custoInvocacao, nivelBaralhoCompleto } from '../../core/jogo'
 import { appStore, invocarCarta } from '../../stores/app'
 import { abrirModal, fecharModal, modalBody } from '../modal'
 import { notificar, notificarCartas } from '../toast'
-import { escapar } from '../formTarefa'
+import { escapar } from '../util'
 
 let deckCache: Carta[] | null = null
 let filtroTipo: TipoCarta | '' = ''

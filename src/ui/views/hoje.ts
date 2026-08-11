@@ -17,7 +17,8 @@ import {
   somarDias,
 } from '../../core/jogo'
 import { alternarRecorrenteHoje, alternarUnica, appStore, excluirTarefa, registrarHabito, reordenarTarefas, tagsEmUso } from '../../stores/app'
-import { abrirFormTarefa, escapar } from '../formTarefa'
+import { abrirFormTarefa } from '../formTarefa'
+import { escapar } from '../util'
 import { renderizarNotas } from '../notas'
 import { confirmar } from '../modal'
 import { notificar, notificarCartas } from '../toast'
