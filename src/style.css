@@ -3178,3 +3178,19 @@ body.fabula-aberto .container {
   color: var(--text-secondary);
   line-height: 1.5;
 }
+
+/* botão de conta no header — logado mostra o e-mail (curto) */
+#conta-toggle.logado {
+  max-width: 150px;
+}
+
+.header-conta-email {
+  display: inline-block;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}

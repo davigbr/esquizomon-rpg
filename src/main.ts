@@ -14,6 +14,7 @@ import { alternarChat, montarChat, reagirMudancaStore } from './ui/chat'
 import { verificarCheckin } from './ui/checkin'
 import { iniciarAuth } from './sync/auth'
 import { iniciarSync } from './sync/sync'
+import { montarBotaoConta } from './ui/headerConta'
 import { carregarDeck } from './core/baralho'
 import { storageGet } from './db/storage'
 import type { Tema } from './core/tipos'
@@ -194,6 +195,10 @@ document.getElementById('fabula-toggle')!.addEventListener('click', () => {
   montarChat()
   alternarChat()
 })
+
+/* ---------- conta no header (login/sincronização) ---------- */
+
+montarBotaoConta()
 
 /* ---------- dia novo ---------- */
 

@@ -26,6 +26,21 @@ export interface Sessao {
 
 let sessao: Sessao | null = null
 
+// ── Inscrição em mudanças de sessão (header/UI reagem ao login/sair) ──
+
+let cbSessao: (() => void) | null = null
+
+export function inscreverSessao(cb: () => void): () => void {
+  cbSessao = cb
+  return () => {
+    if (cbSessao === cb) cbSessao = null
+  }
+}
+
+function notificarSessao(): void {
+  cbSessao?.()
+}
+
 // ── Persistência da sessão ──────────────────────────────────────────
 
 function lerSessao(): Sessao | null {
@@ -181,6 +196,7 @@ export async function login(email: string, senha: string): Promise<{ ok: boolean
     }
     sessao = montarSessao(tokens, usuario)
     gravarSessao(sessao)
+    notificarSessao()
     return { ok: true }
   } catch (erro) {
     console.error('[auth] falha de rede no login:', erro)
@@ -206,6 +222,7 @@ export async function criarConta(email: string, senha: string): Promise<{ ok: bo
       if (!usuario) return { ok: false, motivo: 'Não foi possível carregar seus dados de usuário. Veja o console.' }
       sessao = montarSessao(tokens, usuario)
       gravarSessao(sessao)
+      notificarSessao()
       return { ok: true }
     }
     return { ok: true, precisaConfirmar: true }
@@ -239,6 +256,7 @@ export async function sair(): Promise<void> {
   }
   sessao = null
   gravarSessao(null)
+  notificarSessao()
 }
 
 // ── Inicialização (boot) ────────────────────────────────────────────
@@ -274,6 +292,7 @@ export async function iniciarAuth(): Promise<Sessao | null> {
       gravarSessao(null)
     }
   }
+  notificarSessao()
   return sessao
 }
 
