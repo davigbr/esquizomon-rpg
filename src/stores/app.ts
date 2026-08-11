@@ -475,15 +475,17 @@ function finalizarDia(hoje: string): void {
   })
 }
 
-/** Aplica o dano diário das recorrentes perdidas (não marcadas no check-in). */
+/** Aplica o dano diário das recorrentes perdidas (não marcadas no check-in).
+ *  Únicas vencidas NUNCA dão dano diário — só recorrentes. */
 function aplicarDanoDiario(ids: string[]): void {
   if (ids.length === 0) return
   const dados = appStore.get()
   if (dados.configuracao.modoRelaxado || dados.personagem.esgotado) return
-  const danoTotal = ids.reduce((soma, id) => {
-    const t = dados.tarefas.find((x) => x.id === id)
-    return soma + (t ? danoDe(t.dificuldade) : 0)
-  }, 0)
+  const perdidas = ids
+    .map((id) => dados.tarefas.find((x) => x.id === id))
+    .filter((t): t is Tarefa => !!t && t.tipo === 'recorrente')
+  if (perdidas.length === 0) return
+  const danoTotal = perdidas.reduce((soma, t) => soma + danoDe(t.dificuldade), 0)
   if (danoTotal <= 0) return
   const p = dados.personagem
   const hp = Math.max(0, p.hp - danoTotal)
@@ -492,7 +494,7 @@ function aplicarDanoDiario(ids: string[]): void {
     ...appStore.get(),
     personagem: { ...appStore.get().personagem, hp, esgotado: esgotou },
   })
-  registrarLog('dano', `Dano diário: ${ids.length} recorrente(s) perdida(s) (−${danoTotal} vida)`)
+  registrarLog('dano', `Dano diário: ${perdidas.length} recorrente(s) perdida(s) (−${danoTotal} vida)`)
   if (esgotou) registrarMorte()
 }
 

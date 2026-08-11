@@ -212,22 +212,21 @@ function instalarEditor(raiz: HTMLElement, hoje: string): void {
   const area = areaEl // não-nulo a partir daqui (guard acima)
   const titulo = tituloEl
 
-  /** Último estado salvo — usado pra pular saves redundantes (o blur do
-   *  textarea substituído por um re-render NÃO pode re-salvar e re-renderizar
-   *  em loop infinito). */
-  let ultimoSalvo = { texto: area.value, titulo: titulo.value.trim() }
-
   /** Salva imediatamente (força o write, limpa timer). */
   function salvarAgora(): void {
     const texto = area.value
     const tituloValor = titulo.value.trim()
-    // nada mudou desde o último save → não faz set (evita loop blur→set→re-render→blur)
-    if (texto === ultimoSalvo.texto && tituloValor === ultimoSalvo.titulo) return
+    // compara com o que está REALMENTE salvo (appStore, sempre atual) — não com
+    // um snapshot da closure: o blur de um textarea REMOVIDO pelo re-render do
+    // autosave rodaria com snapshot velho, salvaria de novo e causaria um 2º
+    // re-render em cadeia (que engolia cliques — o botão era substituído entre
+    // mousedown e mouseup).
+    const entradaAtual = (appStore.get().diario ?? []).find((e) => e.data === dataAlvo)
+    if (texto === (entradaAtual?.texto ?? '') && tituloValor === (entradaAtual?.titulo ?? '')) return
     const timer = timersAutosave.get(dataAlvo)
     if (timer) clearTimeout(timer)
     timersAutosave.delete(dataAlvo)
     if (texto.trim() || tituloValor) {
-      ultimoSalvo = { texto, titulo: tituloValor }
       salvarEntrada(dataAlvo, { titulo: tituloValor, texto })
       if (statusEl) statusEl.textContent = `Salvo ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
     }
@@ -262,9 +261,13 @@ function instalarEditor(raiz: HTMLElement, hoje: string): void {
   // Título também salva automático.
   titulo.addEventListener('input', agendarSalvar)
 
-  // Blur salva.
-  area.addEventListener('blur', () => salvarAgora())
-  titulo.addEventListener('blur', () => salvarAgora())
+  // Blur salva — MAS agendado (próxima macrotask): salvar SÍNCRONO no blur
+  // disparava appStore.set → re-render → o DOM era substituído entre o
+  // mousedown e o mouseup de um clique logo após digitar → clique engolido
+  // (botões excluir/toggle pareciam mortos). Com o agendamento, o clique
+  // completa primeiro; o save/re-render roda depois, sem clique em andamento.
+  area.addEventListener('blur', () => setTimeout(() => salvarAgora(), 0))
+  titulo.addEventListener('blur', () => setTimeout(() => salvarAgora(), 0))
 
   // Excluir
   raiz.querySelector<HTMLButtonElement>('[data-diario-excluir]')?.addEventListener('click', () => {
