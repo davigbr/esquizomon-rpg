@@ -3,3 +3,5 @@ dist/
 .DS_Store
 *.local
 public/_test-*
+test-results/
+playwright-report/
