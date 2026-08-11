@@ -6,6 +6,11 @@ import { SYSTEM_PROMPT_PADRAO } from '../../ia/prompt'
 import { apagarTodosDados, definirConfiguracao, definirTema, exportarJSON, importarJSON } from '../../stores/app'
 import { confirmar } from '../modal'
 import { notificar } from '../toast'
+import { escapar } from '../util'
+import { sessaoAtual } from '../../sync/auth'
+import { aposMudancaSessao, inscreverSync, sincronizarAgora } from '../../sync/sync'
+import type { EstadoSync } from '../../sync/sync'
+import { abrirLoginModal } from '../loginModal'
 
 const IA_PADRAO: ConfigIa = {
   provider: 'nenhum',
@@ -62,6 +67,8 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
 
     ${secaoIA(ia)}
 
+    ${secaoConta()}
+
     <div class="config-secao">
       <h3>Dados</h3>
       <p>Exporte ou importe tudo em JSON — o backup do seu território.</p>
@@ -93,6 +100,8 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
   })
 
   instalarHandlersIA(raiz)
+
+  instalarHandlersConta(raiz)
 
   raiz.querySelector('[data-exportar]')!.addEventListener('click', () => {
     const json = exportarJSON()
@@ -289,4 +298,62 @@ function instalarHandlersIA(raiz: HTMLElement): void {
   })
 
   atualizarModelos()
+}
+
+/* ---------- conta e sincronização ---------- */
+
+const ROTULO_ESTADO: Record<EstadoSync, string> = {
+  local: 'Offline — dados só neste dispositivo',
+  enviando: 'Enviando para a nuvem…',
+  sincronizado: 'Sincronizado com a nuvem',
+  'sem-conexao': 'Sem conexão — dados locais intactos',
+}
+
+/** Seção de conta: aviso honesto sobre dados locais + status da sincronização. */
+function secaoConta(): string {
+  const sessao = sessaoAtual()
+  return `
+    <div class="config-secao">
+      <h3><i class="fa-solid fa-cloud" aria-hidden="true"></i> Conta e sincronização</h3>
+      <p class="config-aviso"><strong>Seus dados moram neste navegador.</strong> Eles sobrevivem a recargas e fechamentos — mas <strong>podem ser perdidos</strong> se você limpar o cache/dados do navegador, usar modo anônimo, trocar de navegador ou de computador. Exportar (JSON) ou criar uma conta são suas garantias.</p>
+      <div class="config-linha">
+        <div>
+          <div class="config-rotulo">Status</div>
+          <div class="config-dica" data-sync-status>${ROTULO_ESTADO['local']}</div>
+        </div>
+        ${sessao ? `<span class="config-rotulo config-conta-email">${escapar(sessao.usuario.email)}</span>` : ''}
+      </div>
+      <div class="config-acoes">
+        ${sessao ? '' : '<button class="btn" data-entrar><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Entrar / criar conta</button>'}
+        ${sessao ? '<button class="btn" data-sair-conta><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Sair</button>' : ''}
+        <button class="btn" data-sincronizar ${sessao ? '' : 'disabled'} title="${sessao ? 'Envia e puxa os dados agora' : 'Entre para sincronizar'}"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Sincronizar agora</button>
+      </div>
+    </div>
+  `
+}
+
+let desinscreverSync: (() => void) | null = null
+
+function instalarHandlersConta(raiz: HTMLElement): void {
+  const statusEl = raiz.querySelector<HTMLElement>('[data-sync-status]')
+
+  desinscreverSync?.()
+  desinscreverSync = inscreverSync((estado) => {
+    if (statusEl) statusEl.textContent = ROTULO_ESTADO[estado]
+  })
+
+  raiz.querySelector('[data-entrar]')?.addEventListener('click', () => {
+    abrirLoginModal()
+  })
+
+  raiz.querySelector('[data-sair-conta]')?.addEventListener('click', async () => {
+    const { sair } = await import('../../sync/auth')
+    await sair()
+    aposMudancaSessao()
+    notificar('Sessão encerrada — seus dados seguem neste dispositivo.')
+  })
+
+  raiz.querySelector('[data-sincronizar]')?.addEventListener('click', () => {
+    void sincronizarAgora()
+  })
 }

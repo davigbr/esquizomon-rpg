@@ -3069,3 +3069,112 @@ body.fabula-aberto .container {
 [data-theme='light'] .diario-data-input::-webkit-calendar-picker-indicator {
   filter: none;
 }
+
+/* ---------- conta e sincronização ---------- */
+
+.config-aviso {
+  background: color-mix(in srgb, var(--accent-gold) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-gold) 30%, transparent);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.config-conta-email {
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+.login-titulo {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+.login-sub {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+
+.login-abas {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.login-aba {
+  background: none;
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 25%, transparent);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.login-aba.ativa {
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+  color: #141414;
+  font-weight: 700;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.login-campo input {
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 30%, transparent);
+  background: var(--bg-elevado);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.login-campo input:focus {
+  outline: 2px solid var(--accent-gold);
+  outline-offset: 1px;
+}
+
+.login-recuperar {
+  align-self: flex-start;
+  font-size: 12.5px;
+}
+
+.login-dica {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.login-status {
+  min-height: 18px;
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.login-status--erro {
+  color: var(--cor-perigo);
+}
+
+.login-conta {
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
