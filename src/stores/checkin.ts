@@ -119,15 +119,6 @@ export function concluirCheckin(idsMarcados: string[]): void {
   finalizarDia(hoje)
 }
 
-/** Check-in pulado: tudo o que ficou pendente ontem conta como perdido. */
-export function pularCheckin(): void {
-  const pend = checkinPendente
-  if (!pend) return
-  checkinPendente = null
-  aplicarDanoDiario(pend.ids)
-  finalizarDia(hojeISO())
-}
-
 function valeNaData(t: Tarefa, dia: number, diaMes: number): boolean {
   if (t.agenda?.diasDoMes && t.agenda.diasDoMes.length > 0) return t.agenda.diasDoMes.includes(diaMes)
   return !t.agenda || t.agenda.dias.length === 0 || t.agenda.dias.includes(dia)

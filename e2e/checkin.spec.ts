@@ -1,5 +1,6 @@
-/** E2E — check-in diário (estilo Habitica): modal aparece no 1º acesso do dia,
- *  marcações retroativas dão XP e o dano só incide nas não marcadas. */
+/** E2E — check-in diário (estilo Habitica): modal "Tarefas de ontem" aparece no
+ *  1º acesso do dia, tudo DESMARCADO; o usuário marca o que fez; o dano só
+ *  incide nas não marcadas. */
 import { test, expect } from '@playwright/test'
 
 const hoje = new Date().toISOString().slice(0, 10)
@@ -27,18 +28,17 @@ async function semearPendentes(page: import('@playwright/test').Page): Promise<v
   )
 }
 
-test('check-in: marca retroativamente em ontem e aplica dano só nas não marcadas', async ({ page }) => {
+test('check-in: tudo vem desmarcado; marcar um item conclui em ontem e o resto sofre dano', async ({ page }) => {
   await semearPendentes(page)
   await page.goto('/#/hoje')
 
-  // modal aparece com as 2 pendentes pré-marcadas
+  // modal "Tarefas de ontem" com as 2 pendentes DESMARCADAS
   await expect(page.locator('.checkin-item')).toHaveCount(2)
-  await expect(page.locator('.checkin-check')).toHaveCount(2)
-  await expect(page.locator('.checkin-check').nth(0)).toBeChecked()
-  await expect(page.locator('.checkin-check').nth(1)).toBeChecked()
+  await expect(page.locator('.checkin-check').nth(0)).not.toBeChecked()
+  await expect(page.locator('.checkin-check').nth(1)).not.toBeChecked()
 
-  // desmarca a 1ª (Meditar) — não foi feita; mantém a 2ª (Relatório)
-  await page.locator('.checkin-check').nth(0).uncheck()
+  // marca apenas a 2ª (Relatório) — a 1ª (Meditar) fica sem marcação
+  await page.locator('.checkin-check').nth(1).check()
   await page.locator('[data-checkin-confirmar]').click()
 
   // modal fechou
@@ -49,16 +49,15 @@ test('check-in: marca retroativamente em ontem e aplica dano só nas não marcad
   await expect(page.locator('[data-s-hp]')).toHaveText('47/50')
 })
 
-test('check-in: pular aplica dano de todas as pendentes', async ({ page }) => {
+test('check-in: confirmar sem marcar nada equivale a pular (dano em todas)', async ({ page }) => {
   await semearPendentes(page)
   await page.goto('/#/hoje')
 
   await expect(page.locator('.checkin-item')).toHaveCount(2)
-  await page.locator('[data-checkin-pular]').click()
+  await page.locator('[data-checkin-confirmar]').click()
 
   await expect(page.locator('#modal')).toBeHidden()
-  // nenhuma marcada → XP 0; 2 recorrentes... só a r1 é recorrente (u1 é única, sem dano)
-  // dano = 1 recorrente fácil = −3
+  // nada marcado → XP 0; a recorrente Meditar perdida → −3 vida (únicas não dão dano)
   await expect(page.locator('[data-s-xp]')).toHaveText('XP 0/80')
   await expect(page.locator('[data-s-hp]')).toHaveText('47/50')
 })

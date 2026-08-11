@@ -3,7 +3,7 @@
  *  retroativamente; o dano diário só incide nas que ficarem sem marcação. */
 
 import { abrirModal, fecharModal } from './modal'
-import { appStore, checkinPendente, concluirCheckin, pularCheckin } from '../stores/app'
+import { appStore, checkinPendente, concluirCheckin } from '../stores/app'
 import { escapar } from './util'
 import { dataPorExtenso, xpDe } from '../core/jogo'
 import type { Dificuldade } from '../core/tipos'
@@ -27,7 +27,7 @@ export function verificarCheckin(): void {
     .map(
       (t) => `
       <label class="checkin-item">
-        <input type="checkbox" class="checkin-check" data-checkin-id="${escapar(t.id)}" checked />
+        <input type="checkbox" class="checkin-check" data-checkin-id="${escapar(t.id)}" />
         <span class="checkin-info">
           <span class="checkin-titulo">${escapar(t.titulo)}</span>
           <span class="checkin-meta">${t.tipo === 'unica' ? 'Tarefa' : 'Recorrente'} · ${ROTULO_DIFICULDADE[t.dificuldade]} · +${xpDe(t.dificuldade)} XP</span>
@@ -37,12 +37,11 @@ export function verificarCheckin(): void {
     .join('')
 
   abrirModal(`
-    <h2 class="checkin-titulo-modal">Check-in de ontem</h2>
-    <p class="checkin-sub">Você não marcou estas tarefas em <strong>${escapar(dataPorExtenso(pend.data))}</strong>. Marque as que você fez — as que ficarem sem marcação contarão como perdidas.</p>
+    <h2 class="checkin-titulo-modal">Tarefas de ontem</h2>
+    <p class="checkin-sub">Você não marcou estas tarefas em <strong>${escapar(dataPorExtenso(pend.data))}</strong>. Nada vem pré-marcado: marque as que você fez de verdade — as que ficarem sem marcação contarão como perdidas.</p>
     <div class="checkin-lista">${itens}</div>
     <div class="form-acoes">
-      <button class="btn" data-checkin-pular>Pular</button>
-      <button class="btn btn-primary" data-checkin-confirmar>Fazer check-in</button>
+      <button class="btn btn-primary" data-checkin-confirmar>Check-in</button>
     </div>
   `)
 
@@ -53,10 +52,6 @@ export function verificarCheckin(): void {
     const ids = marcar()
     fecharModal()
     concluirCheckin(ids)
-  })
-  modalBody().querySelector<HTMLButtonElement>('[data-checkin-pular]')?.addEventListener('click', () => {
-    fecharModal()
-    pularCheckin()
   })
 }
 
