@@ -3,15 +3,26 @@
  *  salvamento automático. */
 
 import type { AppData, EntradaDiario } from '../../core/tipos'
-import { hojeISO, dataPorExtenso } from '../../core/jogo'
-import { appStore, excluirEntrada, moverEntrada, salvarEntrada } from '../../stores/app'
-import { confirmar } from '../modal'
+import { hojeISO, dataPorExtenso, MAX_CARTAS_RECOMPENSADAS_POR_ENTRADA, XP_POR_CARTA_CITADA } from '../../core/jogo'
+import { carregarDeck, cartasCitadasNoTexto, nomeDaCarta } from '../../core/baralho'
+import { appStore, excluirEntrada, importarDiario, moverEntrada, recompensarCartaCitada, salvarEntrada } from '../../stores/app'
+import { abrirModal, fecharModal, modalBody, confirmar } from '../modal'
 import { notificar } from '../toast'
 import { escapar } from '../util'
 import { renderizarMarkdown } from '../editorMd'
+import { parsearMarkdownDiario } from '../importDiario'
 
 /** Data da entrada aberta no editor (módulo — sobrevive a re-renders). */
 let aberta: string | null = null
+
+/** Data cujo conteúdo o DOM do editor representa (último render completo). */
+let abertaRenderizada: string | null = null
+
+/** Conteúdo com que o editor foi renderizado por último. A guarda de edição
+ *  ativa compara o DOM com ESTE (o que renderizamos), não com o storage: assim
+ *  escrita externa (import, sync) não parece "edição não salva", e trocar de
+ *  entrada re-renderiza o editor. */
+let ultimoRenderConteudo: { texto: string; titulo: string } | null = null
 
 /** Modo do editor: false = edição (textarea), true = visualização (preview). */
 let modoVisualizacao = false
@@ -26,17 +37,17 @@ export function montarDiario(raiz: HTMLElement, dados: AppData): void {
   const entrada = entradas.find((e) => e.data === aberta)
   const entradaExiste = !!entrada
 
-  // ⚠️ Preserva a edição: se o textarea/título têm conteúdo ainda não salvo
-  // (difere do storage), NÃO substitui o editor inteiro (isso mataria caret
-  // e undo stack). MAS a LISTA LATERAL sempre atualiza, senão os botões '+'
-  // e '🗑' parecem mortos (no macOS/Safari o clique num botão não tira o
-  // foco do editor).
+  // ⚠️ Preserva a edição: se o usuário digitou no editor desde o último render
+  // (DOM difere do que RENDERIZAMOS) E não está trocando de entrada, NÃO
+  // substitui o editor inteiro (isso mataria caret e undo stack). MAS a LISTA
+  // LATERAL sempre atualiza, senão os botões '+' e '🗑' parecem mortos (no
+  // macOS/Safari o clique num botão não tira o foco do editor).
   const editorAtual = raiz.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
   let edicaoAtiva = false
-  if (editorAtual) {
+  if (editorAtual && ultimoRenderConteudo && aberta === abertaRenderizada) {
     const textoAtual = editorAtual.value
     const tituloAtual = (raiz.querySelector<HTMLInputElement>('[data-diario-titulo]')?.value ?? '')
-    edicaoAtiva = textoAtual !== (entrada?.texto ?? '') || tituloAtual !== (entrada?.titulo ?? '')
+    edicaoAtiva = textoAtual !== ultimoRenderConteudo.texto || tituloAtual !== ultimoRenderConteudo.titulo
   }
   // Preserva caret/foco do textarea caso o re-render seja só do autosave
   // (valor já salvo → edicaoAtiva false → render completo).
@@ -64,9 +75,14 @@ export function montarDiario(raiz: HTMLElement, dados: AppData): void {
       <aside class="diario-lista" aria-label="Entradas do diário">
         <div class="diario-lista-cabecalho">
           <span class="diario-lista-titulo">Entradas</span>
-          <button class="btn btn-icon diario-novo" data-diario-novo title="Nova entrada de hoje" aria-label="Nova entrada de hoje">
-            <i class="fa-solid fa-plus" aria-hidden="true"></i>
-          </button>
+          <div class="diario-lista-botoes">
+            <button class="btn btn-icon diario-importar" data-diario-importar title="Importar crônicas (markdown)" aria-label="Importar crônicas (markdown)">
+              <i class="fa-solid fa-file-import" aria-hidden="true"></i>
+            </button>
+            <button class="btn btn-icon diario-novo" data-diario-novo title="Nova entrada de hoje" aria-label="Nova entrada de hoje">
+              <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
         <div class="diario-arquivos">
           ${entradas.length === 0
@@ -109,10 +125,15 @@ export function montarDiario(raiz: HTMLElement, dados: AppData): void {
   `
 
   instalarNovaEntrada(raiz)
+  instalarImportar(raiz)
   instalarLista(raiz)
   instalarEditor(raiz, hoje)
   instalarMudancaData(raiz)
   aplicarModo(raiz)
+
+  // o DOM do editor agora representa esta data e este conteúdo
+  abertaRenderizada = aberta
+  ultimoRenderConteudo = { texto: entrada?.texto ?? '', titulo: entrada?.titulo ?? '' }
 
   // Restaura caret/foco se o re-render pegou o usuário no meio do editor.
   if (focoAntes && selAntes) {
@@ -191,6 +212,79 @@ function instalarNovaEntrada(raiz: HTMLElement): void {
   })
 }
 
+/** Importação em massa: arquivo .md ou texto colado com `## AAAA-MM-DD`. */
+function instalarImportar(raiz: HTMLElement): void {
+  raiz.querySelector('[data-diario-importar]')?.addEventListener('click', () => {
+    abrirModal(`
+      <h2>Importar crônicas</h2>
+      <p class="config-dica">Cole o markdown com uma crônica por dia, cada uma começando com a data: <code>## AAAA-MM-DD</code>. Título opcional na primeira linha em negrito (<code>**Título**</code>). Dias que já existem são pulados.</p>
+      <div class="form-grupo">
+        <label>Ou escolha um arquivo .md</label>
+        <input type="file" class="filtro-input" accept=".md,.markdown,.txt" data-import-arquivo />
+      </div>
+      <div class="form-grupo">
+        <textarea class="filtro-textarea" data-import-texto rows="12" spellcheck="false"
+          placeholder="## 2026-08-01&#10;**Título opcional**&#10;Corpo da crônica em markdown...&#10;&#10;## 2026-08-02&#10;..."></textarea>
+      </div>
+      <p class="config-dica" data-import-status></p>
+      <div class="form-acoes">
+        <button class="btn" data-modal-cancelar>Cancelar</button>
+        <button class="btn btn-primary" data-import-executar>Importar</button>
+      </div>
+    `)
+    const arquivoEl = modalBody.querySelector<HTMLInputElement>('[data-import-arquivo]')
+    const textoEl = modalBody.querySelector<HTMLTextAreaElement>('[data-import-texto]')
+    const statusEl = modalBody.querySelector<HTMLElement>('[data-import-status]')
+    arquivoEl?.addEventListener('change', () => {
+      const arquivo = arquivoEl.files?.[0]
+      if (!arquivo) return
+      const leitor = new FileReader()
+      leitor.onload = () => {
+        if (textoEl && typeof leitor.result === 'string') {
+          textoEl.value = leitor.result
+          if (statusEl) statusEl.textContent = `"${arquivo.name}" carregado — confira e clique em Importar.`
+        }
+      }
+      leitor.readAsText(arquivo, 'utf-8')
+    })
+    modalBody.querySelector('[data-import-executar]')?.addEventListener('click', () => {
+      const entradas = parsearMarkdownDiario(textoEl?.value ?? '')
+      if (entradas.length === 0) {
+        if (statusEl) statusEl.textContent = 'Nenhuma crônica com data no formato ## AAAA-MM-DD foi encontrada.'
+        return
+      }
+      const res = importarDiario(entradas)
+      let msg = `✅ ${res.importadas} importada(s).`
+      if (res.puladas.length > 0) msg += ` ${res.puladas.length} pulada(s) — já existiam: ${res.puladas.join(', ')}.`
+      if (res.invalidas.length > 0) msg += ` ${res.invalidas.length} ignorada(s) — data inválida.`
+      if (statusEl) statusEl.textContent = msg
+      if (res.importadas > 0) {
+        const maisRecente = entradas
+          .map((e) => e.data)
+          .filter((d) => !res.puladas.includes(d))
+          .sort()
+          .pop()
+        if (maisRecente) aberta = maisRecente
+        // ⚠️ Sincroniza o editor com a entrada importada SEM tocar em
+        // rascunho: o guard de "edição ativa" (montarDiario) compara o DOM
+        // velho (vazio) com o storage novo (texto) e acharia que há texto
+        // não salvo, preservando um editor vazio pra sempre.
+        const editor = raiz.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
+        const tituloInput = raiz.querySelector<HTMLInputElement>('[data-diario-titulo]')
+        if (editor && tituloInput && !(editor.value || tituloInput.value)) {
+          const nova = (appStore.get().diario ?? []).find((e) => e.data === aberta)
+          if (nova) {
+            editor.value = nova.texto
+            tituloInput.value = nova.titulo ?? ''
+          }
+        }
+        appStore.set({ ...appStore.get() })
+      }
+    })
+    modalBody.querySelector('[data-modal-cancelar]')?.addEventListener('click', fecharModal)
+  })
+}
+
 function instalarLista(raiz: HTMLElement): void {
   raiz.querySelectorAll<HTMLButtonElement>('[data-diario-abrir]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -228,6 +322,28 @@ function instalarEditor(raiz: HTMLElement, hoje: string): void {
     if (texto.trim() || tituloValor) {
       salvarEntrada(dataAlvo, { titulo: tituloValor, texto })
       if (statusEl) statusEl.textContent = `Salvo ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+      void recompensarCitacoes(dataAlvo, texto)
+    }
+  }
+
+  /** Detecta cartas desbloqueadas citadas no texto e recompensa (máx. N por entrada,
+   *  dedup via entrada.recompensas — idempotente mesmo rodando no autosave). */
+  async function recompensarCitacoes(data: string, texto: string): Promise<void> {
+    if (!texto.trim()) return
+    const deck = await carregarDeck().catch(() => null)
+    if (!deck) return
+    const desbloqueadas = new Set(appStore.get().personagem.cartas)
+    const citadas = cartasCitadasNoTexto(texto, desbloqueadas)
+    const entrada = (appStore.get().diario ?? []).find((e) => e.data === data)
+    const ja = new Set(entrada?.recompensas ?? [])
+    const novas = citadas.filter((id) => !ja.has(id)).slice(0, MAX_CARTAS_RECOMPENSADAS_POR_ENTRADA)
+    if (novas.length === 0) return
+    const nomes: string[] = []
+    for (const id of novas) {
+      if (recompensarCartaCitada(data, id)) nomes.push(nomeDaCarta(id))
+    }
+    if (nomes.length > 0) {
+      notificar(`A Fábula anotou: você usou a carta ${nomes.join(' e ')} no diário (+${XP_POR_CARTA_CITADA * nomes.length} XP)`)
     }
   }
 

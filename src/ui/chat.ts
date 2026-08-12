@@ -11,6 +11,10 @@ import {
 } from '../stores/app'
 import { enviarParaIA, ErroIA, type MsgChat } from '../ia/cliente'
 import { montarSystemPrompt } from '../ia/prompt'
+import { extrairAcoes, type AcaoIA } from '../ia/acoes'
+import { nomeDaCarta, resolverCartaId, tipoDaCarta } from '../core/baralho'
+import { invocarCarta } from '../stores/app'
+import { custoInvocacao } from '../core/jogo'
 import { notificar } from './toast'
 import { escapar } from './util'
 import { confirmar } from './modal'
@@ -353,7 +357,8 @@ async function enviar(texto: string): Promise<void> {
         }
         // Preserva o <details> de raciocínio se já existir; se não, monta depois.
         const raciocinioEl = ultima.querySelector<HTMLElement>('.fabula-reasoning')
-        ultima.textContent = resposta
+        // Exibe sem o marcador de ação ([[acao:...]]) — o streaming mostra o texto cru
+        ultima.textContent = resposta.replace(/\[\[acao:[\s\S]*?\]\]/g, '')
         if (raciocinioEl) ultima.appendChild(raciocinioEl)
         area.scrollTop = area.scrollHeight
       },
@@ -383,10 +388,15 @@ async function enviar(texto: string): Promise<void> {
         area.scrollTop = area.scrollHeight
       },
     })
-    // 4. push assistant (com raciocínio) no store
+    // 4. executa as ações da Fábula (marcador [[acao:...]]) e salva a mensagem
+    const { texto: textoLimpo, acoes } = extrairAcoes(resposta)
+    let conteudoFinal = textoLimpo
+    for (const acao of acoes) {
+      conteudoFinal += `\n\n${executarAcao(acao)}`
+    }
     const assistantMsg: MensagemIA = {
       role: 'assistant',
-      content: resposta,
+      content: conteudoFinal,
       reasoning: raciocinio || undefined,
       ts: new Date().toISOString(),
     }
@@ -408,6 +418,20 @@ async function enviar(texto: string): Promise<void> {
     ocupado = false
     renderizar()
   }
+}
+
+/** Executa uma ação proposta pela Fábula e devolve a nota a anexar à mensagem. */
+function executarAcao(acao: AcaoIA): string {
+  if (acao.tipo !== 'invocar') return ''
+  const id = resolverCartaId(acao.carta)
+  if (!id) return '⚡ Invocação não realizada: carta não encontrada.'
+  const antes = appStore.get().personagem
+  const custo = custoInvocacao(tipoDaCarta(id), antes.invocacoes[id] ?? 0)
+  const resultado = invocarCarta(id)
+  if (resultado.ok) {
+    return `⚡ Invocação executada: ${nomeDaCarta(id)} (−${custo} mana).`
+  }
+  return `⚡ Invocação não realizada: ${resultado.motivo ?? 'não foi possível.'}`
 }
 
 /** Chamado quando o appStore muda — re-renderiza pra refletir mudanças externas

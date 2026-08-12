@@ -39,6 +39,11 @@ export function danoDe(dificuldade: Dificuldade): number {
 /** Dano de uma repetição negativa de hábito. */
 export const DANO_HABITO_NEGATIVO = 2
 
+/** XP automático por carta citada no diário (a Fábula anota, o app recompensa). */
+export const XP_POR_CARTA_CITADA = 5
+/** Máximo de cartas recompensadas por entrada do diário. */
+export const MAX_CARTAS_RECOMPENSADAS_POR_ENTRADA = 2
+
 /** XP necessário para subir do nível atual (curva suave: nível n exige n×80). */
 export function xpProximoDe(nivel: number): number {
   return Math.max(80, nivel * 80)

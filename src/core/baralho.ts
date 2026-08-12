@@ -1,4 +1,7 @@
-/** Baralho Esquizomon — carrega `public/deck.json` (65 cartas) e resolve coleção/desbloqueio. */
+/** Baralho Esquizomon — `src/data/deck.json` (65 cartas), fonte única importada
+ *  estaticamente (galeria, contexto da IA, detecção de citações). */
+
+import deck from '../data/deck.json'
 
 export type TipoCarta = 'monstro' | 'captura' | 'alianca'
 
@@ -8,15 +11,10 @@ export interface Carta {
   type: TipoCarta
 }
 
-let deckCache: Carta[] | null = null
-
-/** Carrega o deck.json (uma vez) e devolve as 65 cartas. */
+/** O deck completo, já carregado (import estático). Mantém a assinatura async
+ *  para não quebrar quem chama `await carregarDeck()`. */
 export async function carregarDeck(): Promise<Carta[]> {
-  if (deckCache) return deckCache
-  const res = await fetch('/deck.json')
-  if (!res.ok) throw new Error('Não consegui carregar o baralho.')
-  deckCache = (await res.json()) as Carta[]
-  return deckCache
+  return deck as Carta[]
 }
 
 /** Sorteia N ids distintos entre as cartas disponíveis (excluindo as já escolhidas). */
@@ -49,4 +47,31 @@ export function rotuloTipo(tipo: TipoCarta): string {
     case 'alianca':
       return 'Aliança'
   }
+}
+
+/** Cartas desbloqueadas cujo NOME aparece no texto (detecção de citações no
+ *  diário). Case-insensitive; retorna ids distintos, na ordem do deck. */
+export function cartasCitadasNoTexto(texto: string, desbloqueadas: Set<string>): string[] {
+  const min = texto.toLocaleLowerCase('pt-BR')
+  return (deck as Carta[])
+    .filter((c) => desbloqueadas.has(c.id))
+    .filter((c) => min.includes(c.name.toLocaleLowerCase('pt-BR')))
+    .map((c) => c.id)
+}
+
+/** Resolve o termo que a Fábula usou no marcador: id (slug) ou nome da carta. */
+export function resolverCartaId(termo: string): string | null {
+  const t = termo.trim().toLocaleLowerCase('pt-BR')
+  const carta = (deck as Carta[]).find((c) => c.id === t || c.name.toLocaleLowerCase('pt-BR') === t)
+  return carta?.id ?? null
+}
+
+/** Nome da carta pelo id (para notas/toasts). */
+export function nomeDaCarta(id: string): string {
+  return (deck as Carta[]).find((c) => c.id === id)?.name ?? id
+}
+
+/** Tipo da carta pelo id (para calcular custo de invocação). */
+export function tipoDaCarta(id: string): TipoCarta {
+  return (deck as Carta[]).find((c) => c.id === id)?.type ?? 'monstro'
 }

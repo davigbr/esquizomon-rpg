@@ -75,6 +75,7 @@ function normalizarTarefa(v: unknown): Tarefa | null {
     t.contador && typeof t.contador === 'object'
       ? {
           hoje: typeof (t.contador as { hoje?: unknown }).hoje === 'number' ? (t.contador as { hoje: number }).hoje : 0,
+          hojeNeg: typeof (t.contador as { hojeNeg?: unknown }).hojeNeg === 'number' ? (t.contador as { hojeNeg: number }).hojeNeg : 0,
           totalPositivo:
             typeof (t.contador as { totalPositivo?: unknown }).totalPositivo === 'number'
               ? (t.contador as { totalPositivo: number }).totalPositivo
@@ -174,6 +175,7 @@ function normalizarConfiguracao(v: unknown): Configuracao {
   const ia = ehObjeto(v) ? normalizarConfigIa(v.ia) : undefined
   const out: Configuracao = { tema, modoRelaxado }
   if (ia) out.ia = ia
+  if (ehObjeto(v) && typeof v.resumo === 'string' && v.resumo.trim()) out.resumo = v.resumo
   return out
 }
 
@@ -249,6 +251,9 @@ function normalizarEntradaDiario(v: unknown): EntradaDiario | null {
   const id = typeof v.id === 'string' && v.id ? v.id : null
   const data = typeof v.data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.data) ? v.data : null
   if (!id || !data) return null
+  const recompensas = Array.isArray(v.recompensas)
+    ? v.recompensas.filter((r): r is string => typeof r === 'string')
+    : undefined
   return {
     id,
     data,
@@ -256,6 +261,7 @@ function normalizarEntradaDiario(v: unknown): EntradaDiario | null {
     texto: typeof v.texto === 'string' ? v.texto : '',
     criadaEm: typeof v.criadaEm === 'string' ? v.criadaEm : new Date(data).toISOString(),
     editadaEm: typeof v.editadaEm === 'string' ? v.editadaEm : undefined,
+    recompensas: recompensas && recompensas.length > 0 ? recompensas : undefined,
   }
 }
 

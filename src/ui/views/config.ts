@@ -26,6 +26,7 @@ function iaAtual(dados: AppData): ConfigIa {
 export function montarConfig(raiz: HTMLElement, dados: AppData): void {
   const tema = dados.configuracao.tema
   const modoRelaxado = dados.configuracao.modoRelaxado === true
+  const resumo = dados.configuracao.resumo ?? ''
   const ia = iaAtual(dados)
   const total = dados.tarefas.length
 
@@ -65,6 +66,13 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
       </div>
     </div>
 
+    <div class="config-secao">
+      <h3>Sobre você</h3>
+      <p>Um resumo da sua vida — quem você é, o que faz, o que está vivendo. A Fábula usa isso pra te conhecer além do jogo (junto com o seu diário).</p>
+      <textarea class="filtro-textarea" data-resumo rows="6" spellcheck="false" placeholder="Conte quem você é, o que está vivendo, o que anda em movimento — a Fábula lê isso pra te conhecer além do jogo.">${escapar(resumo)}</textarea>
+      <div class="config-dica">Salva automaticamente ao sair do campo. Quanto mais honesto, melhor ela te acompanha.</div>
+    </div>
+
     ${secaoIA(ia)}
 
     ${secaoConta()}
@@ -97,6 +105,12 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
     const valor = (e.target as HTMLSelectElement).value === 'on'
     definirConfiguracao({ modoRelaxado: valor })
     notificar(valor ? 'Modo relaxado ligado — sem dano.' : 'Modo relaxado desligado.')
+  })
+
+  raiz.querySelector('[data-resumo]')?.addEventListener('change', (e) => {
+    const valor = (e.target as HTMLTextAreaElement).value.trim()
+    definirConfiguracao({ resumo: valor || undefined })
+    notificar(valor ? 'Resumo salvo — a Fábula leu.' : 'Resumo removido.')
   })
 
   instalarHandlersIA(raiz)

@@ -12,9 +12,11 @@ export interface Agenda {
   diasDoMes?: number[]
 }
 
-/** Contador de um hábito. `hoje` = repetições positivas de hoje; streaks derivados do histórico. */
+/** Contador de um hábito. `hoje`/`hojeNeg` = repetições (pos/neg) de hoje;
+ *  streaks derivados do histórico. */
 export interface ContadorHabito {
   hoje: number
+  hojeNeg: number
   totalPositivo: number
   totalNegativo: number
 }
@@ -90,6 +92,8 @@ export interface Configuracao {
   modoRelaxado?: boolean
   /** Configuração da Fábula (chat com IA, BYOK). */
   ia?: ConfigIa
+  /** Resumo da vida do usuário ("Sobre você") — a Fábula usa pra te conhecer. */
+  resumo?: string
 }
 
 /** Provider de IA. MVP: deepseek e opencode Zen Go (ambos OpenAI-compatíveis). */
@@ -168,6 +172,8 @@ export interface EntradaDiario {
   criadaEm: string
   /** ISO timestamp da última edição (undefined se nunca editada). */
   editadaEm?: string
+  /** Ids das cartas já recompensadas por citação nesta entrada (dedup do +XP). */
+  recompensas?: string[]
 }
 export const STORAGE_KEY = 'esquizomon-rpg:v1'
 export const TEMA_KEY = 'esquizomon-rpg:tema'

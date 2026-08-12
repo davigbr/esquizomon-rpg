@@ -1,11 +1,12 @@
-/** Visão Cartas — galeria do baralho Esquizomon com desbloqueio por nível, modal e invocação com mana. */
+/** Visão Cartas — galeria do baralho Esquizomon com desbloqueio por nível e modal.
+ *  ⚠️ Invocação virou EXCLUSIVA do chat (2026-08-12): peça à Fábula. */
 
 import type { AppData } from '../../core/tipos'
 import { carregarDeck, rotuloTipo, tipoDe, type Carta, type TipoCarta } from '../../core/baralho'
 import { custoInvocacao, nivelBaralhoCompleto } from '../../core/jogo'
-import { appStore, invocarCarta } from '../../stores/app'
-import { abrirModal, fecharModal, modalBody } from '../modal'
-import { notificar, notificarCartas } from '../toast'
+import { appStore } from '../../stores/app'
+import { abrirModal, modalBody } from '../modal'
+import { notificar } from '../toast'
 import { escapar } from '../util'
 
 let deckCache: Carta[] | null = null
@@ -85,7 +86,7 @@ function cardCarta(c: Carta, desbloqueada: boolean): string {
         : `<div class="carta-lock"><i class="fa-solid fa-lock" aria-hidden="true"></i><span class="carta-lock-nome">${escapar(c.name)}</span></div>`}
       <div class="carta-rodape">
         <span class="badge badge--${c.type}">${rotuloTipo(c.type)}</span>
-        ${desbloqueada ? `<span class="carta-custo" title="Custo de invocação (no modal)"><i class="fa-solid fa-droplet" aria-hidden="true"></i> ${custo}</span>` : ''}
+        ${desbloqueada ? `<span class="carta-custo" title="Custo de invocação — peça à Fábula no chat"><i class="fa-solid fa-droplet" aria-hidden="true"></i> ${custo}</span>` : ''}
       </div>
     </div>
   `
@@ -115,7 +116,7 @@ function abrirModalCarta(id: string): void {
           <span class="badge badge--${carta.type}">${rotuloTipo(carta.type)}</span>
           <h2>${escapar(carta.name)}</h2>
           <p class="carta-modal-custo"><i class="fa-solid fa-droplet" aria-hidden="true"></i> ${custo} mana${invocacoes > 0 ? ` · invocada ${invocacoes}×` : ''}</p>
-          <button class="btn btn-primary" data-modal-invocar>Invocar</button>
+          <p class="config-dica">Invocação pelo chat: peça à Fábula para invocar esta carta — ela desconta a mana e te dá o apoio dela.</p>
         </div>
       </div>
       <button class="carta-modal-seta" data-modal-proxima aria-label="Próxima carta" ${proxima ? '' : 'disabled'}>
@@ -129,15 +130,5 @@ function abrirModalCarta(id: string): void {
   })
   modalBody.querySelector('[data-modal-proxima]')?.addEventListener('click', () => {
     if (proxima) abrirModalCarta(proxima.id)
-  })
-  modalBody.querySelector('[data-modal-invocar]')?.addEventListener('click', () => {
-    const resultado = invocarCarta(id)
-    if (resultado.ok) {
-      void notificarCartas([id], `🜏 Carta invocada`)
-      fecharModal()
-      void montarCartas(document.getElementById('app')!, appStore.get())
-    } else {
-      notificar(resultado.motivo ?? 'Não deu para invocar.', 'erro')
-    }
   })
 }
