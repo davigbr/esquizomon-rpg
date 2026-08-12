@@ -58,7 +58,6 @@ export function montarDiario(raiz: HTMLElement, dados: AppData): void {
   raiz.innerHTML = `
     <header class="view-header">
       <h1>Diário</h1>
-      <p class="view-sub">Uma crônica por dia. Edição em markdown com salvamento automático — tudo fica no seu dispositivo.</p>
     </header>
 
     <div class="diario-layout">
