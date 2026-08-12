@@ -481,6 +481,17 @@ body {
   border-color: #3a523a;
 }
 
+/* contadores do hábito (cada um no seu badge) */
+.badge--hab-pos {
+  color: #7ab57a;
+  border-color: #3a523a;
+}
+
+.badge--hab-neg {
+  color: #e08a8a;
+  border-color: #5a3030;
+}
+
 .badge--media {
   color: var(--accent-gold);
   border-color: var(--border-gold);
@@ -645,6 +656,18 @@ body {
 [data-theme='light'] .habito-lado--pos {
   background: #4a8a4a;
   color: #fff;
+}
+
+/* Acionado hoje: dourado = "já contado" (cue visual do usuário) */
+.habito-lado--pos.ativo,
+.habito-lado--neg.ativo {
+  background: var(--accent-gold);
+  color: #0a0a0a;
+}
+
+.habito-lado--pos.ativo:hover:not(:disabled),
+.habito-lado--neg.ativo:hover:not(:disabled) {
+  filter: brightness(1.08);
 }
 
 .btn[disabled] {
@@ -2708,6 +2731,7 @@ body.fabula-aberto .container {
   line-height: 1.5;
   resize: vertical;
   min-height: 80px;
+  width: 100%;
 }
 
 .filtro-textarea:hover {
@@ -2783,6 +2807,12 @@ body.fabula-aberto .container {
   border-bottom: 1px solid var(--border-color);
 }
 
+.diario-lista-botoes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .diario-lista-titulo {
   font-family: var(--font-display);
   font-size: 12px;
@@ -2801,6 +2831,17 @@ body.fabula-aberto .container {
 }
 
 .diario-novo:hover {
+  background: var(--accent-gold);
+  color: #0a0a0a;
+}
+
+.diario-importar {
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
+}
+
+.diario-importar:hover {
   background: var(--accent-gold);
   color: #0a0a0a;
 }

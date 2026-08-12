@@ -261,21 +261,27 @@ function valeHoje(t: Tarefa, dia: number, diaMes: number): boolean {
 function cardHabito(t: Tarefa, ehHoje: boolean): string {
   const d = dificuldadeDe(t.dificuldade)
   const streak = calcularStreak(t.historico, dataVisivel)
-  const hoje = ehHoje ? (t.contador?.hoje ?? 0) : 0
+  const hojePos = ehHoje ? (t.contador?.hoje ?? 0) : 0
+  const hojeNeg = ehHoje ? (t.contador?.hojeNeg ?? 0) : 0
   const sinal = t.sinal ?? 'positivo'
   const antiga = classeAntiga(t)
   // botões sempre visíveis, colados às bordas (estilo Habitica); desabilitados quando o hábito não tem aquele sinal
   const podePositivo = sinal === 'positivo' || sinal === 'ambos'
   const podeNegativo = sinal === 'negativo' || sinal === 'ambos'
+  // cue visual: botão acionado hoje fica dourado (já contado)
+  const posAtivo = ehHoje && hojePos > 0
+  const negAtivo = ehHoje && hojeNeg > 0
   return `
     <div class="tarefa-card habito-card${antiga}" draggable="true" data-id="${t.id}">
-      <button class="habito-lado habito-lado--neg" data-habito="negativo" data-id="${t.id}" aria-label="Repetição negativa" ${!podeNegativo || !ehHoje ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
+      <button class="habito-lado habito-lado--neg${negAtivo ? ' ativo' : ''}" data-habito="negativo" data-id="${t.id}" aria-label="Repetição negativa" title="${negAtivo ? `Negativo hoje (${hojeNeg}×)` : 'Repetição negativa'}" ${!podeNegativo || !ehHoje ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
       <div class="tarefa-corpo">
         <p class="tarefa-titulo">${escapar(t.titulo)}</p>
         ${t.notas ? `<p class="tarefa-notas">${renderizarNotas(t.notas)}</p>` : ''}
         <div class="tarefa-meta">
           <span class="badge badge--${t.dificuldade}">${d.rotulo}</span>
-          <span class="badge">hoje ${hoje} · seq ${streak}</span>
+          <span class="badge badge--hab-pos" title="Positivos hoje">+${hojePos}</span>
+          <span class="badge badge--hab-neg" title="Negativos hoje">−${hojeNeg}</span>
+          <span class="badge" title="Dias seguidos com repetição positiva">seq ${streak}</span>
           ${t.esfera ? `<span class="badge badge--esfera"><i class="fa-solid fa-atom" aria-hidden="true"></i> ${escapar(t.esfera)}</span>` : ''}
           ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
           ${badgeIdade(t)}
@@ -285,7 +291,7 @@ function cardHabito(t: Tarefa, ehHoje: boolean): string {
         <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
         <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       </div>
-      <button class="habito-lado habito-lado--pos" data-habito="positivo" data-id="${t.id}" aria-label="Repetição positiva" ${!podePositivo || !ehHoje ? 'disabled' : ''}><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+      <button class="habito-lado habito-lado--pos${posAtivo ? ' ativo' : ''}" data-habito="positivo" data-id="${t.id}" aria-label="Repetição positiva" title="${posAtivo ? `Positivo hoje (${hojePos}×)` : 'Repetição positiva'}" ${!podePositivo || !ehHoje ? 'disabled' : ''}><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
     </div>
   `
 }

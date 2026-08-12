@@ -28,7 +28,7 @@ export function criarTarefa(dados: DadosTarefa): Resultado {
     sinal: dados.tipo === 'habito' ? dados.sinal ?? 'positivo' : undefined,
     contador:
       dados.tipo === 'habito'
-        ? { hoje: 0, totalPositivo: 0, totalNegativo: 0 }
+        ? { hoje: 0, hojeNeg: 0, totalPositivo: 0, totalNegativo: 0 }
         : undefined,
     concluida: false,
     historico: [],
@@ -73,7 +73,7 @@ export function atualizarTarefa(id: string, dados: Partial<DadosTarefa>): Result
     }
     if (dados.tipo === 'habito') {
       proxima.sinal = dados.sinal ?? atual.sinal ?? 'positivo'
-      proxima.contador = atual.contador ?? { hoje: 0, totalPositivo: 0, totalNegativo: 0 }
+      proxima.contador = atual.contador ?? { hoje: 0, hojeNeg: 0, totalPositivo: 0, totalNegativo: 0 }
     }
     if (dados.tipo !== 'unica') proxima.dueDate = undefined
   }
@@ -243,7 +243,7 @@ function reverterRecompensa(t: Tarefa, data: string): void {
 export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data: string = hojeISO()): string[] {
   const tarefas = appStore.get().tarefas.map((t) => {
     if (t.id !== id || t.tipo !== 'habito') return t
-    const contador = t.contador ?? { hoje: 0, totalPositivo: 0, totalNegativo: 0 }
+    const contador = t.contador ?? { hoje: 0, hojeNeg: 0, totalPositivo: 0, totalNegativo: 0 }
     if (sinal === 'positivo') {
       const historico = t.historico.includes(data) ? t.historico : [...t.historico, data]
       return {
@@ -254,7 +254,7 @@ export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data
     }
     return {
       ...t,
-      contador: { ...contador, totalNegativo: contador.totalNegativo + 1 },
+      contador: { ...contador, hojeNeg: contador.hojeNeg + 1, totalNegativo: contador.totalNegativo + 1 },
     }
   })
   appStore.set({ ...appStore.get(), tarefas })

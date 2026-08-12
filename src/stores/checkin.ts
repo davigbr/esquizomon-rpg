@@ -49,11 +49,12 @@ export function renovarDia(): void {
   const diaOntem = diaDaSemana(new Date(ontem + 'T12:00:00'))
   const diaMesOntem = diaDoMes(new Date(ontem + 'T12:00:00'))
 
-  // 1. zera contador de "hoje" dos hábitos
+  // 1. zera contador de "hoje" dos hábitos (positivos e negativos)
   const tarefas = dados.tarefas.map((t) => {
     if (t.tipo !== 'habito') return t
-    const contador = t.contador ?? { hoje: 0, totalPositivo: 0, totalNegativo: 0 }
-    return contador.hoje > 0 && !t.historico.includes(hoje) ? { ...t, contador: { ...contador, hoje: 0 } } : t
+    const contador = t.contador ?? { hoje: 0, hojeNeg: 0, totalPositivo: 0, totalNegativo: 0 }
+    const precisaReset = (contador.hoje > 0 || contador.hojeNeg > 0) && !t.historico.includes(hoje)
+    return precisaReset ? { ...t, contador: { ...contador, hoje: 0, hojeNeg: 0 } } : t
   })
   appStore.set({ ...dados, tarefas })
 
