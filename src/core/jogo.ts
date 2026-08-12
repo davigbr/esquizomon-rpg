@@ -110,6 +110,15 @@ export function custoInvocacao(tipo: 'monstro' | 'captura' | 'alianca', invocaco
   return custoBaseInvocacao(tipo) + extras * incrementoInvocacao(tipo)
 }
 
+/** Custo premium quando a FÁBULA escolhe a carta (comando /invocar sem nome,
+ *  2026-08-12): ×1,5 do custo normal, arredondado pra cima. */
+export function custoInvocacaoFabula(tipo: 'monstro' | 'captura' | 'alianca', invocacoes: number): number {
+  return Math.ceil(custoInvocacao(tipo, invocacoes) * 1.5)
+}
+
+/** Custo da análise esquizoanalítica da Fábula (comando /analisar). */
+export const CUSTO_ANALISE = 10
+
 /** Personagem inicial (nível 1, 7 cartas sorteadas). */
 export function personagemInicial(cartasIniciais: string[] = []) {
   return {
@@ -122,7 +131,6 @@ export function personagemInicial(cartasIniciais: string[] = []) {
     manaMax: manaMaxDe(1),
     esgotado: false,
     ultimoDia: '',
-    esferas: {},
     cartas: cartasIniciais,
     invocacoes: {},
   }

@@ -1415,58 +1415,7 @@ select.campo {
   flex-wrap: wrap;
 }
 
-.badge--esfera {
-  color: #9fd17c;
-  border-color: #3a523a;
-}
-
-[data-theme='light'] .badge--esfera {
-  color: #2a6e2a;
-  border-color: #9ac29a;
-}
-
-/* ========== Esferas (ficha) ========== */
-.esferas-lista {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.esfera-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.esfera-nome {
-  font-size: 14px;
-  color: var(--text-primary);
-  flex-shrink: 0;
-  min-width: 130px;
-}
-
-.esfera-trilho {
-  flex: 1;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  overflow: hidden;
-}
-
-.esfera-preenchimento {
-  height: 100%;
-  border-radius: 999px;
-  background: #9fd17c;
-}
-
-.esfera-valor {
-  font-size: 12px;
-  color: var(--text-muted);
-  flex-shrink: 0;
-  min-width: 90px;
-  text-align: right;
-}
+/* ========== Esferas (ficha) — REMOVIDAS 2026-08-12 (tags dão conta) ========== */
 
 .regras-lista {
   margin: 0;
@@ -1566,10 +1515,6 @@ select.campo {
 @media (max-width: 640px) {
   .ficha-barra {
     width: 100%;
-  }
-
-  .esfera-nome {
-    min-width: 100px;
   }
 }
 
@@ -2520,6 +2465,36 @@ body.fabula-aberto .container {
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
+  position: relative;
+}
+
+/* botão copiar de cada mensagem (canto superior direito da bolha) */
+.fabula-copiar-msg {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: inherit;
+  opacity: 0.5;
+  cursor: pointer;
+  padding: 0;
+}
+.fabula-bolha:hover .fabula-copiar-msg,
+.fabula-copiar-msg:focus-visible {
+  opacity: 1;
+}
+.fabula-copiar-msg:hover {
+  color: var(--accent-gold);
+  background: color-mix(in srgb, var(--accent-gold) 14%, transparent);
+}
+.fabula-copiar-msg i {
+  font-size: 11px;
 }
 
 .fabula-bolha--assistente {
@@ -2628,6 +2603,53 @@ body.fabula-aberto .container {
   align-items: flex-end;
   flex-shrink: 0;
   background: var(--bg-secondary);
+  position: relative;
+  z-index: 2;
+}
+
+/* dropdown de autocomplete de comandos (/invocar, /analisar) e cartas */
+.fabula-sugestoes {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 76px;
+  z-index: 60;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.fabula-sugestao {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+}
+.fabula-sugestao--ativa {
+  background: color-mix(in srgb, var(--accent-gold) 16%, transparent);
+}
+.fabula-sugestao-rotulo {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.fabula-sugestao-detalhe {
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fabula-input {

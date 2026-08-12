@@ -13,7 +13,7 @@ async function semear(page: import('@playwright/test').Page): Promise<void> {
         tarefas: [],
         personagem: {
           nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20,
-          esgotado: false, ultimoDia: hoje, esferas: {},
+          esgotado: false, ultimoDia: hoje,
           cartas: ['ninho-enclausurado'], invocacoes: {},
         },
         configuracao: { tema: 'dark' },
@@ -63,7 +63,9 @@ test('fabula: prompt injeta {resumo}, cartas desbloqueadas e o protocolo de invo
   expect(prompt).toContain('Vivo com a Aline e duas gatas.')
   expect(prompt).toContain('ninho-enclausurado → Ninho Enclausurado')
   expect(prompt).toContain('AÇÕES DISPONÍVEIS')
-  expect(prompt).toContain('[[acao:')
+  // protocolo novo: invocação é do APP; mencionar carta NÃO invoca
+  expect(prompt).toContain('MENCIONAR NÃO É INVOCAR')
+  expect(prompt).toContain('INVOCAÇÃO É DO APP')
 })
 
 test('fabula: marcador [[acao:invocar]] é extraído e removido do texto', async ({ page }) => {
@@ -145,7 +147,7 @@ async function semearChat(page: import('@playwright/test').Page): Promise<void> 
         tarefas: [],
         personagem: {
           nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20,
-          esgotado: false, ultimoDia: hoje, esferas: {},
+          esgotado: false, ultimoDia: hoje,
           cartas: ['ninho-enclausurado'], invocacoes: {},
         },
         configuracao: {
@@ -270,7 +272,7 @@ test('diário: citar carta desbloqueada dá +5 XP (uma vez por carta; bloqueada 
   await expect(page.locator('[data-s-xp]')).toHaveText('XP 5/80')
 })
 
-test('fabula: botão copia a conversa em markdown (usuário + Fábula; carta vira nome)', async ({ page, context }) => {
+test('fabula: cada mensagem tem botão copiar (markdown; carta vira nome)', async ({ page, context }) => {
   await semear(page)
   await page.addInitScript(() => {
     localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ aberto: false, conversaAtivaId: 'conv-copia' }))
@@ -312,23 +314,23 @@ test('fabula: botão copia a conversa em markdown (usuário + Fábula; carta vir
   await page.click('#fabula-toggle')
   await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
 
-  const btn = page.locator('[data-fabula-copiar]')
-  await expect(btn).toBeEnabled()
-  await btn.click()
+  // o botão de copiar é POR MENSAGEM (cabeçalho não tem mais)
+  await expect(page.locator('[data-fabula-copiar]')).toHaveCount(0)
+  await expect(page.locator('[data-fabula-copiar-msg]')).toHaveCount(2)
 
-  const markdown = await page.evaluate(() => (window as unknown as { __ultimoCopiado?: string }).__ultimoCopiado ?? '')
-  expect(markdown).toContain('# Fábula — Sobre o dia')
-  expect(markdown).toContain('**Você**')
-  expect(markdown).toContain('> primeira mensagem')
-  expect(markdown).toContain('**Fábula**')
-  expect(markdown).toContain('A carta chega como um alívio.')
-  // o marcador vira o nome da carta em itálico — nunca vaza pro markdown
-  expect(markdown).toContain('*Ninho Enclausurado*')
-  expect(markdown).not.toContain('[[carta:')
+  // copia a mensagem da Fábula: o marcador vira o nome da carta em itálico
+  await page.locator('.fabula-bolha--assistente [data-fabula-copiar-msg]').click()
+  const fabula = await page.evaluate(() => (window as unknown as { __ultimoCopiado?: string }).__ultimoCopiado ?? '')
+  expect(fabula).toBe('A carta chega como um alívio.\n*Ninho Enclausurado*')
 
-  // botão desabilitado numa conversa nova (vazia) — painel segue aberto
+  // copia a mensagem do usuário: texto cru
+  await page.locator('.fabula-bolha--usuario [data-fabula-copiar-msg]').click()
+  const voce = await page.evaluate(() => (window as unknown as { __ultimoCopiado?: string }).__ultimoCopiado ?? '')
+  expect(voce).toBe('primeira mensagem')
+
+  // conversa nova (vazia): nenhuma bolha, nenhum botão
   await page.click('[data-fabula-nova]')
-  await expect(btn).toBeDisabled()
+  await expect(page.locator('[data-fabula-copiar-msg]')).toHaveCount(0)
 })
 
 test('fabula: conversa pode ser renomeada (Enter salva e persiste)', async ({ page }) => {
@@ -367,4 +369,122 @@ test('fabula: conversa pode ser renomeada (Enter salva e persiste)', async ({ pa
         (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.conversas?.[0]?.titulo ?? '')),
     )
     .toBe('Sobre os monstros de agosto')
+})
+
+test('fabula: mencionar uma carta NÃO invoca (mana intacta; marcador do modelo ignorado)', async ({ page }) => {
+  await semearChat(page)
+  await page.route('**/api/ia', (rota) => {
+    void rota.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: sseFake('Essa carta é um bom espelho.\n[[acao:{"tipo":"invocar","carta":"ninho-enclausurado"}]]'),
+    })
+  })
+
+  await page.goto('/#/hoje')
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click()
+  await page.locator('[data-fabula-input]').fill('essa carta Ninho Enclausurado me visitou no diário')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+
+  // menção ≠ pedido: mana intacta, sem miniatura, marcador ignorado com aviso
+  await expect(page.locator('[data-s-mana]')).toHaveText('Mana 20/20')
+  await expect(page.locator('.fabula-bolha--assistente img.fabula-carta')).toHaveCount(0)
+  await expect(page.locator('.fabula-bolha--assistente')).toContainText('só por pedido explícito')
+})
+
+test('fabula: /invocar com autocomplete escolhe a carta e invoca (mana normal)', async ({ page }) => {
+  await semearChat(page)
+  await page.route('**/api/ia', (rota) => {
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('A carta chega.') })
+  })
+
+  await page.goto('/#/hoje')
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click()
+  const input = page.locator('[data-fabula-input]')
+
+  // "/" abre os comandos; Enter completa "/invocar "
+  await input.fill('/')
+  await expect(page.locator('.fabula-sugestao')).toHaveCount(2)
+  await page.keyboard.press('Enter')
+  await expect(input).toHaveValue('/invocar ')
+
+  // "ninho" filtra as cartas desbloqueadas; Enter completa o nome
+  await input.fill('/invocar ninho')
+  await expect(page.locator('.fabula-sugestao').first()).toBeVisible()
+  await page.keyboard.press('Enter')
+  await expect(input).toHaveValue('/invocar Ninho Enclausurado')
+
+  // Enter com dropdown fechado ENVIA
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+
+  // captura custa 8 → 20−8 = 12; a mensagem foi convertida em frase natural
+  await expect(page.locator('[data-s-mana]')).toHaveText('Mana 12/20')
+  await expect(page.locator('.fabula-bolha--assistente img.fabula-carta')).toBeVisible()
+  const corpo = await page.evaluate(async () => {
+    const { appStore } = await import('/src/stores/app')
+    const c = appStore.get().conversas?.[0]
+    return c?.mensagens?.[0]?.content ?? ''
+  })
+  expect(corpo).toBe('invoca a carta Ninho Enclausurado')
+})
+
+test('fabula: /invocar sem nome — a Fábula escolhe a carta (custo premium ×1,5)', async ({ page }) => {
+  await semearChat(page)
+  const corpos: string[] = []
+  await page.route('**/api/ia', (rota) => {
+    corpos.push(rota.request().postData() ?? '')
+    void rota.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: sseFake('Escolho esta: Ninho Enclausurado.\n[[acao:{"tipo":"invocar","carta":"ninho-enclausurado"}]]'),
+    })
+  })
+
+  await page.goto('/#/hoje')
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click()
+  await page.locator('[data-fabula-input]').fill('/invocar')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+
+  // captura premium: 8 × 1,5 = 12 → 20−12 = 8; nota de escolha + miniatura
+  await expect(page.locator('[data-s-mana]')).toHaveText('Mana 8/20')
+  await expect(page.locator('.fabula-bolha--assistente')).toContainText('escolhida pela Fábula')
+  await expect(page.locator('.fabula-bolha--assistente img.fabula-carta')).toBeVisible()
+  const corpo = JSON.parse(corpos[corpos.length - 1])
+  const sistema = corpo.messages
+    .filter((m: { role: string }) => m.role === 'system')
+    .map((m: { content: string }) => m.content)
+    .join('\n')
+  expect(sistema).toContain('custo PREMIUM')
+})
+
+test('fabula: /analisar desconta 10 de mana e pede análise esquizoanalítica', async ({ page }) => {
+  await semearChat(page)
+  const corpos: string[] = []
+  await page.route('**/api/ia', (rota) => {
+    corpos.push(rota.request().postData() ?? '')
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('Sua máquina do mês...') })
+  })
+
+  await page.goto('/#/hoje')
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click()
+  await page.locator('[data-fabula-input]').fill('/analisar')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+
+  await expect(page.locator('[data-s-mana]')).toHaveText('Mana 10/20')
+  const corpo = JSON.parse(corpos[corpos.length - 1])
+  const sistema = corpo.messages
+    .filter((m: { role: string }) => m.role === 'system')
+    .map((m: { content: string }) => m.content)
+    .join('\n')
+  expect(sistema).toContain('ANÁLISE ESQUIZOANALÍTICA')
+  const conteudos = corpo.messages.map((m: { content: string }) => m.content)
+  expect(conteudos).toContain('Fábula, faz uma análise.')
 })

@@ -282,7 +282,6 @@ function cardHabito(t: Tarefa, ehHoje: boolean): string {
           <span class="badge badge--hab-pos" title="Positivos hoje">+${hojePos}</span>
           <span class="badge badge--hab-neg" title="Negativos hoje">−${hojeNeg}</span>
           <span class="badge" title="Dias seguidos com repetição positiva">seq ${streak}</span>
-          ${t.esfera ? `<span class="badge badge--esfera"><i class="fa-solid fa-atom" aria-hidden="true"></i> ${escapar(t.esfera)}</span>` : ''}
           ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
           ${badgeIdade(t)}
         </div>
@@ -309,7 +308,6 @@ function cardRecorrente(t: Tarefa, data: string): string {
         ${t.notas ? `<p class="tarefa-notas">${renderizarNotas(t.notas)}</p>` : ''}
         <div class="tarefa-meta">
           <span class="badge badge--${t.dificuldade}">${d.rotulo}</span>
-          ${t.esfera ? `<span class="badge badge--esfera"><i class="fa-solid fa-atom" aria-hidden="true"></i> ${escapar(t.esfera)}</span>` : ''}
           ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
           ${agenda}
           ${badgeIdade(t)}
@@ -335,7 +333,6 @@ function cardUnica(t: Tarefa, feita: boolean): string {
         ${t.notas ? `<p class="tarefa-notas">${renderizarNotas(t.notas)}</p>` : ''}
         <div class="tarefa-meta">
           <span class="badge badge--${t.dificuldade}">${d.rotulo}</span>
-          ${t.esfera ? `<span class="badge badge--esfera"><i class="fa-solid fa-atom" aria-hidden="true"></i> ${escapar(t.esfera)}</span>` : ''}
           ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapar(tag)}</span>`).join('')}
           ${due}
           ${badgeIdade(t)}

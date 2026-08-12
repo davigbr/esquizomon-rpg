@@ -32,7 +32,7 @@ export function montarFicha(raiz: HTMLElement, dados: AppData): void {
         <li><b>Recorrentes perdidas</b> causam dano no dia seguinte, proporcional à dificuldade.</li>
         <li><b>Hábitos negativos</b> causam dano pequeno; positivos dão XP.</li>
         <li><b>Citar cartas no diário</b> dá XP automático (+5 por carta, até 2 por entrada) — só para cartas já desbloqueadas; a Fábula anota. Cartas bloqueadas ficam no mistério.</li>
-        <li><b>Invocar</b> é pedir à Fábula no chat: ela desconta a mana (monstros 4, capturas 8, alianças 12; reusar encarece até o teto) e te devolve uma análise extensa sobre os possíveis efeitos da carta. Sem mana, espere o dia seguinte — e não invoque por conta própria: pedir ajuda custa, e isso também é do jogo.</li>
+        <li><b>Invocar</b> é pedir à Fábula no chat — comando <b>/invocar &lt;carta&gt;</b> (ou dizer "invoca a carta X"): o app desconta a mana (monstros 4, capturas 8, alianças 12; reusar encarece até o teto) e a Fábula devolve uma análise extensa dos possíveis efeitos da carta. <b>/invocar</b> sem nome: a Fábula escolhe a carta (custo ×1,5). <b>/analisar</b>: análise esquizoanalítica (10 mana). Mencionar o nome de uma carta não invoca nada — só o pedido explícito conta.</li>
         <li><b>Morte não-destrutiva:</b> com vida zerada você fica <b>esgotado</b> — sem regeneração de mana — até o próximo dia. A queda custa uma carta do baralho.</li>
         <li><b>Modo relaxado${modoRelaxado ? ' (ativado)' : ''}:</b> desliga todo dano — o jogo vira só bônus. Alternar em Config.</li>
       </ul>
@@ -60,7 +60,7 @@ export function montarFicha(raiz: HTMLElement, dados: AppData): void {
             `).join('')}
           </tbody>
         </table>
-        <p class="config-dica">XP acumula na esfera da tarefa. Subir de nível restaura vida e mana.</p>
+        <p class="config-dica">Subir de nível restaura vida e mana.</p>
       </div>
 
       <div class="config-secao">

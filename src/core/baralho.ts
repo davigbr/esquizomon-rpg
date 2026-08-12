@@ -17,6 +17,11 @@ export async function carregarDeck(): Promise<Carta[]> {
   return deck as Carta[]
 }
 
+/** O deck completo, síncrono (mesmo import estático — usado pelo autocomplete). */
+export function todasAsCartas(): Carta[] {
+  return deck as Carta[]
+}
+
 /** Sorteia N ids distintos entre as cartas disponíveis (excluindo as já escolhidas). */
 export function sortearIds(cartas: Carta[], n: number, excluir: string[] = []): string[] {
   const disponiveis = cartas.map((c) => c.id).filter((id) => !excluir.includes(id))

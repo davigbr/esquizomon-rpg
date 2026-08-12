@@ -15,7 +15,7 @@ Sobre isso, existe uma **camada narrativa**: o baralho Esquizomon (65 cartas) vi
 | Fase | Conteúdo | Status |
 |---|---|---|
 | 1 — MVP tarefas | CRUD 3 tipos, dificuldade, tags, persistência versionada, export/import, PWA | ✅ feito |
-| 2 — Jogo | XP/nível, HP, mana, dano diário, esferas, modo relaxado, ficha | ✅ feito |
+| 2 — Jogo | XP/nível, HP, mana, dano diário, modo relaxado, ficha | ✅ feito |
 | 3 — Baralho + Diário | `deck.json`, desbloqueio, carta do dia, invocação, combate leve; diário do dia (texto/voz) | em construção |
 | 4 — IA | Narrador Fábula (BYOK), comandos texto/voz, onboarding guiado | planejado |
 | 5 — Distribuição | Desktop (Tauri), ponte Google Sheets, polish | planejado |
@@ -24,7 +24,7 @@ Lista de features (implementadas e planejadas) em [`FEATURES.md`](./FEATURES.md)
 
 ## Funcionalidades
 
-- Tarefas recorrentes, únicas e hábitos (+/−), com dificuldade, tags, esferas e histórico
+- Tarefas recorrentes, únicas e hábitos (+/−), com dificuldade, tags e histórico
 - Jogo: XP, nível, HP, mana, dano diário leve, "esgotado" sem reset, modo relaxado
 - Dark/ouro, limpa, sem gradients; PWA instalável e offline
 - Export/import JSON — seus dados, suas regras

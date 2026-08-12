@@ -90,7 +90,6 @@ function normalizarTarefa(v: unknown): Tarefa | null {
     t.sinal === 'positivo' || t.sinal === 'negativo' || t.sinal === 'ambos' ? t.sinal : t.tipo === 'habito' ? 'positivo' : undefined
   const dueDate =
     typeof t.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate) ? t.dueDate : undefined
-  const esfera = typeof t.esfera === 'string' && t.esfera.trim() ? t.esfera.trim() : undefined
   let recompensas: Record<string, RecompensaConclusao> | undefined
   if (t.recompensas && typeof t.recompensas === 'object') {
     const rec: Record<string, RecompensaConclusao> = {}
@@ -101,7 +100,6 @@ function normalizarTarefa(v: unknown): Tarefa | null {
       if (typeof rr.xp !== 'number') continue
       rec[data] = {
         xp: rr.xp,
-        esfera: typeof rr.esfera === 'string' ? rr.esfera : undefined,
         subiu: rr.subiu === true,
         nivel: typeof rr.nivel === 'number' ? rr.nivel : undefined,
         xpAntes: typeof rr.xpAntes === 'number' ? rr.xpAntes : undefined,
@@ -121,7 +119,6 @@ function normalizarTarefa(v: unknown): Tarefa | null {
     dificuldade: t.dificuldade,
     tags: t.tags.filter((x): x is string => typeof x === 'string'),
     dueDate,
-    esfera,
     notas: typeof t.notas === 'string' ? t.notas : undefined,
     agenda,
     sinal,
@@ -140,12 +137,6 @@ function normalizarPersonagem(v: unknown): Personagem {
   const nivel = typeof p.nivel === 'number' && p.nivel >= 1 ? Math.floor(p.nivel) : inicial.nivel
   const hpMax = hpMaxDe(nivel)
   const manaMax = manaMaxDe(nivel)
-  const esferas: Record<string, number> = {}
-  if (ehObjeto(p.esferas)) {
-    for (const [k, val] of Object.entries(p.esferas as Record<string, unknown>)) {
-      if (typeof k === 'string' && typeof val === 'number') esferas[k] = val
-    }
-  }
   const cartas = Array.isArray(p.cartas) ? p.cartas.filter((x): x is string => typeof x === 'string') : []
   const invocacoes: Record<string, number> = {}
   if (ehObjeto(p.invocacoes)) {
@@ -163,7 +154,6 @@ function normalizarPersonagem(v: unknown): Personagem {
     manaMax,
     esgotado: p.esgotado === true,
     ultimoDia: typeof p.ultimoDia === 'string' ? p.ultimoDia : '',
-    esferas,
     cartas,
     invocacoes,
   }

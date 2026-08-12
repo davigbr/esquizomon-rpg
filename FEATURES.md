@@ -9,13 +9,13 @@
 
 ### Núcleo de tarefas (Fase 1)
 - CRUD de 3 tipos: recorrente / única / hábito, em 3 colunas estilo Habitica
-- Dificuldade (×1/×1.5/×2/×2.5), tags, esfera, notas markdown-lite, due date, envelhecimento
+- Dificuldade (×1/×1.5/×2/×2.5), tags, notas markdown-lite, due date, envelhecimento
 - Filtros (tag/dificuldade/concluídas), drag & drop, navegação de data ◀ ▶
 - Export/import JSON, PWA, tema dark/ouro
 
 ### Jogo (Fase 2)
 - XP/nível (nível×80), HP + dano diário e de hábitos negativos, morte não-destrutiva (perde 1 carta)
-- Mana, esferas (perfil de distribuição), modo relaxado
+- Mana, modo relaxado
 - Barra de status global, gráficos de progressão SVG, tabelas XP/Dano, página Histórico
 
 ### Baralho (Fase 3)

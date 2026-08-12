@@ -110,7 +110,7 @@ export function concluirCheckin(idsMarcados: string[]): void {
     if (!t) continue
     registrarLog('tarefa', `Check-in: ${t.titulo} concluída em ${pend.data} (+${xpDe(t.dificuldade)} XP)`)
     const antes = appStore.get().personagem
-    const novas = ganharXP(xpDe(t.dificuldade), t.esfera).novasCartas
+    const novas = ganharXP(xpDe(t.dificuldade)).novasCartas
     registrarRecompensa(t.id, pend.data, antes, novas)
   }
 

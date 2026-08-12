@@ -16,7 +16,7 @@ async function semearPendentes(page: import('@playwright/test').Page): Promise<v
           { id: 'r1', tipo: 'recorrente', titulo: 'Meditar', dificuldade: 'facil', tags: [], agenda: { dias: [] }, historico: [], criadaEm: new Date().toISOString() },
           { id: 'u1', tipo: 'unica', titulo: 'Relatório', dificuldade: 'facil', tags: [], dueDate: ontem, concluida: false, historico: [], criadaEm: new Date().toISOString() },
         ],
-        personagem: { nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20, esgotado: false, ultimoDia: ontem, esferas: {}, cartas: [], invocacoes: {} },
+        personagem: { nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20, esgotado: false, ultimoDia: ontem, cartas: [], invocacoes: {} },
         configuracao: { tema: 'dark' },
         log: [],
         conversas: [],

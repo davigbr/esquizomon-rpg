@@ -98,19 +98,6 @@ export function abrirFormTarefa(tarefa?: Tarefa, tipoInicial?: TipoTarefa): void
       </div>
 
       <div class="form-grupo">
-        <label>Esfera</label>
-        <input class="campo" name="esfera" value="${escapar(tarefa?.esfera ?? '')}" placeholder="Ex.: Estudo, Corpo, Criação…" list="esferas-sugeridas" />
-        <datalist id="esferas-sugeridas">
-          <option value="Estudo"></option>
-          <option value="Corpo"></option>
-          <option value="Criação"></option>
-          <option value="Vínculos"></option>
-          <option value="Cuidado"></option>
-        </datalist>
-        <small>O domínio da vida que esta tarefa alimenta — aparece no seu perfil de esferas.</small>
-      </div>
-
-      <div class="form-grupo">
         <label>Tags</label>
         <div class="tag-lista" data-tags-chips>
           ${tags.map((t) => `<button type="button" class="tag-linha${tagsAtuais.includes(t) ? ' ativo' : ''}" data-tag="${escapar(t)}"><span class="tag-linha-check">✓</span><span class="tag-linha-nome">#${escapar(t)}</span></button>`).join('')}
@@ -232,7 +219,6 @@ export function abrirFormTarefa(tarefa?: Tarefa, tipoInicial?: TipoTarefa): void
     const dificuldade = (form.querySelector<HTMLSelectElement>('select[name="dificuldade"]')!.value ?? 'facil') as Dificuldade
     const notas = (form.querySelector<HTMLTextAreaElement>('textarea[name="notas"]')!.value ?? '').trim()
     const tags = tagsSelecionadas()
-    const esfera = (form.querySelector<HTMLInputElement>('input[name="esfera"]')!.value ?? '').trim() || undefined
     const dueDate = tipoAtual === 'unica'
       ? (form.querySelector<HTMLInputElement>('input[name="due-date"]')!.value || undefined)
       : undefined
@@ -258,8 +244,8 @@ export function abrirFormTarefa(tarefa?: Tarefa, tipoInicial?: TipoTarefa): void
         : undefined
 
     const resultado = tarefa
-      ? atualizarTarefa(tarefa.id, { titulo, tipo: tipoAtual, dificuldade, tags, notas, esfera, dueDate, agenda, sinal })
-      : criarTarefa({ titulo, tipo: tipoAtual, dificuldade, tags, notas, esfera, dueDate, agenda, sinal })
+      ? atualizarTarefa(tarefa.id, { titulo, tipo: tipoAtual, dificuldade, tags, notas, dueDate, agenda, sinal })
+      : criarTarefa({ titulo, tipo: tipoAtual, dificuldade, tags, notas, dueDate, agenda, sinal })
     if (!resultado.ok) {
       notificar(resultado.motivo ?? 'Não deu para salvar.', 'erro')
       return

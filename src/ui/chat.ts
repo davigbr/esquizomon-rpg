@@ -12,10 +12,10 @@ import {
 } from '../stores/app'
 import { enviarParaIA, ErroIA, type MsgChat } from '../ia/cliente'
 import { montarSystemPrompt } from '../ia/prompt'
-import { extrairAcoes, detectarPedidoInvocacao, type AcaoIA } from '../ia/acoes'
-import { nomeDaCarta, resolverCartaId, tipoDaCarta } from '../core/baralho'
+import { extrairAcoes, detectarPedidoInvocacao, detectarComando, type AcaoIA } from '../ia/acoes'
+import { nomeDaCarta, resolverCartaId, tipoDaCarta, rotuloTipo, todasAsCartas } from '../core/baralho'
 import { invocarCarta } from '../stores/app'
-import { custoInvocacao } from '../core/jogo'
+import { custoInvocacao, custoInvocacaoFabula, CUSTO_ANALISE } from '../core/jogo'
 import { notificar } from './toast'
 import { escapar } from './util'
 import { confirmar } from './modal'
@@ -87,6 +87,19 @@ let ocupado = false
 let renomeando = false
 let tituloNaEdicao = ''
 
+/** Autocomplete de comandos (/invocar, /analisar) e de cartas desbloqueadas. */
+interface Sugestao {
+  rotulo: string
+  detalhe: string
+  inserir: () => void
+}
+const COMANDOS = [
+  { nome: 'invocar', descricao: 'invoca uma carta (custa mana; sem nome = Fábula escolhe, custa mais)' },
+  { nome: 'analisar', descricao: 'análise esquizoanalítica (10 mana)' },
+] as const
+let sugestoes: Sugestao[] = []
+let sugestaoIdx = 0
+
 /** Monta a casca do painel (uma vez) e injeta no body. Idempotente. */
 export function montarChat(): void {
   if (painel) return
@@ -100,6 +113,9 @@ export function montarChat(): void {
 
 function renderizar(): void {
   if (!painel) return
+  // O innerHTML abaixo destrói o dropdown de sugestões — zera o estado.
+  sugestoes = []
+  sugestaoIdx = 0
   const dados: AppData = appStore.get()
   const conversas = dados.conversas ?? []
   const conversa = estado.conversaAtivaId ? conversas.find((c) => c.id === estado.conversaAtivaId) ?? undefined : undefined
@@ -137,9 +153,6 @@ function renderizar(): void {
           <button class="btn btn-icon" data-fabula-renomear title="Renomear conversa" aria-label="Renomear conversa" ${conversa ? '' : 'disabled'}>
             <i class="fa-solid fa-pen" aria-hidden="true"></i>
           </button>
-          <button class="btn btn-icon" data-fabula-copiar title="Copiar conversa em markdown" aria-label="Copiar conversa em markdown" ${conversa && conversa.mensagens.length > 0 ? '' : 'disabled'}>
-            <i class="fa-solid fa-copy" aria-hidden="true"></i>
-          </button>
           <button class="btn btn-icon" data-fabula-excluir title="Apagar conversa" aria-label="Apagar conversa" ${conversa ? '' : 'disabled'}>
             <i class="fa-solid fa-trash" aria-hidden="true"></i>
           </button>
@@ -154,7 +167,7 @@ function renderizar(): void {
           ? '<div class="fabula-vazio">Comece uma conversa com a Fábula. Ela tem acesso às suas tarefas, hábitos, cartas e personagem — e lembra do que foi dito antes.</div>'
           : conversa.mensagens.length === 0
             ? '<div class="fabula-vazio">Senta. Como você chega hoje? — e não vale responder "bem" sem me dizer o que "bem" quer dizer.</div>'
-            : conversa.mensagens.map(bolha).join('')}
+            : conversa.mensagens.map((m, i) => bolha(m, i)).join('')}
         ${esperando ? '<div class="fabula-bolha fabula-bolha--assistente fabula-digitando"><span></span><span></span><span></span></div>' : ''}
       </div>
 
@@ -192,14 +205,18 @@ function instalarHandlers(conversa: Conversa | undefined): void {
   if (!painel) return
   painel.querySelector('[data-fabula-fechar]')!.addEventListener('click', () => alternarChat(false))
   painel.querySelector('[data-fabula-nova]')!.addEventListener('click', () => novaConversa())
-  const btnCopiar = painel.querySelector<HTMLButtonElement>('[data-fabula-copiar]')
-  if (btnCopiar && conversa && conversa.mensagens.length > 0) {
-    btnCopiar.addEventListener('click', () => void copiarConversa(conversa))
-  }
   const btnRenomear = painel.querySelector<HTMLButtonElement>('[data-fabula-renomear]')
   if (btnRenomear && conversa) {
     btnRenomear.addEventListener('click', () => iniciarRenomeacao(conversa.id))
   }
+  // Cópia por mensagem: delegação no container (cada bolha tem seu botão)
+  msgsEl?.addEventListener('click', (e) => {
+    const alvo = (e.target as HTMLElement).closest<HTMLElement>('[data-fabula-copiar-msg]')
+    if (!alvo) return
+    const idx = Number(alvo.dataset.fabulaCopiarMsg)
+    const m = conversaAtual()?.mensagens[idx]
+    if (m) void copiarMensagem(m)
+  })
   // Input de renomeação: Enter salva, Escape cancela, blur salva (com guarda).
   const tituloInput = painel.querySelector<HTMLInputElement>('[data-fabula-titulo-input]')
   if (tituloInput) {
@@ -232,18 +249,40 @@ function instalarHandlers(conversa: Conversa | undefined): void {
   })
   instalarResize()
   if (formEl && inputEl && conversa) {
-    // Enter envia / Shift+Enter quebra linha
+    // Enter envia / Shift+Enter quebra linha — mas com sugestões abertas,
+    // Enter/Tab/Setas navegam e completam o comando (autocomplete).
     inputEl.addEventListener('keydown', (e) => {
       const ev = e as KeyboardEvent
+      if (sugestoes.length > 0) {
+        if (ev.key === 'ArrowDown') {
+          ev.preventDefault()
+          moverSugestao(1)
+        } else if (ev.key === 'ArrowUp') {
+          ev.preventDefault()
+          moverSugestao(-1)
+        } else if (ev.key === 'Enter' || ev.key === 'Tab') {
+          ev.preventDefault()
+          aplicarSugestao()
+        } else if (ev.key === 'Escape') {
+          ev.preventDefault()
+          fecharSugestoes()
+        }
+        return
+      }
       if (ev.key === 'Enter' && !ev.shiftKey) {
         ev.preventDefault()
         formEl?.requestSubmit()
       }
     })
-    // Auto-resize do textarea
+    // Auto-resize do textarea + autocomplete de comandos/cartas
     inputEl.addEventListener('input', () => {
       inputEl!.style.height = 'auto'
       inputEl!.style.height = Math.min(inputEl!.scrollHeight, 200) + 'px'
+      atualizarSugestoes()
+    })
+    // Fecha as sugestões ao sair (atraso pequeno pra o clique no item completar)
+    inputEl.addEventListener('blur', () => {
+      setTimeout(() => fecharSugestoes(), 150)
     })
     formEl.addEventListener('submit', (e) => {
       e.preventDefault()
@@ -251,6 +290,7 @@ function instalarHandlers(conversa: Conversa | undefined): void {
       if (!texto || ocupado) return
       inputEl!.value = ''
       inputEl!.style.height = 'auto'
+      fecharSugestoes()
       void enviar(texto)
     })
   }
@@ -292,13 +332,113 @@ function instalarResize(): void {
   })
 }
 
+/** Atualiza o dropdown de sugestões conforme o input (até o caret):
+ *  "/" + começo de comando → lista os comandos; "/invocar " + texto → lista as
+ *  cartas desbloqueadas. Fecha se não parecer um comando. */
+function atualizarSugestoes(): void {
+  if (!painel || !inputEl) return
+  const valor = inputEl.value
+  const caret = inputEl.selectionStart ?? valor.length
+  const prefixo = valor.slice(0, caret)
+  const mComando = prefixo.match(/^\/([a-z-]*)$/i)
+  const mCarta = prefixo.match(/^\/invocar\s+(.*)$/i)
+  const dados = appStore.get()
+  const desbloqueadas = new Set(dados.personagem.cartas)
+  let itens: Sugestao[] = []
+  if (mComando) {
+    const base = mComando[1].toLowerCase()
+    // Só sugere PREFIXOS — comando exato (/invocar, /analisar) não abre dropdown,
+    // senão Enter completaria em loop em vez de enviar.
+    itens = COMANDOS.filter((c) => c.nome.startsWith(base) && c.nome !== base).map((c) => ({
+      rotulo: `/${c.nome}`,
+      detalhe: c.descricao,
+      inserir: () => {
+        inputEl!.value = `/${c.nome} `
+        inputEl!.focus()
+        atualizarSugestoes() // depois de "/invocar ", lista as cartas
+      },
+    }))
+  } else if (mCarta) {
+    const q = mCarta[1].toLocaleLowerCase('pt-BR')
+    itens = todasAsCartas()
+      .filter((c) => desbloqueadas.has(c.id))
+      .filter((c) => c.name.toLocaleLowerCase('pt-BR').includes(q))
+      .slice(0, 8)
+      .map((c) => ({
+        rotulo: c.name,
+        detalhe: `${rotuloTipo(c.type)} · invocada ${dados.personagem.invocacoes[c.id] ?? 0}×`,
+        inserir: () => {
+          inputEl!.value = `/invocar ${c.name}`
+          inputEl!.focus()
+          fecharSugestoes()
+        },
+      }))
+  }
+  renderSugestoes(itens)
+}
+
+function renderSugestoes(itens: Sugestao[]): void {
+  sugestoes = itens
+  sugestaoIdx = 0
+  const existente = painel?.querySelector<HTMLElement>('[data-fabula-sugestoes]')
+  if (itens.length === 0) {
+    existente?.remove()
+    return
+  }
+  let el = existente
+  if (!el) {
+    el = document.createElement('div')
+    el.className = 'fabula-sugestoes'
+    el.dataset.fabulaSugestoes = ''
+    el.setAttribute('role', 'listbox')
+    el.setAttribute('aria-label', 'Comandos e cartas')
+    painel!.appendChild(el)
+  }
+  el.innerHTML = itens
+    .map(
+      (s, i) =>
+        `<button type="button" class="fabula-sugestao${i === sugestaoIdx ? ' fabula-sugestao--ativa' : ''}" data-fabula-sugestao="${i}" role="option" aria-selected="${i === sugestaoIdx}">
+          <span class="fabula-sugestao-rotulo">${escapar(s.rotulo)}</span>
+          <span class="fabula-sugestao-detalhe">${escapar(s.detalhe)}</span>
+        </button>`,
+    )
+    .join('')
+  el.querySelectorAll<HTMLButtonElement>('[data-fabula-sugestao]').forEach((btn) => {
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault() // mantém o foco no input; o blur não fecha antes do clique
+      const idx = Number(btn.dataset.fabulaSugestao)
+      sugestoes[idx]?.inserir()
+    })
+  })
+}
+
+function moverSugestao(delta: number): void {
+  if (sugestoes.length === 0) return
+  sugestaoIdx = (sugestaoIdx + delta + sugestoes.length) % sugestoes.length
+  painel?.querySelectorAll<HTMLButtonElement>('[data-fabula-sugestao]').forEach((btn, i) => {
+    btn.classList.toggle('fabula-sugestao--ativa', i === sugestaoIdx)
+    btn.setAttribute('aria-selected', String(i === sugestaoIdx))
+  })
+}
+
+function aplicarSugestao(): void {
+  sugestoes[sugestaoIdx]?.inserir()
+}
+
+function fecharSugestoes(): void {
+  sugestoes = []
+  sugestaoIdx = 0
+  painel?.querySelector('[data-fabula-sugestoes]')?.remove()
+}
+
 function rolarParaFim(): void {
   if (msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight
 }
 
-function bolha(m: MensagemIA): string {
+function bolha(m: MensagemIA, idx: number): string {
+  const btnCopiar = `<button type="button" class="fabula-copiar-msg" data-fabula-copiar-msg="${idx}" title="Copiar mensagem em markdown" aria-label="Copiar mensagem em markdown"><i class="fa-solid fa-copy" aria-hidden="true"></i></button>`
   if (m.role === 'user') {
-    return `<div class="fabula-bolha fabula-bolha--usuario">${escapar(m.content)}</div>`
+    return `<div class="fabula-bolha fabula-bolha--usuario">${btnCopiar}<span class="fabula-bolha-texto">${escapar(m.content)}</span></div>`
   }
   const raciocinio = m.reasoning
     ? `<details class="fabula-reasoning">
@@ -306,7 +446,7 @@ function bolha(m: MensagemIA): string {
         <pre>${escapar(m.reasoning)}</pre>
       </details>`
     : ''
-  return `<div class="fabula-bolha fabula-bolha--assistente">${renderizarConteudo(m.content)}${raciocinio}</div>`
+  return `<div class="fabula-bolha fabula-bolha--assistente">${btnCopiar}<span class="fabula-bolha-texto">${renderizarConteudo(m.content)}</span>${raciocinio}</div>`
 }
 
 /** Renderiza o conteúdo da bolha: escapa o HTML e substitui [[carta:<id>]] pela
@@ -320,44 +460,19 @@ function renderizarConteudo(conteudo: string): string {
   })
 }
 
-/** Gera o markdown da conversa (mensagens do usuário e da Fábula) pra colar em
- *  qualquer editor (Obsidian etc.). `[[carta:<id>]]` vira o nome da carta em
- *  itálico — fora do app o marcador não faz sentido. Exportado pro E2E. */
-export function conversaParaMarkdown(conversa: Conversa): string {
-  const blocos: string[] = [`# Fábula — ${conversa.titulo || 'Conversa'}`]
-  for (const m of conversa.mensagens) {
-    const quem = m.role === 'user' ? 'Você' : 'Fábula'
-    const conteudo = m.content.replace(/\[\[carta:([\w-]+)\]\]/g, (_match, id: string) => {
-      if (resolverCartaId(id) !== id) return _match
-      return `*${nomeDaCarta(id)}*`
-    })
-    blocos.push('', `**${quem}** — ${formatarDataHora(m.ts)}`, '')
-    // Mensagens do usuário entram como citação; as da Fábula, em markdown cru
-    // (ela já escreve com **negrito** etc.).
-    blocos.push(m.role === 'user' ? conteudo.split('\n').map((linha) => `> ${linha}`).join('\n') : conteudo)
-  }
-  return blocos.join('\n').trimEnd() + '\n'
+/** Gera o markdown de UMA mensagem pra colar em qualquer editor (Obsidian etc.).
+ *  `[[carta:<id>]]` vira o nome da carta em itálico — fora do app o marcador
+ *  não faz sentido. Exportado pro E2E. */
+export function mensagemParaMarkdown(m: MensagemIA): string {
+  return m.content.replace(/\[\[carta:([\w-]+)\]\]/g, (_match, id: string) => {
+    if (resolverCartaId(id) !== id) return _match
+    return `*${nomeDaCarta(id)}*`
+  })
 }
 
-function formatarDataHora(iso: string): string {
-  try {
-    const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return iso
-    return d.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  } catch {
-    return iso
-  }
-}
-
-async function copiarConversa(conversa: Conversa): Promise<void> {
-  const ok = await copiarParaAreaDeTransferencia(conversaParaMarkdown(conversa))
-  notificar(ok ? 'Conversa copiada em markdown.' : 'Não consegui copiar a conversa.', ok ? 'ok' : 'erro')
+async function copiarMensagem(m: MensagemIA): Promise<void> {
+  const ok = await copiarParaAreaDeTransferencia(mensagemParaMarkdown(m))
+  notificar(ok ? 'Mensagem copiada em markdown.' : 'Não consegui copiar a mensagem.', ok ? 'ok' : 'erro')
 }
 
 /** Clipboard API com fallback (textarea + execCommand) pra contextos sem permissão. */
@@ -453,8 +568,33 @@ async function enviar(texto: string): Promise<void> {
     return
   }
 
-  // 1. push user
-  const userMsg: MensagemIA = { role: 'user', content: texto, ts: new Date().toISOString() }
+  // 0. comandos (/) — converte pra frase natural e orquestra a ação no app
+  let textoEnviado = texto
+  let escolhaFabula = false
+  let analisePedida = false
+  const comando = detectarComando(texto)
+  if (comando?.tipo === 'invocar' && !comando.escolhaFabula) {
+    // /invocar <carta> → frase natural; o fluxo de invocação detecta o verbo
+    textoEnviado = `invoca a carta ${comando.carta}`
+  } else if (comando?.tipo === 'invocar') {
+    // /invocar sem nome → a Fábula escolhe a carta (custo premium ×1,5)
+    textoEnviado = 'Fábula, escolha a carta a invocar.'
+    escolhaFabula = true
+  } else if (comando?.tipo === 'analisar') {
+    // /analisar → análise esquizoanalítica profunda (custa mana)
+    const p = appStore.get().personagem
+    if (p.mana < CUSTO_ANALISE) {
+      notificar(`Mana insuficiente para a análise — precisa de ${CUSTO_ANALISE}.`, 'erro')
+      return
+    }
+    appStore.set({ ...appStore.get(), personagem: { ...p, mana: p.mana - CUSTO_ANALISE } })
+    notificar(`Análise esquizoanalítica (−${CUSTO_ANALISE} mana)`)
+    textoEnviado = 'Fábula, faz uma análise.'
+    analisePedida = true
+  }
+
+  // 1. push user (a frase convertida — o histórico lê como conversa natural)
+  const userMsg: MensagemIA = { role: 'user', content: textoEnviado, ts: new Date().toISOString() }
   adicionarMensagem(conversa.id, userMsg)
   // Garante que a conversa ativa é a que estamos editando (re-ordenada por atualizadaEm).
   estado.conversaAtivaId = conversa.id
@@ -474,9 +614,31 @@ async function enviar(texto: string): Promise<void> {
 
   // 3. pedido de invocação: executa NO APP (determinístico) e avisa a Fábula
   // via mensagem de sistema — não depende do modelo emitir o marcador.
-  const pedidoInvocacao = detectarPedidoInvocacao(texto)
+  const pedidoInvocacao = detectarPedidoInvocacao(textoEnviado)
   const notaInvocacao = pedidoInvocacao ? prepararInvocacao(pedidoInvocacao) : null
   if (notaInvocacao) historico.push({ role: 'system', content: notaInvocacao.nota })
+
+  // 3b. comandos especiais: a Fábula escolhe a carta (/invocar sem nome, custo
+  // premium — ela pode emitir o marcador SÓ neste turno) e a análise
+  // esquizoanalítica (/analisar, mana já descontada).
+  if (escolhaFabula) {
+    historico.push({
+      role: 'system',
+      content:
+        'O jogador pediu que VOCÊ escolha a carta a invocar (comando /invocar sem nome — custo PREMIUM: ×1,5 do normal: monstro 6, captura 12, aliança 18, crescendo com reusos). ' +
+        'Escolha UMA carta desbloqueada (lista CARTAS DESBLOQUEADAS abaixo) que sirva ao momento dele, justifique a escolha em 1-2 frases, responda de forma EXTENSA sobre os possíveis efeitos dela, ' +
+        'e emita o marcador exato na última linha: [[acao:{"tipo":"invocar","carta":"<id>"}]] — o app valida a mana premium e executa.',
+    })
+  }
+  if (analisePedida) {
+    historico.push({
+      role: 'system',
+      content:
+        'O jogador pediu uma ANÁLISE ESQUIZOANALÍTICA (o app já descontou 10 de mana). ' +
+        'Faça uma análise profunda no método esquizoanalítico: mapeie as máquinas desejantes em funcionamento (peças, fluxos e cortes), as linhas de fuga e os devires em curso, os territórios e ritornelos — ' +
+        'a partir do resumo "Sobre você", do diário e do que ele disse agora. Análise extensa (10-16 frases), metáforas concretas, sem jargão acadêmico; termine com 2-3 perguntas que fiquem ecoando.',
+    })
+  }
 
   // 4. streaming
   let resposta = ''
@@ -530,16 +692,22 @@ async function enviar(texto: string): Promise<void> {
         area.scrollTop = area.scrollHeight
       },
     })
-    // 4. executa as ações da Fábula (marcador [[acao:...]]) e salva a mensagem
+    // 4. executa as ações da Fábula (marcador [[acao:...]]) e salva a mensagem.
+    // Regra (2026-08-12): marcador SÓ executa quando o turno é a ESCOLHA da
+    // Fábula (/invocar sem nome); eco do marcador após invocação do app ou
+    // marcador emitido por conta própria é ignorado (mana intacta).
     const { texto: textoLimpo, acoes } = extrairAcoes(resposta)
     let conteudoFinal = textoLimpo
+    let cartaInvocadaNoTurno: string | null = notaInvocacao?.cartaId ?? null
     for (const acao of acoes) {
-      conteudoFinal += `\n\n${executarAcao(acao)}`
+      const exec = executarAcao(acao, { appJaInvocou: notaInvocacao !== null, escolhaFabula })
+      if (exec.nota) conteudoFinal += `\n\n${exec.nota}`
+      if (exec.cartaId) cartaInvocadaNoTurno = exec.cartaId
     }
-    // Garante a miniatura da carta: se a invocação foi executada pelo app (pedido
-    // direto no texto) e a resposta não trouxe o marcador, anexa no fim.
-    if (notaInvocacao?.cartaId && !conteudoFinal.includes(`[[carta:${notaInvocacao.cartaId}]]`)) {
-      conteudoFinal += `\n\n[[carta:${notaInvocacao.cartaId}]]`
+    // Garante a miniatura da carta: se houve invocação no turno (pedido direto
+    // OU escolha da Fábula) e a resposta não trouxe o marcador, anexa no fim.
+    if (cartaInvocadaNoTurno && !conteudoFinal.includes(`[[carta:${cartaInvocadaNoTurno}]]`)) {
+      conteudoFinal += `\n\n[[carta:${cartaInvocadaNoTurno}]]`
     }
     const assistantMsg: MensagemIA = {
       role: 'assistant',
@@ -567,18 +735,43 @@ async function enviar(texto: string): Promise<void> {
   }
 }
 
-/** Executa uma ação proposta pela Fábula e devolve a nota a anexar à mensagem. */
-function executarAcao(acao: AcaoIA): string {
-  if (acao.tipo !== 'invocar') return ''
-  const id = resolverCartaId(acao.carta)
-  if (!id) return '⚡ Invocação não realizada: carta não encontrada.'
-  const antes = appStore.get().personagem
-  const custo = custoInvocacao(tipoDaCarta(id), antes.invocacoes[id] ?? 0)
-  const resultado = invocarCarta(id)
-  if (resultado.ok) {
-    return `⚡ Invocação executada: ${nomeDaCarta(id)} (−${custo} mana).`
+/** Executa uma ação proposta pela Fábula e devolve a nota a anexar + a carta
+ *  invocada (para a miniatura). Regras (2026-08-12): o app é a única porta de
+ *  invocação — o marcador SÓ executa quando o turno é a ESCOLHA da Fábula
+ *  (/invocar sem nome, custo premium ×1,5); marcador ecoado após invocação do
+ *  app, ou emitido por conta própria, é ignorado sem gastar mana. */
+function executarAcao(
+  acao: AcaoIA,
+  ctx: { appJaInvocou: boolean; escolhaFabula: boolean },
+): { nota: string; cartaId: string | null } {
+  if (acao.tipo !== 'invocar') return { nota: '', cartaId: null }
+  if (ctx.appJaInvocou) return { nota: '', cartaId: null } // eco do marcador — app já executou
+  // Marcador fora do turno de escolha da Fábula (menção, pedido mal entendido):
+  // NUNCA executa — mana intacta, aviso amigável.
+  if (!ctx.escolhaFabula) {
+    return { nota: '⚡ Invocação só por pedido explícito: use "invoca a carta <nome>" ou o comando /invocar.', cartaId: null }
   }
-  return `⚡ Invocação não realizada: ${resultado.motivo ?? 'não foi possível.'}`
+  const id = resolverCartaId(acao.carta)
+  if (!id) return { nota: '⚡ Invocação não realizada: carta não encontrada.', cartaId: null }
+  const p = appStore.get().personagem
+  const nome = nomeDaCarta(id)
+  if (!p.cartas.includes(id)) {
+    return { nota: `⚡ A carta ${nome} ainda está bloqueada — não invocada.`, cartaId: null }
+  }
+  const custo = ctx.escolhaFabula
+    ? custoInvocacaoFabula(tipoDaCarta(id), p.invocacoes[id] ?? 0)
+    : custoInvocacao(tipoDaCarta(id), p.invocacoes[id] ?? 0)
+  if (p.mana < custo) {
+    return { nota: `⚡ Invocação não realizada: mana insuficiente (precisa de ${custo}).`, cartaId: null }
+  }
+  const resultado = invocarCarta(id, custo)
+  if (!resultado.ok) {
+    return { nota: `⚡ Invocação não realizada: ${resultado.motivo ?? 'não foi possível.'}`, cartaId: null }
+  }
+  return {
+    nota: `⚡ Invocação executada: ${nome} (−${custo} mana)${ctx.escolhaFabula ? ' — escolhida pela Fábula (custo premium)' : ''}.`,
+    cartaId: id,
+  }
 }
 
 /** Prepara a invocação pedida pelo usuário: executa no app (mana, log, toast)
@@ -587,7 +780,8 @@ function executarAcao(acao: AcaoIA): string {
  *  invocação (bloqueada/sem mana/desconhecida). Retorna null se o termo não é
  *  uma carta conhecida (deixa a Fábula lidar). */
 function prepararInvocacao(termo: string): { nota: string; cartaId: string | null } | null {
-  const id = resolverCartaId(termo)
+  // Tolerância a artigo: "invoca o Ninho Enclausurado" resolve igual ("invoca a carta X")
+  const id = resolverCartaId(termo) ?? resolverCartaId(termo.replace(/^(o|a|os|as)\s+/i, ''))
   if (!id) return null
   const nome = nomeDaCarta(id)
   const p = appStore.get().personagem

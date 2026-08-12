@@ -9,6 +9,16 @@ export interface AcaoInvocar {
 
 export type AcaoIA = AcaoInvocar
 
+/** Comandos do chat (digitados com /). O app converte o comando numa frase
+ *  natural antes de enviar à Fábula — o histórico lê como conversa. */
+export interface ComandoIA {
+  tipo: 'invocar' | 'analisar'
+  /** invocar com nome: termo digitado (nome ou slug da carta). */
+  carta?: string
+  /** invocar SEM nome: a Fábula escolhe a carta (custo premium ×1,5). */
+  escolhaFabula: boolean
+}
+
 const RE_ACAO = /\[\[acao:(\{[\s\S]*?)\]\]/g
 
 /** Extrai os marcadores do texto e devolve o texto limpo + as ações. */
@@ -47,4 +57,20 @@ export function detectarPedidoInvocacao(texto: string): string | null {
   if (!m) return null
   const termo = m[1].trim()
   return termo || null
+}
+
+/** Detecta comandos do chat (digitados com /): `/invocar <carta>` (invocação
+ *  normal), `/invocar` sem nome ou `/fabula-invoca` (a FÁBULA escolhe a carta —
+ *  custo premium) e `/analisar` (análise esquizoanalítica, 10 mana). Devolve o
+ *  comando pra o app converter em frase natural e orquestrar a ação. */
+export function detectarComando(texto: string): ComandoIA | null {
+  const m = texto.trim().match(/^\/([a-z-]+)(?:\s+(.*))?$/i)
+  if (!m) return null
+  const nome = m[1].toLowerCase()
+  const resto = (m[2] ?? '').trim()
+  if (nome === 'invocar' || nome === 'fabula-invoca') {
+    return resto ? { tipo: 'invocar', carta: resto, escolhaFabula: false } : { tipo: 'invocar', escolhaFabula: true }
+  }
+  if (nome === 'analisar') return { tipo: 'analisar', escolhaFabula: false }
+  return null
 }

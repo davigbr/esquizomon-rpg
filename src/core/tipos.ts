@@ -21,7 +21,7 @@ export interface ContadorHabito {
   totalNegativo: number
 }
 
-/** Personagem do jogador — nível, XP, HP, mana, esferas e baralho. */
+/** Personagem do jogador — nível, XP, HP, mana e baralho. */
 export interface Personagem {
   nivel: number
   xp: number
@@ -34,8 +34,6 @@ export interface Personagem {
   esgotado: boolean
   /** Data ISO do último reset diário processado (evita dano repetido no mesmo dia). */
   ultimoDia: string
-  /** XP acumulado por esfera (perfil de onde a energia vai). */
-  esferas: Record<string, number>
   /** Ids das cartas do baralho desbloqueadas (galeria). */
   cartas: string[]
   /** Nº de invocações por carta (custo de mana cresce até um teto). */
@@ -50,8 +48,6 @@ export interface Tarefa {
   tags: string[]
   /** Única: data de vencimento (YYYY-MM-DD). */
   dueDate?: string
-  /** Esfera (domínio da vida) que a tarefa alimenta — fase 2. */
-  esfera?: string
   notas?: string
   /** Recorrente: quais dias da semana vale (vazio = todos). */
   agenda?: Agenda
@@ -67,11 +63,10 @@ export interface Tarefa {
   criadaEm: string
 }
 
-/** Snapshot da recompensa de UMA conclusão — permite reverter XP/esfera/nível/cartas ao desmarcar.
+/** Snapshot da recompensa de UMA conclusão — permite reverter XP/nível/cartas ao desmarcar.
  *  Guarda o estado ANTES do ganho (para restaurar) e o nível PÓS-ganho (para a guarda de reversão). */
 export interface RecompensaConclusao {
   xp: number
-  esfera?: string
   /** true se a conclusão subiu de nível. */
   subiu?: boolean
   /** Nível atingido por esta conclusão (reverte só se ninguém subiu depois). */

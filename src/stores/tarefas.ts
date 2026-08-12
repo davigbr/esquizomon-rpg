@@ -23,7 +23,6 @@ export function criarTarefa(dados: DadosTarefa): Resultado {
     tags: dados.tags,
     notas: dados.notas?.trim() || undefined,
     dueDate: dados.tipo === 'unica' ? dados.dueDate : undefined,
-    esfera: dados.esfera?.trim() || undefined,
     agenda: dados.tipo === 'recorrente' ? { dias: dados.agenda?.dias ?? [], diasDoMes: dados.agenda?.diasDoMes } : undefined,
     sinal: dados.tipo === 'habito' ? dados.sinal ?? 'positivo' : undefined,
     contador:
@@ -64,7 +63,6 @@ export function atualizarTarefa(id: string, dados: Partial<DadosTarefa>): Result
     tags: dados.tags ?? atual.tags,
     notas: dados.notas?.trim() || undefined,
     dueDate: dados.dueDate !== undefined ? dados.dueDate : atual.dueDate,
-    esfera: dados.esfera !== undefined ? (dados.esfera.trim() || undefined) : atual.esfera,
   }
   if (dados.tipo) {
     proxima.tipo = dados.tipo
@@ -122,7 +120,7 @@ export function alternarRecorrenteHoje(id: string, data: string = hojeISO()): st
     if (marcada) {
       registrarLog('tarefa', `Concluiu recorrente: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP)`)
       const antes = appStore.get().personagem
-      const novas = ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera).novasCartas
+      const novas = ganharXP(xpDe(tarefa.dificuldade)).novasCartas
       registrarRecompensa(tarefa.id, data, antes, novas)
       return novas
     }
@@ -157,7 +155,7 @@ export function alternarUnica(id: string, data: string = hojeISO()): string[] {
   if (tarefa && tarefa.concluida) {
     registrarLog('tarefa', `Concluiu: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP)`)
     const antes = appStore.get().personagem
-    const novas = ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera).novasCartas
+    const novas = ganharXP(xpDe(tarefa.dificuldade)).novasCartas
     registrarRecompensa(tarefa.id, data, antes, novas)
     return novas
   }
@@ -184,7 +182,6 @@ export function registrarRecompensa(id: string, data: string, antes: Personagem,
     const xp = xpDe(t.dificuldade)
     const recompensa: RecompensaConclusao = {
       xp,
-      esfera: t.esfera?.trim() || undefined,
       subiu: p.nivel > antes.nivel,
       nivel: p.nivel,
       xpAntes: antes.xp,
@@ -199,7 +196,7 @@ export function registrarRecompensa(id: string, data: string, antes: Personagem,
   appStore.set({ ...appStore.get(), tarefas })
 }
 
-/** Reverte XP/esfera/nível/cartas de uma conclusão desmarcada. */
+/** Reverte XP/nível/cartas de uma conclusão desmarcada. */
 function reverterRecompensa(t: Tarefa, data: string): void {
   const r = t.recompensas?.[data]
   if (!r) return
@@ -207,9 +204,6 @@ function reverterRecompensa(t: Tarefa, data: string): void {
   const personagem: Personagem = {
     ...p,
     xp: Math.max(0, p.xp - r.xp),
-    esferas: r.esfera
-      ? { ...p.esferas, [r.esfera]: Math.max(0, (p.esferas[r.esfera] ?? 0) - r.xp) }
-      : p.esferas,
   }
   // rebaixa o nível apenas se ninguém subiu depois (nível atual == nível desta conclusão)
   if (r.subiu && r.nivel !== undefined && p.nivel === r.nivel) {
@@ -262,7 +256,7 @@ export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data
   if (tarefa) {
     if (sinal === 'positivo') {
       registrarLog('habito', `Hábito positivo: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP)`)
-      return ganharXP(xpDe(tarefa.dificuldade), tarefa.esfera).novasCartas
+      return ganharXP(xpDe(tarefa.dificuldade)).novasCartas
     }
     aplicarDano(DANO_HABITO_NEGATIVO)
     registrarLog('habito', `Hábito negativo: ${tarefa.titulo} (−${DANO_HABITO_NEGATIVO} vida)`)

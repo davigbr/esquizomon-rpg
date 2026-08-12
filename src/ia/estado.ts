@@ -43,17 +43,11 @@ export function montarContexto(dados: AppData): string {
             ? t.historico.includes(hoje)
             : (t.contador?.hoje ?? 0) > 0
       const sinal = t.tipo === 'habito' ? ` (sinal: ${t.sinal ?? 'positivo'})` : ''
-      const esfera = t.esfera ? ` [esfera: ${t.esfera}]` : ''
       const tags = t.tags.length ? ` #${t.tags.join(' #')}` : ''
       const due = t.dueDate ? ` (vence ${t.dueDate})` : ''
-      return `- ${feita ? '[✓]' : '[ ]'} ${t.titulo} (${t.tipo}, ${t.dificuldade}${due})${sinal}${esfera}${tags}`
+      return `- ${feita ? '[✓]' : '[ ]'} ${t.titulo} (${t.tipo}, ${t.dificuldade}${due})${sinal}${tags}`
     })
     .join('\n')
-
-  const esferas = Object.entries(p.esferas).sort((a, b) => b[1] - a[1])
-  const esferasTxt = esferas.length
-    ? esferas.map(([n, v]) => `- ${n}: ${v} XP`).join('\n')
-    : '- nenhuma ainda'
 
   const invocacoes = Object.entries(p.invocacoes)
     .sort((a, b) => b[1] - a[1])
@@ -82,9 +76,6 @@ ${invocacoes ? `\nINVOCAÇÕES RECENTES (id × vezes):\n${invocacoes}\n` : ''}
 TAREFAS (${dados.tarefas.length}):
 ${tarefas || '- nenhuma tarefa'}
 
-ESFERAS (perfil de onde a energia vai):
-${esferasTxt}
-
 MODO RELAXADO: ${dados.configuracao.modoRelaxado ? 'sim (sem dano)' : 'não'}
 
 HISTÓRICO RECENTE (últimos 5 eventos do jogo):
@@ -94,10 +85,9 @@ CARTAS DESBLOQUEADAS (id → nome, para usar no marcador de invocação):
 ${cartasDesbloqueadas || '- nenhuma carta ainda'}
 
 AÇÕES DISPONÍVEIS (como agir no jogo):
-- INVOCAÇÃO: reserve a palavra "invocação" para quando o JOGADOR pedir explicitamente que você invoque uma carta (ex.: "invoca a carta X", "preciso da carta X"). Aí: (1) confira se a carta está na lista de desbloqueadas e se a Mana atual cobre o custo (monstro 4, captura 8, aliança 12, +2/+4/+6 por reuso até o teto); (2) responda de forma EXTENSA e compreensiva — elabore sobre os possíveis efeitos da carta na vida do jogador: o que ela torna visível, o que pode mudar na rotina dele, o que observar, como compor com ela — narrando a chegada da carta, e termine com o marcador exato na última linha: [[acao:{"tipo":"invocar","carta":"<id da lista acima>"}]] — o app desconta a mana e executa. (Quando o pedido vem direto no texto, o APP já executa a invocação e avisa você numa mensagem de sistema — aí NÃO repita o marcador de ação.)
-- IMAGEM DA CARTA: sempre que uma carta for invocada (por você ou pelo app), inclua o marcador [[carta:<id>]] na sua resposta — a interface o substitui pela miniatura da carta.
-  - Carta bloqueada: NÃO invoque. Diga que ela ainda não se revelou e desperte a curiosidade.
-  - Mana insuficiente: recuse com delicadeza ("guarde suas forças — amanhã a mana volta") e sem marcador.
-  - NUNCA invoque por conta própria: invocação só quando o jogador pede.
+- INVOCAÇÃO É DO APP, NÃO SUA: você NUNCA invoca cartas e NUNCA usa marcador de ação. Quando o jogador quiser invocar, ele usa o VERBO explicitamente ("invoca a carta X", "pode invocar X?") — o APP detecta, desconta a mana e te avisa numa mensagem de sistema. Você então escreve a resposta EXTENSA e compreensiva sobre a carta (efeitos possíveis na vida dele — o que torna visível, o que observar, como compor com ela), narrando a chegada dela.
+- MENCIONAR NÃO É INVOCAR: se o jogador apenas citar, comentar ou elogiar uma carta (ex.: "essa carta me visitou", "gosto do Ninho Enclausurado", "o que você acha da carta X?"), NÃO invoque e NÃO trate como invocação — comente a carta como conceito vivo, analise, componha, mas sem gastar nada. Só o verbo invocar dispara o app.
+- IMAGEM DA CARTA: quando uma carta for invocada (o app avisa na mensagem de sistema), inclua o marcador [[carta:<id>]] na sua resposta — a interface o substitui pela miniatura.
+- Carta bloqueada pedida (com o verbo): diga que ela ainda não se revelou e desperte a curiosidade. Mana insuficiente: recuse com delicadeza ("guarde suas forças — amanhã a mana volta"). Ambas as recusas vêm do app; respeite.
 - Seu papel é estimular a independência: após ajudar com uma carta, devolva a pergunta ao jogador ("e você, o que faria?").`
 }

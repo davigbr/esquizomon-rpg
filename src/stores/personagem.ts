@@ -1,4 +1,4 @@
-/** Domínio do personagem: XP, nível, esferas, cartas, mana, dano e morte. */
+/** Domínio do personagem: XP, nível, cartas, mana, dano e morte. */
 
 import type { Personagem } from '../core/tipos'
 import { cartasPorNivel, custoInvocacao, hpMaxDe, manaMaxDe, xpProximoDe } from '../core/jogo'
@@ -77,15 +77,10 @@ function desbloquearCartas(n: number): string[] {
   return novos
 }
 
-/** Aplica XP ao personagem (com esfera se houver); retorna se subiu de nível e cartas novas. */
-export function ganharXP(quantidade: number, esfera?: string): { subiu: boolean; nivel: number; novasCartas: string[] } {
+/** Aplica XP ao personagem; retorna se subiu de nível e cartas novas. */
+export function ganharXP(quantidade: number): { subiu: boolean; nivel: number; novasCartas: string[] } {
   const p = appStore.get().personagem
   let xp = p.xp + quantidade
-  const esferas = { ...p.esferas }
-  if (esfera && esfera.trim()) {
-    const nome = esfera.trim()
-    esferas[nome] = (esferas[nome] ?? 0) + quantidade
-  }
   let { nivel } = p
   let xpProximo = p.xpProximo
   let subiu = false
@@ -102,7 +97,6 @@ export function ganharXP(quantidade: number, esfera?: string): { subiu: boolean;
     xp,
     xpProximo,
     nivel,
-    esferas,
     hpMax: hpMaxDe(nivel),
     manaMax: manaMaxDe(nivel),
   }
@@ -118,14 +112,15 @@ export function ganharXP(quantidade: number, esfera?: string): { subiu: boolean;
   return { subiu, nivel, novasCartas }
 }
 
-/** Invoca uma carta desbloqueada: gasta mana (custo cresce por invocação até o teto). */
-export function invocarCarta(id: string): Resultado {
+/** Invoca uma carta desbloqueada: gasta mana (custo cresce por invocação até o teto).
+ *  `custoOverride` permite cobrar um custo diferente (ex.: premium da Fábula). */
+export function invocarCarta(id: string, custoOverride?: number): Resultado {
   const dados = appStore.get()
   const p = dados.personagem
   const carta = deckCarregado?.find((c) => c.id === id)
   if (!carta) return { ok: false, motivo: 'Carta não encontrada.' }
   if (!p.cartas.includes(id)) return { ok: false, motivo: 'Esta carta ainda está bloqueada.' }
-  const custo = custoInvocacao(carta.type, p.invocacoes[id] ?? 0)
+  const custo = custoOverride ?? custoInvocacao(carta.type, p.invocacoes[id] ?? 0)
   if (p.mana < custo) return { ok: false, motivo: `Mana insuficiente — precisa de ${custo}.` }
   appStore.set({
     ...dados,

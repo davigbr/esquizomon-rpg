@@ -38,7 +38,6 @@ export interface DadosTarefa {
   tags: string[]
   notas?: string
   dueDate?: string
-  esfera?: string
   agenda?: Agenda
   sinal?: 'positivo' | 'negativo' | 'ambos'
 }
