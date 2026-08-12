@@ -159,6 +159,12 @@ body {
   gap: 4px;
 }
 
+.navbar-links-lista {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .navbar-links a {
   color: var(--text-secondary);
   text-decoration: none;
@@ -166,6 +172,17 @@ body {
   padding: 6px 10px;
   border-radius: 6px;
   transition: color var(--transition), background var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navbar-links a.nav-icone {
+  padding: 6px 9px;
+}
+
+.navbar-links a.nav-icone i {
+  font-size: 15px;
 }
 
 .navbar-links a:hover {
@@ -1754,6 +1771,10 @@ select.campo {
 }
 
 @media (max-width: 640px) {
+  .modal-content {
+    padding: 16px;
+  }
+
   .carta-modal {
     grid-template-columns: 1fr;
     width: 100%;
@@ -1776,6 +1797,9 @@ select.campo {
   .carta-modal-img {
     width: 100%;
     max-width: none;
+    /* imagem com altura limitada: modal cabe inteiro sem scroll interno */
+    max-height: 40vh;
+    object-fit: contain;
   }
 }
 
@@ -2187,9 +2211,48 @@ select.campo {
 }
 
 /* ========== Responsivo ========== */
+/* Navbar vira 2 linhas (logo + links roláveis) abaixo de 900px — sem isso os
+   links com ícone estouram a viewport (medido: +438px em 375px). */
+@media (max-width: 900px) {
+  .navbar-inner {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 8px 14px;
+    row-gap: 4px;
+  }
+
+  .navbar-links {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  /* só a lista de links rola; os botões (Fábula/conta/tema) ficam fixos */
+  .navbar-links-lista {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .navbar-links-lista::-webkit-scrollbar {
+    display: none;
+  }
+
+  .navbar-links .nav-theme {
+    margin-left: 2px;
+    flex-shrink: 0;
+  }
+
+  /* status bar cola abaixo do navbar de 2 linhas (81px medido) */
+  #status-bar {
+    top: 82px;
+  }
+}
+
 @media (max-width: 640px) {
   .navbar-inner {
-    padding: 0 12px;
+    padding: 8px 12px;
   }
 
   .navbar-links a {
