@@ -11,22 +11,18 @@ import deckData from '../data/deck.json'
 /** O deck (import estático — síncrono, mesma fonte da galeria). */
 const deck = deckData as Carta[]
 
-/** Quantas entradas recentes do diário entram no placeholder {diario}. */
-const DIARIO_RECENTE_NO_CONTEXTO = 10
-/** Tamanho máximo de cada entrada no contexto (chars). */
-const DIARIO_RECENTE_TRUNCAR = 600
+/** Quantas entradas recentes do diário entram no placeholder {diario}.
+ *  NA ÍNTEGRA (sem truncamento — decisão do usuário: a Fábula lê o diário de verdade). */
+const DIARIO_RECENTE_NO_CONTEXTO = 5
 
-/** Últimas N entradas do diário em texto (placeholder {diario}). */
+/** Últimas N entradas do diário em texto (placeholder {diario}) — na íntegra. */
 export function montarDiarioContexto(): string {
   const diarioRecente = listarDiario({ limite: DIARIO_RECENTE_NO_CONTEXTO })
     .map((e) => {
       const titulo = e.titulo ? ` — ${e.titulo}` : ''
-      const texto = e.texto.length > DIARIO_RECENTE_TRUNCAR
-        ? e.texto.slice(0, DIARIO_RECENTE_TRUNCAR) + '…'
-        : e.texto
-      return `- [${e.data}]${titulo}\n  ${texto}`
+      return `- [${e.data}]${titulo}\n${e.texto}`
     })
-    .join('\n')
+    .join('\n\n')
 
   return `${diarioRecente || '- sem entradas ainda'}
 

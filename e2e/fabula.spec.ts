@@ -87,6 +87,32 @@ test('fabula: marcador [[acao:invocar]] é extraído e removido do texto', async
   expect(invalido.texto).toBe('texto  resto')
 })
 
+test('fabula: as últimas entradas do diário entram NA ÍNTEGRA no prompt (sem truncar)', async ({ page }) => {
+  await semear(page)
+  await page.goto('/#/diario')
+  await page.locator('[data-diario-novo]').click()
+
+  // entrada longa (bem acima do antigo corte de 600 chars)
+  const longo = 'A'.repeat(800) + ' FIM-DO-REGISTRO-INTEGRO'
+  await page.locator('[data-diario-editor]').fill(longo)
+  await page.keyboard.press('Tab')
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.diario?.[0]?.texto ?? '')),
+    )
+    .toBe(longo)
+
+  const prompt = await page.evaluate(async () => {
+    const { montarSystemPrompt } = await import('/src/ia/prompt')
+    const { appStore } = await import('/src/stores/app')
+    return montarSystemPrompt(appStore.get())
+  })
+  expect(prompt).toContain('FIM-DO-REGISTRO-INTEGRO')
+  expect(prompt).toContain('SOBRE O ESQUIZOMON')
+  expect(prompt).toContain('O QUE VOCÊ PODE E DEVE FAZER')
+})
+
 test('fabula: invocarCarta (via chat) desconta mana e registra', async ({ page }) => {
   await semear(page)
   await page.goto('/#/hoje')
