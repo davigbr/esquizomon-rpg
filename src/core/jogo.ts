@@ -74,8 +74,22 @@ export function nivelBaralhoCompleto(): number {
   return 1 + Math.ceil((65 - CARTAS_INICIAIS) / cartasPorNivel())
 }
 
-/** Custo base de invocação por tipo de carta (monstro < captura < aliança). */
+/** Custo base de invocação por tipo de carta (monstro < captura < aliança).
+ *  Aumentado 2026-08-12 (2× — decisão do usuário): invocar agora é escolha
+ *  rara e significativa, não rotina diária. */
 export function custoBaseInvocacao(tipo: 'monstro' | 'captura' | 'alianca'): number {
+  switch (tipo) {
+    case 'monstro':
+      return 4
+    case 'captura':
+      return 8
+    case 'alianca':
+      return 12
+  }
+}
+
+/** Incremento de custo por invocação repetida da mesma carta. */
+export function incrementoInvocacao(tipo: 'monstro' | 'captura' | 'alianca'): number {
   switch (tipo) {
     case 'monstro':
       return 2
@@ -86,23 +100,11 @@ export function custoBaseInvocacao(tipo: 'monstro' | 'captura' | 'alianca'): num
   }
 }
 
-/** Incremento de custo por invocação repetida da mesma carta. */
-export function incrementoInvocacao(tipo: 'monstro' | 'captura' | 'alianca'): number {
-  switch (tipo) {
-    case 'monstro':
-      return 1
-    case 'captura':
-      return 2
-    case 'alianca':
-      return 3
-  }
-}
-
 /** Teto de invocações que encarecem (a partir daí o custo fica estável). */
 export const TETO_INVOCACOES = 3
 
 /** Custo atual de invocar uma carta, dado quantas vezes ela já foi invocada.
- *  Ex.: monstro 2→3→4→5; captura 4→6→8→10; aliança 6→9→12→15. */
+ *  Ex.: monstro 4→6→8→10; captura 8→12→16→20; aliança 12→18→24→30. */
 export function custoInvocacao(tipo: 'monstro' | 'captura' | 'alianca', invocacoes: number): number {
   const extras = Math.min(invocacoes, TETO_INVOCACOES)
   return custoBaseInvocacao(tipo) + extras * incrementoInvocacao(tipo)

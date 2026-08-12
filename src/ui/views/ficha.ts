@@ -32,7 +32,7 @@ export function montarFicha(raiz: HTMLElement, dados: AppData): void {
         <li><b>Recorrentes perdidas</b> causam dano no dia seguinte, proporcional à dificuldade.</li>
         <li><b>Hábitos negativos</b> causam dano pequeno; positivos dão XP.</li>
         <li><b>Citar cartas no diário</b> dá XP automático (+5 por carta, até 2 por entrada) — só para cartas já desbloqueadas; a Fábula anota. Cartas bloqueadas ficam no mistério.</li>
-        <li><b>Invocar</b> é pedir à Fábula no chat: ela desconta a mana (monstros 2, capturas 4, alianças 6; reusar encarece até o teto) e te dá o apoio da carta. Sem mana, espere o dia seguinte — e não invoque por conta própria: pedir ajuda custa, e isso também é do jogo.</li>
+        <li><b>Invocar</b> é pedir à Fábula no chat: ela desconta a mana (monstros 4, capturas 8, alianças 12; reusar encarece até o teto) e te devolve uma análise extensa sobre os possíveis efeitos da carta. Sem mana, espere o dia seguinte — e não invoque por conta própria: pedir ajuda custa, e isso também é do jogo.</li>
         <li><b>Morte não-destrutiva:</b> com vida zerada você fica <b>esgotado</b> — sem regeneração de mana — até o próximo dia. A queda custa uma carta do baralho.</li>
         <li><b>Modo relaxado${modoRelaxado ? ' (ativado)' : ''}:</b> desliga todo dano — o jogo vira só bônus. Alternar em Config.</li>
       </ul>
@@ -113,7 +113,7 @@ export function montarFicha(raiz: HTMLElement, dados: AppData): void {
         <div class="grafico-bloco">
           <div class="grafico-titulo"><span class="grafico-bolinha" style="background:#2868d0"></span> Mana máxima por nível</div>
           ${graficoProgressao({ rotulo: 'Mana', cor: '#2868d0', valores: manaPorNivel, formatar: (v) => `${v}` }, p.nivel)}
-          <p class="grafico-legenda">Mana máxima cresce 2 por nível: no seu nível é ${manaMaxDe(p.nivel)} — invocar monstros custa 2, capturas 4, alianças 6.</p>
+          <p class="grafico-legenda">Mana máxima cresce 2 por nível: no seu nível é ${manaMaxDe(p.nivel)} — invocar monstros custa 4, capturas 8, alianças 12.</p>
         </div>
 
         <div class="grafico-bloco">

@@ -2477,6 +2477,24 @@ body.fabula-aberto .container {
   color: var(--text-muted);
 }
 
+/* input de renomeação da conversa (no lugar do título do cabeçalho) */
+.fabula-titulo-input {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border-gold);
+  border-radius: 8px;
+  padding: 4px 8px;
+  min-width: 0;
+  flex: 1;
+}
+.fabula-titulo-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-gold) 30%, transparent);
+}
+
 .fabula-mensagens {
   flex: 1;
   overflow-y: auto;
@@ -2643,10 +2661,11 @@ body.fabula-aberto .container {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-gold) 20%, transparent);
 }
 
-/* miniatura da carta invocada dentro da bolha (marcador [[carta:<id>]]) */
+/* miniatura da carta invocada dentro da bolha (marcador [[carta:<id>]])
+   72px desde 2026-08-12 (era 96px — usuário pediu menor) */
 .fabula-carta {
-  width: 96px;
-  border-radius: 10px;
+  width: 72px;
+  border-radius: 8px;
   border: 1px solid var(--border-gold);
   margin-top: 8px;
   display: block;

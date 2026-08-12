@@ -5,6 +5,7 @@ import type { AppData, Conversa, MensagemIA } from '../core/tipos'
 import {
   adicionarMensagem,
   appStore,
+  atualizarConversa,
   conversaPorId,
   criarConversa,
   excluirConversa,
@@ -82,6 +83,9 @@ let inputEl: HTMLTextAreaElement | null = null
 let formEl: HTMLFormElement | null = null
 let estado: EstadoPainel = carregarEstadoPainel()
 let ocupado = false
+/** Renomeação de conversa: input no lugar do título do cabeçalho. */
+let renomeando = false
+let tituloNaEdicao = ''
 
 /** Monta a casca do painel (uma vez) e injeta no body. Idempotente. */
 export function montarChat(): void {
@@ -120,14 +124,22 @@ function renderizar(): void {
 
     <div class="fabula-conversa">
       <header class="fabula-cabecalho">
-        <div class="fabula-titulo">
+        ${renomeando && conversa
+          ? `<input class="fabula-titulo-input" data-fabula-titulo-input value="${escapar(conversa.titulo ?? '')}" maxlength="60" aria-label="Título da conversa" title="Digite o novo título e Enter para salvar" />`
+          : `<div class="fabula-titulo">
           <i class="fa-solid fa-feather" aria-hidden="true"></i>
           <div>
             <strong>Fábula</strong>
             <span class="fabula-sub">a Rizomante</span>
           </div>
-        </div>
+        </div>`}
         <div class="fabula-cabecalho-acoes">
+          <button class="btn btn-icon" data-fabula-renomear title="Renomear conversa" aria-label="Renomear conversa" ${conversa ? '' : 'disabled'}>
+            <i class="fa-solid fa-pen" aria-hidden="true"></i>
+          </button>
+          <button class="btn btn-icon" data-fabula-copiar title="Copiar conversa em markdown" aria-label="Copiar conversa em markdown" ${conversa && conversa.mensagens.length > 0 ? '' : 'disabled'}>
+            <i class="fa-solid fa-copy" aria-hidden="true"></i>
+          </button>
           <button class="btn btn-icon" data-fabula-excluir title="Apagar conversa" aria-label="Apagar conversa" ${conversa ? '' : 'disabled'}>
             <i class="fa-solid fa-trash" aria-hidden="true"></i>
           </button>
@@ -180,6 +192,37 @@ function instalarHandlers(conversa: Conversa | undefined): void {
   if (!painel) return
   painel.querySelector('[data-fabula-fechar]')!.addEventListener('click', () => alternarChat(false))
   painel.querySelector('[data-fabula-nova]')!.addEventListener('click', () => novaConversa())
+  const btnCopiar = painel.querySelector<HTMLButtonElement>('[data-fabula-copiar]')
+  if (btnCopiar && conversa && conversa.mensagens.length > 0) {
+    btnCopiar.addEventListener('click', () => void copiarConversa(conversa))
+  }
+  const btnRenomear = painel.querySelector<HTMLButtonElement>('[data-fabula-renomear]')
+  if (btnRenomear && conversa) {
+    btnRenomear.addEventListener('click', () => iniciarRenomeacao(conversa.id))
+  }
+  // Input de renomeação: Enter salva, Escape cancela, blur salva (com guarda).
+  const tituloInput = painel.querySelector<HTMLInputElement>('[data-fabula-titulo-input]')
+  if (tituloInput) {
+    const finalizarRenomeacao = () => {
+      const novo = tituloInput.value.trim()
+      const c = conversaAtual()
+      renomeando = false
+      if (c && novo && novo !== tituloNaEdicao) atualizarConversa(c.id, { titulo: novo })
+      tituloNaEdicao = ''
+      renderizar()
+    }
+    tituloInput.addEventListener('keydown', (e) => {
+      const ev = e as KeyboardEvent
+      if (ev.key === 'Enter') {
+        ev.preventDefault()
+        finalizarRenomeacao()
+      } else if (ev.key === 'Escape') {
+        tituloInput.value = tituloNaEdicao // cancela: volta ao título original
+        finalizarRenomeacao()
+      }
+    })
+    tituloInput.addEventListener('blur', finalizarRenomeacao)
+  }
   const btnExcluir = painel.querySelector('[data-fabula-excluir]') as HTMLButtonElement | null
   if (btnExcluir && conversa) {
     btnExcluir.addEventListener('click', () => void apagarConversaAtual())
@@ -277,6 +320,68 @@ function renderizarConteudo(conteudo: string): string {
   })
 }
 
+/** Gera o markdown da conversa (mensagens do usuário e da Fábula) pra colar em
+ *  qualquer editor (Obsidian etc.). `[[carta:<id>]]` vira o nome da carta em
+ *  itálico — fora do app o marcador não faz sentido. Exportado pro E2E. */
+export function conversaParaMarkdown(conversa: Conversa): string {
+  const blocos: string[] = [`# Fábula — ${conversa.titulo || 'Conversa'}`]
+  for (const m of conversa.mensagens) {
+    const quem = m.role === 'user' ? 'Você' : 'Fábula'
+    const conteudo = m.content.replace(/\[\[carta:([\w-]+)\]\]/g, (_match, id: string) => {
+      if (resolverCartaId(id) !== id) return _match
+      return `*${nomeDaCarta(id)}*`
+    })
+    blocos.push('', `**${quem}** — ${formatarDataHora(m.ts)}`, '')
+    // Mensagens do usuário entram como citação; as da Fábula, em markdown cru
+    // (ela já escreve com **negrito** etc.).
+    blocos.push(m.role === 'user' ? conteudo.split('\n').map((linha) => `> ${linha}`).join('\n') : conteudo)
+  }
+  return blocos.join('\n').trimEnd() + '\n'
+}
+
+function formatarDataHora(iso: string): string {
+  try {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return iso
+    return d.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return iso
+  }
+}
+
+async function copiarConversa(conversa: Conversa): Promise<void> {
+  const ok = await copiarParaAreaDeTransferencia(conversaParaMarkdown(conversa))
+  notificar(ok ? 'Conversa copiada em markdown.' : 'Não consegui copiar a conversa.', ok ? 'ok' : 'erro')
+}
+
+/** Clipboard API com fallback (textarea + execCommand) pra contextos sem permissão. */
+async function copiarParaAreaDeTransferencia(texto: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(texto)
+    return true
+  } catch {
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = texto
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      const ok = document.execCommand('copy')
+      ta.remove()
+      return ok
+    } catch {
+      return false
+    }
+  }
+}
+
 /** Abre/fecha o painel. */
 export function alternarChat(abrir?: boolean): void {
   if (!painel) montarChat()
@@ -290,12 +395,14 @@ export function alternarChat(abrir?: boolean): void {
 
 function selecionarConversa(id: string): void {
   if (!id) return
+  renomeando = false
   estado.conversaAtivaId = id
   salvarEstadoPainel(estado)
   renderizar()
 }
 
 function novaConversa(): void {
+  renomeando = false
   const c = criarConversa()
   estado.conversaAtivaId = c.id
   estado.aberto = true
@@ -303,9 +410,22 @@ function novaConversa(): void {
   renderizar()
 }
 
+/** Abre o input de renomeação no cabeçalho, com o título atual selecionado. */
+function iniciarRenomeacao(id: string): void {
+  const c = conversaPorId(id)
+  if (!c) return
+  tituloNaEdicao = c.titulo ?? ''
+  renomeando = true
+  renderizar()
+  const input = painel?.querySelector<HTMLInputElement>('[data-fabula-titulo-input]')
+  input?.focus()
+  input?.select()
+}
+
 async function apagarConversaAtual(): Promise<void> {
   const id = estado.conversaAtivaId
   if (!id) return
+  renomeando = false
   const ok = await confirmar('Apagar esta conversa? Isso não pode ser desfeito.', 'Apagar conversa')
   if (!ok) return
   excluirConversa(id)
@@ -490,7 +610,7 @@ function prepararInvocacao(termo: string): { nota: string; cartaId: string | nul
   }
   notificar(`Carta invocada: ${nome} (−${custo} mana)`)
   return {
-    nota: `A carta "${nome}" FOI invocada agora (custou ${custo} mana; restam ${p.mana - custo}). Responda usando essa carta como apoio pra pergunta do jogador — e depois devolva a pergunta a ele. NÃO repita o marcador de ação; inclua sim o marcador [[carta:${id}]] (a interface mostra a miniatura).`,
+    nota: `A carta "${nome}" FOI invocada agora (custou ${custo} mana; restam ${p.mana - custo}). Responda de forma EXTENSA e compreensiva sobre essa carta: elabore os possíveis efeitos dela na vida do jogador — o que ela torna visível, o que pode mudar na rotina dele, o que observar, como compor com ela como monstro/apoio. NÃO seja lacônico nem enigmático. Use a carta como apoio pra pergunta do jogador e devolva a pergunta a ele no fim. NÃO repita o marcador de ação; inclua sim o marcador [[carta:${id}]] (a interface mostra a miniatura).`,
     cartaId: id,
   }
 }

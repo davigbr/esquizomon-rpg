@@ -120,12 +120,12 @@ test('fabula: invocarCarta (via chat) desconta mana e registra', async ({ page }
 
   const res = await page.evaluate(async () => {
     const { invocarCarta } = await import('/src/stores/app')
-    const ok = invocarCarta('ninho-enclausurado') // captura → custo 4
+    const ok = invocarCarta('ninho-enclausurado') // captura → custo 8
     const mana = (await import('/src/stores/app')).appStore.get().personagem.mana
     return { ok: ok.ok, mana }
   })
   expect(res.ok).toBe(true)
-  expect(res.mana).toBe(16)
+  expect(res.mana).toBe(12)
 
   // sem mana → recusa
   const semMana = await page.evaluate(async () => {
@@ -210,8 +210,8 @@ test('fabula: "invoca a carta X" executa no app, desconta mana e mostra a miniat
   await page.keyboard.press('Enter')
   await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
 
-  // mana descontou (20 → 16) e a bolha exibe a miniatura da carta
-  await expect(page.locator('[data-s-mana]')).toHaveText('Mana 16/20')
+  // mana descontou (20 → 12, captura custa 8) e a bolha exibe a miniatura da carta
+  await expect(page.locator('[data-s-mana]')).toHaveText('Mana 12/20')
   const img = page.locator('.fabula-bolha--assistente img.fabula-carta')
   await expect(img).toBeVisible()
   await expect(img).toHaveAttribute('src', '/images/cards/ninho-enclausurado.png')
@@ -228,7 +228,7 @@ test('fabula: "invoca a carta X" executa no app, desconta mana e mostra a miniat
   await page.locator('[data-fabula-input]').fill('invoca a carta Internato de Ferro')
   await page.keyboard.press('Enter')
   await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(2)
-  await expect(page.locator('[data-s-mana]')).toHaveText('Mana 16/20')
+  await expect(page.locator('[data-s-mana]')).toHaveText('Mana 12/20')
   const corpo2 = JSON.parse(corpos[corpos.length - 1])
   const sistema2 = corpo2.messages
     .filter((m: { role: string }) => m.role === 'system')
@@ -268,4 +268,103 @@ test('diário: citar carta desbloqueada dá +5 XP (uma vez por carta; bloqueada 
   await page.keyboard.press('Tab')
   await page.waitForTimeout(1200)
   await expect(page.locator('[data-s-xp]')).toHaveText('XP 5/80')
+})
+
+test('fabula: botão copia a conversa em markdown (usuário + Fábula; carta vira nome)', async ({ page, context }) => {
+  await semear(page)
+  await page.addInitScript(() => {
+    localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ aberto: false, conversaAtivaId: 'conv-copia' }))
+  })
+  await page.addInitScript(() => {
+    const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
+    d.conversas = [
+      {
+        id: 'conv-copia',
+        titulo: 'Sobre o dia',
+        atualizadaEm: '2026-08-12T14:00:00.000Z',
+        mensagens: [
+          { role: 'user', content: 'primeira mensagem', ts: '2026-08-12T14:00:00.000Z' },
+          {
+            role: 'assistant',
+            content: 'A carta chega como um alívio.\n[[carta:ninho-enclausurado]]',
+            ts: '2026-08-12T14:01:00.000Z',
+          },
+        ],
+      },
+    ]
+    localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
+  })
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  // Espião determinístico: captura o que o app manda pro clipboard sem depender
+  // de foco/permissão do contexto headless (readText é flaky em CI).
+  await page.addInitScript(() => {
+    const clip = navigator.clipboard
+    if (clip && typeof clip.writeText === 'function') {
+      const original = clip.writeText.bind(clip)
+      clip.writeText = async (texto: string) => {
+        ;(window as unknown as { __ultimoCopiado: string }).__ultimoCopiado = texto
+        return original(texto)
+      }
+    }
+  })
+
+  await page.goto('/#/hoje')
+  await page.click('#fabula-toggle')
+  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+
+  const btn = page.locator('[data-fabula-copiar]')
+  await expect(btn).toBeEnabled()
+  await btn.click()
+
+  const markdown = await page.evaluate(() => (window as unknown as { __ultimoCopiado?: string }).__ultimoCopiado ?? '')
+  expect(markdown).toContain('# Fábula — Sobre o dia')
+  expect(markdown).toContain('**Você**')
+  expect(markdown).toContain('> primeira mensagem')
+  expect(markdown).toContain('**Fábula**')
+  expect(markdown).toContain('A carta chega como um alívio.')
+  // o marcador vira o nome da carta em itálico — nunca vaza pro markdown
+  expect(markdown).toContain('*Ninho Enclausurado*')
+  expect(markdown).not.toContain('[[carta:')
+
+  // botão desabilitado numa conversa nova (vazia) — painel segue aberto
+  await page.click('[data-fabula-nova]')
+  await expect(btn).toBeDisabled()
+})
+
+test('fabula: conversa pode ser renomeada (Enter salva e persiste)', async ({ page }) => {
+  await semear(page)
+  await page.addInitScript(() => {
+    localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ aberto: false, conversaAtivaId: 'conv-renome' }))
+  })
+  await page.addInitScript(() => {
+    const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
+    d.conversas = [
+      {
+        id: 'conv-renome',
+        titulo: 'Título automático da primeira mensagem',
+        atualizadaEm: '2026-08-12T14:00:00.000Z',
+        mensagens: [{ role: 'user', content: 'olá', ts: '2026-08-12T14:00:00.000Z' }],
+      },
+    ]
+    localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
+  })
+
+  await page.goto('/#/hoje')
+  await page.click('#fabula-toggle')
+  await page.click('[data-fabula-renomear]')
+
+  const input = page.locator('[data-fabula-titulo-input]')
+  await expect(input).toBeVisible()
+  await input.fill('Sobre os monstros de agosto')
+  await page.keyboard.press('Enter')
+
+  // o input some, a lista lateral mostra o título novo e o storage persiste
+  await expect(input).toHaveCount(0)
+  await expect(page.locator('.fabula-item--ativa .fabula-item-titulo')).toHaveText('Sobre os monstros de agosto')
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.conversas?.[0]?.titulo ?? '')),
+    )
+    .toBe('Sobre os monstros de agosto')
 })
