@@ -8,7 +8,7 @@ export function notificar(msg: string, tipo: 'ok' | 'erro' = 'ok'): void {
   el.textContent = msg
   el.addEventListener('click', () => el.remove())
   container.appendChild(el)
-  setTimeout(() => el.remove(), 3200)
+  setTimeout(() => el.remove(), 4500)
 }
 
 /** Toast com HTML (ex.: miniatura de carta) — msg deve ser HTML já escapado onde necessário. */
@@ -18,7 +18,7 @@ export function notificarHtml(html: string, tipo: 'ok' | 'erro' = 'ok'): void {
   el.innerHTML = html
   el.addEventListener('click', () => el.remove())
   container.appendChild(el)
-  setTimeout(() => el.remove(), 4200)
+  setTimeout(() => el.remove(), 5500)
 }
 
 /** Toast com miniaturas das cartas (desbloqueio/invocação). `ids` são resolvidos pelo deck. */

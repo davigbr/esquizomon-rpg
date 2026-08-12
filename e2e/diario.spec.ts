@@ -1,7 +1,10 @@
-/** E2E — diário: criar entrada, editar markdown, autosave, preview (Ver) e persistência. */
+/** E2E — diário: criar entrada, editar markdown, autosave, preview (Ver), persistência e import em massa. */
 import { test, expect } from '@playwright/test'
 
 const TEXTO = 'linha um\nlinha dois\n\nparágrafo com **negrito** e *itálico*\n\n- item 1\n- item 2'
+
+const hoje = new Date().toISOString().slice(0, 10)
+const ontem = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)
 
 test('diário: cria entrada, digita markdown, autosave, Ver (preview) e reload', async ({ page }) => {
   await page.goto('/#/diario')
@@ -58,4 +61,31 @@ test('diário: excluir entrada com confirmação', async ({ page }) => {
       page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.diario ?? []).length),
     )
     .toBe(0)
+})
+
+test('diário: importa crônicas em massa via markdown (e pula dias que já existem)', async ({ page }) => {
+  await page.goto('/#/diario')
+
+  // abre o modal de importação e cola markdown com 2 entradas
+  await page.locator('[data-diario-importar]').click()
+  const markdown = `## ${ontem}\n**Ontem**\nPrimeira crônica importada.\n\n## ${hoje}\n**Hoje**\nSegunda crônica importada.\n\n- lista\n- markdown`
+  await page.locator('[data-import-texto]').fill(markdown)
+  await page.locator('[data-import-executar]').click()
+
+  await expect(page.locator('[data-import-status]')).toContainText('2 importada')
+
+  // fecha o modal e confere as entradas na lista
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.diario-arquivos')).toContainText('Hoje')
+  await expect(page.locator('.diario-arquivos')).toContainText('Ontem')
+
+  // a entrada mais recente importada fica aberta no editor
+  await expect(page.locator('[data-diario-editor]')).toHaveValue(/Segunda crônica importada/)
+
+  // reimportar o mesmo dia → pula (1/dia)
+  await page.locator('[data-diario-importar]').click()
+  await page.locator('[data-import-texto]').fill(`## ${hoje}\n**Hoje**\nconteúdo diferente`)
+  await page.locator('[data-import-executar]').click()
+  await expect(page.locator('[data-import-status]')).toContainText('1 pulada')
+  await expect(page.locator('[data-import-status]')).toContainText(hoje)
 })

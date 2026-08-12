@@ -23,7 +23,7 @@ function agendaInicial(t?: Tarefa): { dias: number[]; diasDoMes?: number[] } {
 
 export function abrirFormTarefa(tarefa?: Tarefa, tipoInicial?: TipoTarefa): void {
   const tipo: TipoTarefa = tarefa?.tipo ?? tipoInicial ?? 'recorrente'
-  const dificuldade: Dificuldade = tarefa?.dificuldade ?? 'media'
+  const dificuldade: Dificuldade = tarefa?.dificuldade ?? 'facil'
   const tags = tagsEmUso(appStore.get())
   const tagsAtuais = tarefa?.tags ?? []
   const agenda = agendaInicial(tarefa)
@@ -229,7 +229,7 @@ export function abrirFormTarefa(tarefa?: Tarefa, tipoInicial?: TipoTarefa): void
       return
     }
     const tipoAtual = inputTipo.value as TipoTarefa
-    const dificuldade = (form.querySelector<HTMLSelectElement>('select[name="dificuldade"]')!.value ?? 'media') as Dificuldade
+    const dificuldade = (form.querySelector<HTMLSelectElement>('select[name="dificuldade"]')!.value ?? 'facil') as Dificuldade
     const notas = (form.querySelector<HTMLTextAreaElement>('textarea[name="notas"]')!.value ?? '').trim()
     const tags = tagsSelecionadas()
     const esfera = (form.querySelector<HTMLInputElement>('input[name="esfera"]')!.value ?? '').trim() || undefined
