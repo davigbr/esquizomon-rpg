@@ -136,6 +136,109 @@ test('fabula: invocarCarta (via chat) desconta mana e registra', async ({ page }
   expect(semMana.ok).toBe(false)
 })
 
+/** Seed com IA configurada (provider fake) + carta desbloqueada + mana. */
+async function semearChat(page: import('@playwright/test').Page): Promise<void> {
+  await page.addInitScript(
+    ({ hoje }) => {
+      const d = {
+        versao: 3,
+        tarefas: [],
+        personagem: {
+          nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20,
+          esgotado: false, ultimoDia: hoje, esferas: {},
+          cartas: ['ninho-enclausurado'], invocacoes: {},
+        },
+        configuracao: {
+          tema: 'dark',
+          ia: { provider: 'deepseek', modelo: '', apiKey: 'chave-fake', systemPrompt: '' },
+        },
+        log: [],
+        conversas: [],
+        diario: [],
+      }
+      localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
+    },
+    { hoje },
+  )
+}
+
+/** Resposta SSE fake (formato OpenAI-compat que o cliente espera). */
+function sseFake(conteudo: string): string {
+  return `data: ${JSON.stringify({ choices: [{ delta: { content: conteudo } }] })}\n\ndata: [DONE]\n`
+}
+
+test('fabula: o histórico completo vai pra IA (mensagens anteriores + a atual)', async ({ page }) => {
+  await semearChat(page)
+  const corpos: string[] = []
+  await page.route('**/api/ia', (rota) => {
+    corpos.push(rota.request().postData() ?? '')
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('Resposta da Fábula') })
+  })
+
+  await page.goto('/#/hoje')
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click() // cria a conversa (input desabilita sem ela)
+  const input = page.locator('[data-fabula-input]')
+  await input.fill('primeira mensagem')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+
+  await input.fill('segunda mensagem')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(2)
+
+  // o segundo request traz TUDO: user1, resposta1 E a mensagem atual no fim
+  const corpo = JSON.parse(corpos[corpos.length - 1])
+  const conteudos = corpo.messages.map((m: { content: string }) => m.content)
+  expect(conteudos).toContain('primeira mensagem')
+  expect(conteudos).toContain('Resposta da Fábula')
+  expect(conteudos[conteudos.length - 1]).toBe('segunda mensagem')
+})
+
+test('fabula: "invoca a carta X" executa no app, desconta mana e mostra a miniatura', async ({ page }) => {
+  await semearChat(page)
+  const corpos: string[] = []
+  await page.route('**/api/ia', (rota) => {
+    corpos.push(rota.request().postData() ?? '')
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('A carta chega.') })
+  })
+
+  await page.goto('/#/hoje')
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click() // cria a conversa
+  await page.locator('[data-fabula-input]').fill('invoca a carta Ninho Enclausurado')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+
+  // mana descontou (20 → 16) e a bolha exibe a miniatura da carta
+  await expect(page.locator('[data-s-mana]')).toHaveText('Mana 16/20')
+  const img = page.locator('.fabula-bolha--assistente img.fabula-carta')
+  await expect(img).toBeVisible()
+  await expect(img).toHaveAttribute('src', '/images/cards/ninho-enclausurado.png')
+
+  // a nota de sistema (invocação executada) foi enviada pra IA
+  const corpo = JSON.parse(corpos[corpos.length - 1])
+  const sistema = corpo.messages
+    .filter((m: { role: string }) => m.role === 'system')
+    .map((m: { content: string }) => m.content)
+    .join('\n')
+  expect(sistema).toContain('FOI invocada')
+
+  // carta BLOQUEADA → mana intacta e nota de bloqueio
+  await page.locator('[data-fabula-input]').fill('invoca a carta Internato de Ferro')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(2)
+  await expect(page.locator('[data-s-mana]')).toHaveText('Mana 16/20')
+  const corpo2 = JSON.parse(corpos[corpos.length - 1])
+  const sistema2 = corpo2.messages
+    .filter((m: { role: string }) => m.role === 'system')
+    .map((m: { content: string }) => m.content)
+    .join('\n')
+  expect(sistema2).toContain('BLOQUEADA')
+  // sem miniatura na segunda bolha (carta não foi invocada)
+  await expect(page.locator('.fabula-bolha--assistente img.fabula-carta')).toHaveCount(1)
+})
+
 test('diário: citar carta desbloqueada dá +5 XP (uma vez por carta; bloqueada não conta)', async ({ page }) => {
   await semear(page)
   await page.goto('/#/diario')

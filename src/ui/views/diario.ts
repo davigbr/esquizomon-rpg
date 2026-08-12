@@ -254,10 +254,9 @@ function instalarImportar(raiz: HTMLElement): void {
         return
       }
       const res = importarDiario(entradas)
-      let msg = `✅ ${res.importadas} importada(s).`
+      let msg = `${res.importadas} importada(s).`
       if (res.puladas.length > 0) msg += ` ${res.puladas.length} pulada(s) — já existiam: ${res.puladas.join(', ')}.`
       if (res.invalidas.length > 0) msg += ` ${res.invalidas.length} ignorada(s) — data inválida.`
-      if (statusEl) statusEl.textContent = msg
       if (res.importadas > 0) {
         const maisRecente = entradas
           .map((e) => e.data)
@@ -280,6 +279,9 @@ function instalarImportar(raiz: HTMLElement): void {
         }
         appStore.set({ ...appStore.get() })
       }
+      // fecha o modal e mostra o resumo no toast (decisão do usuário)
+      fecharModal()
+      notificar(msg)
     })
     modalBody.querySelector('[data-modal-cancelar]')?.addEventListener('click', fecharModal)
   })

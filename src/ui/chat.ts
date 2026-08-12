@@ -11,7 +11,7 @@ import {
 } from '../stores/app'
 import { enviarParaIA, ErroIA, type MsgChat } from '../ia/cliente'
 import { montarSystemPrompt } from '../ia/prompt'
-import { extrairAcoes, type AcaoIA } from '../ia/acoes'
+import { extrairAcoes, detectarPedidoInvocacao, type AcaoIA } from '../ia/acoes'
 import { nomeDaCarta, resolverCartaId, tipoDaCarta } from '../core/baralho'
 import { invocarCarta } from '../stores/app'
 import { custoInvocacao } from '../core/jogo'
@@ -124,7 +124,7 @@ function renderizar(): void {
           <i class="fa-solid fa-feather" aria-hidden="true"></i>
           <div>
             <strong>Fábula</strong>
-            <span class="fabula-sub">a Cronista</span>
+            <span class="fabula-sub">a Rizomante</span>
           </div>
         </div>
         <div class="fabula-cabecalho-acoes">
@@ -147,9 +147,10 @@ function renderizar(): void {
       </div>
 
       <form class="fabula-form" data-fabula-form>
-        <textarea class="fabula-input" data-fabula-input rows="1" placeholder="${conversa ? 'Converse com Fábula…' : 'Crie uma conversa para começar'}" autocomplete="off" ${!conversa || ocupado ? 'disabled' : ''}></textarea>
+        <textarea class="fabula-input" data-fabula-input rows="1" placeholder="${conversa ? "Converse com Fábula… ('invoca a carta X' custa mana)" : 'Crie uma conversa para começar'}" autocomplete="off" ${!conversa || ocupado ? 'disabled' : ''}></textarea>
         <button class="btn btn-icon" type="submit" aria-label="Enviar" ${!conversa || ocupado ? 'disabled' : ''}><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></button>
       </form>
+      <p class="fabula-dica">Peça: <b>invoca a carta &lt;nome&gt;</b> — ela chega (custa mana), vira apoio na conversa e devolve a pergunta pra você. Nomes na galeria de Cartas.</p>
     </div>
   `
 
@@ -262,7 +263,18 @@ function bolha(m: MensagemIA): string {
         <pre>${escapar(m.reasoning)}</pre>
       </details>`
     : ''
-  return `<div class="fabula-bolha fabula-bolha--assistente">${escapar(m.content)}${raciocinio}</div>`
+  return `<div class="fabula-bolha fabula-bolha--assistente">${renderizarConteudo(m.content)}${raciocinio}</div>`
+}
+
+/** Renderiza o conteúdo da bolha: escapa o HTML e substitui [[carta:<id>]] pela
+ *  miniatura da carta (id validado contra o deck — nada de HTML arbitrário). */
+function renderizarConteudo(conteudo: string): string {
+  const seguro = escapar(conteudo)
+  return seguro.replace(/\[\[carta:([\w-]+)\]\]/g, (_match, id: string) => {
+    if (resolverCartaId(id) !== id) return _match
+    const nome = nomeDaCarta(id)
+    return `<img class="fabula-carta" src="/images/cards/${escapar(id)}.png" alt="${escapar(nome)}" title="${escapar(nome)}" loading="lazy" />`
+  })
 }
 
 /** Abre/fecha o painel. */
@@ -329,14 +341,24 @@ async function enviar(texto: string): Promise<void> {
   salvarEstadoPainel(estado)
   renderizar()
 
-  // 2. prepara histórico pra IA
+  // 2. prepara histórico pra IA — ⚠️ RELÊ a conversa DEPOIS do push: o snapshot
+  // capturado no início NÃO tem a mensagem atual (adicionarMensagem recria o
+  // objeto) — a IA respondia sem ver o que o usuário digitou (bug real:
+  // "cada mensagem começa a conversa do zero").
+  const atualizada = conversaAtual() ?? conversa
   const systemPrompt = montarSystemPrompt(dados)
   const historico: MsgChat[] = [
     { role: 'system', content: systemPrompt },
-    ...conversa.mensagens.map((m) => ({ role: m.role, content: m.content })),
+    ...atualizada.mensagens.map((m) => ({ role: m.role, content: m.content })),
   ]
 
-  // 3. streaming
+  // 3. pedido de invocação: executa NO APP (determinístico) e avisa a Fábula
+  // via mensagem de sistema — não depende do modelo emitir o marcador.
+  const pedidoInvocacao = detectarPedidoInvocacao(texto)
+  const notaInvocacao = pedidoInvocacao ? prepararInvocacao(pedidoInvocacao) : null
+  if (notaInvocacao) historico.push({ role: 'system', content: notaInvocacao.nota })
+
+  // 4. streaming
   let resposta = ''
   let raciocinio = ''
   ocupado = true
@@ -357,8 +379,8 @@ async function enviar(texto: string): Promise<void> {
         }
         // Preserva o <details> de raciocínio se já existir; se não, monta depois.
         const raciocinioEl = ultima.querySelector<HTMLElement>('.fabula-reasoning')
-        // Exibe sem o marcador de ação ([[acao:...]]) — o streaming mostra o texto cru
-        ultima.textContent = resposta.replace(/\[\[acao:[\s\S]*?\]\]/g, '')
+        // Exibe sem os marcadores ([[acao:...]] e [[carta:...]]) — o streaming mostra o texto cru
+        ultima.textContent = resposta.replace(/\[\[(?:acao|carta):[\s\S]*?\]\]/g, '')
         if (raciocinioEl) ultima.appendChild(raciocinioEl)
         area.scrollTop = area.scrollHeight
       },
@@ -393,6 +415,11 @@ async function enviar(texto: string): Promise<void> {
     let conteudoFinal = textoLimpo
     for (const acao of acoes) {
       conteudoFinal += `\n\n${executarAcao(acao)}`
+    }
+    // Garante a miniatura da carta: se a invocação foi executada pelo app (pedido
+    // direto no texto) e a resposta não trouxe o marcador, anexa no fim.
+    if (notaInvocacao?.cartaId && !conteudoFinal.includes(`[[carta:${notaInvocacao.cartaId}]]`)) {
+      conteudoFinal += `\n\n[[carta:${notaInvocacao.cartaId}]]`
     }
     const assistantMsg: MensagemIA = {
       role: 'assistant',
@@ -432,6 +459,40 @@ function executarAcao(acao: AcaoIA): string {
     return `⚡ Invocação executada: ${nomeDaCarta(id)} (−${custo} mana).`
   }
   return `⚡ Invocação não realizada: ${resultado.motivo ?? 'não foi possível.'}`
+}
+
+/** Prepara a invocação pedida pelo usuário: executa no app (mana, log, toast)
+ *  e devolve a nota de sistema que a Fábula deve respeitar na resposta.
+ *  cartaId = carta efetivamente invocada (para a miniatura); null se não houve
+ *  invocação (bloqueada/sem mana/desconhecida). Retorna null se o termo não é
+ *  uma carta conhecida (deixa a Fábula lidar). */
+function prepararInvocacao(termo: string): { nota: string; cartaId: string | null } | null {
+  const id = resolverCartaId(termo)
+  if (!id) return null
+  const nome = nomeDaCarta(id)
+  const p = appStore.get().personagem
+  if (!p.cartas.includes(id)) {
+    return {
+      nota: `O jogador pediu a carta "${nome}", que ainda está BLOQUEADA. Diga que ela não se revelou ainda e desperte a curiosidade. NÃO invoque.`,
+      cartaId: null,
+    }
+  }
+  const custo = custoInvocacao(tipoDaCarta(id), p.invocacoes[id] ?? 0)
+  if (p.mana < custo) {
+    return {
+      nota: `O jogador pediu a carta "${nome}" mas a mana (${p.mana}/${p.manaMax}) não cobre o custo (${custo}). Recuse com delicadeza ("guarde suas forças — amanhã a mana volta"), SEM invocar.`,
+      cartaId: null,
+    }
+  }
+  const resultado = invocarCarta(id)
+  if (!resultado.ok) {
+    return { nota: `Não foi possível invocar "${nome}": ${resultado.motivo ?? 'erro desconhecido'}.`, cartaId: null }
+  }
+  notificar(`Carta invocada: ${nome} (−${custo} mana)`)
+  return {
+    nota: `A carta "${nome}" FOI invocada agora (custou ${custo} mana; restam ${p.mana - custo}). Responda usando essa carta como apoio pra pergunta do jogador — e depois devolva a pergunta a ele. NÃO repita o marcador de ação; inclua sim o marcador [[carta:${id}]] (a interface mostra a miniatura).`,
+    cartaId: id,
+  }
 }
 
 /** Chamado quando o appStore muda — re-renderiza pra refletir mudanças externas
