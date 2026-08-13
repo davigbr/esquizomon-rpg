@@ -5,6 +5,7 @@ import { danoDe, diaDaSemana, diaDoMes, hojeISO, somarDias, xpDe } from '../core
 import { appStore, registrarLog } from './base'
 import { aplicarDano, ganharXP } from './personagem'
 import { registrarRecompensa } from './tarefas'
+import { tocarSom } from '../ui/sons'
 
 /** Pendências de ontem aguardando decisão do check-in (modal estilo Habitica). */
 export let checkinPendente: { data: string; ids: string[] } | null = null
@@ -113,6 +114,7 @@ export function concluirCheckin(idsMarcados: string[]): void {
     const novas = ganharXP(xpDe(t.dificuldade)).novasCartas
     registrarRecompensa(t.id, pend.data, antes, novas)
   }
+  if (idsMarcados.length > 0) tocarSom('tarefa')
 
   // dano das recorrentes pendentes NÃO marcadas
   const danoIds = pend.ids.filter((id) => !marcadosSet.has(id))

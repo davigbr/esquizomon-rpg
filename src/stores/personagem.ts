@@ -6,6 +6,7 @@ import type { Carta } from '../core/baralho'
 import { sortearIds, sortearIniciais } from '../core/baralho'
 import { appStore, registrarLog } from './base'
 import type { Resultado } from './base'
+import { tocarSom } from '../ui/sons'
 
 /* Deck carregado + fila de desbloqueio (o deck chega assíncrono no boot). */
 export let deckCarregado: Carta[] | null = null
@@ -109,6 +110,7 @@ export function ganharXP(quantidade: number): { subiu: boolean; nivel: number; n
   appStore.set({ ...appStore.get(), personagem })
   const novasCartas = subiu ? desbloquearCartas(niveis * cartasPorNivel()) : []
   if (subiu) registrarLog('nivel', `Subiu para o nível ${nivel} (máximos restaurados)`)
+  if (subiu) tocarSom('nivel')
   return { subiu, nivel, novasCartas }
 }
 
@@ -131,6 +133,7 @@ export function invocarCarta(id: string, custoOverride?: number): Resultado {
     },
   })
   registrarLog('invocacao', `Invocou: ${carta.name} (−${custo} mana)`)
+  tocarSom('invocar')
   return { ok: true }
 }
 

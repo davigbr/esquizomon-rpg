@@ -36,8 +36,11 @@ export function danoDe(dificuldade: Dificuldade): number {
   }
 }
 
-/** Dano de uma repetição negativa de hábito. */
-export const DANO_HABITO_NEGATIVO = 2
+/** Dano de repetição negativa de hábito = MESMA escala do dano diário
+ *  (`danoDe(dificuldade)`: 3/5/8/12) — decisão 2026-08-12 (usuário:
+ *  "hábitos negativos devem tirar mais vida" + "aplique o multiplicador no
+ *  dano do hábito também"). A constante fixa DANO_HABITO_NEGATIVO foi
+ *  REMOVIDA — chamadores usam `danoDe(tarefa.dificuldade)`. */
 
 /** XP automático por carta citada no diário (a Fábula anota, o app recompensa). */
 export const XP_POR_CARTA_CITADA = 5

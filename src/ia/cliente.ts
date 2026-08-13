@@ -34,6 +34,11 @@ export const MODELOS_POR_PROVIDER: Record<ProviderIA, string[]> = {
   opencode: ['deepseek-v4-flash'],
 }
 
+/** Timeout da chamada de streaming — sem ele, uma conexão travada deixa o
+ *  chat preso em "ocupado" (input desabilitado pra sempre) — bug real 2026-08-12. */
+const TIMEOUT_IA_MS = 90_000
+const TIMEOUT_TESTE_MS = 30_000
+
 export class ErroIA extends Error {
   constructor(message: string) {
     super(message)
@@ -126,11 +131,13 @@ export async function enviarParaIA(
   }
   const modelo = ia.modelo.trim() || modeloPadrao(ia.provider)
 
-  let res: Response
+  const controle = new AbortController()
+  const timer = setTimeout(() => controle.abort(), TIMEOUT_IA_MS)
   try {
-    res = await fetch('/api/ia', {
+    const res = await fetch('/api/ia', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controle.signal,
       body: JSON.stringify({
         provider: ia.provider,
         model: modelo,
@@ -139,34 +146,52 @@ export async function enviarParaIA(
         stream: true,
       }),
     })
+    if (!res.ok) throw await erroDa(res)
+    const resultado = await lerSSE(res, opts)
+    if (resultado.error) throw new ErroIA(resultado.error)
+    return { content: resultado.content, reasoning: resultado.reasoning }
   } catch (err) {
-    throw new ErroIA(
-      `Não consegui contactar a IA (/api/ia). ${err instanceof Error ? err.message : String(err)}`,
-    )
+    if (err instanceof ErroIA) throw err
+    throw new ErroIA(mensagemFetch(err))
+  } finally {
+    clearTimeout(timer)
   }
+}
 
-  if (!res.ok) throw await erroDa(res)
-  const resultado = await lerSSE(res, opts)
-  if (resultado.error) throw new ErroIA(resultado.error)
-  return { content: resultado.content, reasoning: resultado.reasoning }
+/** Mensagem amigável de erro de fetch/abort (timeout do streaming). */
+function mensagemFetch(err: unknown): string {
+  if (err instanceof DOMException && err.name === 'AbortError') {
+    return 'A resposta demorou demais e foi interrompida. Tente de novo.'
+  }
+  return `Não consegui contactar a IA (/api/ia). ${err instanceof Error ? err.message : String(err)}`
 }
 
 /** Teste de conexão (chamada bloqueante, sem streaming). */
 export async function testarConexao(ia: ConfigIa): Promise<string> {
   if (ia.provider === 'nenhum') throw new ErroIA('Escolha um provider.')
   const modelo = ia.modelo.trim() || modeloPadrao(ia.provider)
-  const res = await fetch('/api/ia', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      provider: ia.provider,
-      model: modelo,
-      messages: [{ role: 'user', content: 'Responda apenas: ok' }],
-      apiKey: ia.apiKey,
-      stream: false,
-    }),
-  })
-  if (!res.ok) throw await erroDa(res)
-  const j = (await res.json()) as { choices?: { message?: { content?: string } }[] }
-  return j.choices?.[0]?.message?.content ?? ''
+  const controle = new AbortController()
+  const timer = setTimeout(() => controle.abort(), TIMEOUT_TESTE_MS)
+  try {
+    const res = await fetch('/api/ia', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controle.signal,
+      body: JSON.stringify({
+        provider: ia.provider,
+        model: modelo,
+        messages: [{ role: 'user', content: 'Responda apenas: ok' }],
+        apiKey: ia.apiKey,
+        stream: false,
+      }),
+    })
+    if (!res.ok) throw await erroDa(res)
+    const j = (await res.json()) as { choices?: { message?: { content?: string } }[] }
+    return j.choices?.[0]?.message?.content ?? ''
+  } catch (err) {
+    if (err instanceof ErroIA) throw err
+    throw new ErroIA(mensagemFetch(err))
+  } finally {
+    clearTimeout(timer)
+  }
 }

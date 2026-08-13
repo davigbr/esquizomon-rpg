@@ -4,10 +4,13 @@ import { test, expect } from '@playwright/test'
 
 const hoje = new Date().toISOString().slice(0, 10)
 
-/** Estado com a carta Ninho Enclausurado desbloqueada + mana sobrando. */
+/** Estado com a carta Ninho Enclausurado desbloqueada + mana sobrando.
+ *  Semeia UMA vez: em reloads mantém o que o teste gravou (senão o seed
+ *  sobrescreve mudanças e testes de persistência falham). */
 async function semear(page: import('@playwright/test').Page): Promise<void> {
   await page.addInitScript(
     ({ hoje }) => {
+      if (localStorage.getItem('esquizomon-rpg:v1')) return
       const d = {
         versao: 3,
         tarefas: [],
@@ -26,6 +29,21 @@ async function semear(page: import('@playwright/test').Page): Promise<void> {
     { hoje },
   )
 }
+
+test('config: efeitos sonoros têm toggle persistente (padrão ligado)', async ({ page }) => {
+  await semear(page)
+  await page.goto('/#/config')
+  const sel = page.locator('[data-sons]')
+  await expect(sel).toHaveValue('on') // padrão ligado
+  await sel.selectOption('off')
+  await expect
+    .poll(() =>
+      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.configuracao?.sons ?? null)),
+    )
+    .toBe(false)
+  await page.reload()
+  await expect(page.locator('[data-sons]')).toHaveValue('off')
+})
 
 test('config: "Sobre você" salva o resumo e persiste no reload', async ({ page }) => {
   await page.goto('/#/config')
@@ -421,7 +439,7 @@ test('fabula: /invocar com autocomplete escolhe a carta e invoca (mana normal)',
   await page.keyboard.press('Enter')
   await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
 
-  // captura custa 8 → 20−8 = 12; a mensagem foi convertida em frase natural
+  // captura custa 8 → 20−8 = 12; o texto CRU do comando fica no histórico
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 12/20')
   await expect(page.locator('.fabula-bolha--assistente img.fabula-carta')).toBeVisible()
   const corpo = await page.evaluate(async () => {
@@ -429,7 +447,7 @@ test('fabula: /invocar com autocomplete escolhe a carta e invoca (mana normal)',
     const c = appStore.get().conversas?.[0]
     return c?.mensagens?.[0]?.content ?? ''
   })
-  expect(corpo).toBe('invoca a carta Ninho Enclausurado')
+  expect(corpo).toBe('/invocar Ninho Enclausurado')
 })
 
 test('fabula: /invocar sem nome — a Fábula escolhe a carta (custo premium ×1,5)', async ({ page }) => {
@@ -486,5 +504,71 @@ test('fabula: /analisar desconta 10 de mana e pede análise esquizoanalítica', 
     .join('\n')
   expect(sistema).toContain('ANÁLISE ESQUIZOANALÍTICA')
   const conteudos = corpo.messages.map((m: { content: string }) => m.content)
-  expect(conteudos).toContain('Fábula, faz uma análise.')
+  // o comando cru vai pro histórico (e pra Fábula) como digitado
+  expect(conteudos).toContain('/analisar')
+})
+
+test('fabula: /analisar sem mana — a Fábula explica no chat (mana intacta)', async ({ page }) => {
+  await semearChat(page)
+  const corpos: string[] = []
+  await page.route('**/api/ia', (rota) => {
+    corpos.push(rota.request().postData() ?? '')
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('Guarde suas forças.') })
+  })
+  // mana baixa: 5 < 10
+  await page.addInitScript(() => {
+    const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
+    d.personagem.mana = 5
+    localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
+  })
+
+  await page.goto('/#/hoje')
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click()
+  await page.locator('[data-fabula-input]').fill('/analisar')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+
+  // mana NÃO descontou e a Fábula foi avisada pra recusar com delicadeza
+  await expect(page.locator('[data-s-mana]')).toHaveText('Mana 5/20')
+  const corpo = JSON.parse(corpos[corpos.length - 1])
+  const sistema = corpo.messages
+    .filter((m: { role: string }) => m.role === 'system')
+    .map((m: { content: string }) => m.content)
+    .join('\n')
+  expect(sistema).toContain('não tem mana suficiente')
+})
+
+test('fabula: resposta vazia do modelo vira erro visível (sem bolha vazia)', async ({ page }) => {
+  await semearChat(page)
+  await page.route('**/api/ia', (rota) => {
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: 'data: [DONE]\n' })
+  })
+
+  await page.goto('/#/hoje')
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click()
+  await page.locator('[data-fabula-input]').fill('olá')
+  await page.keyboard.press('Enter')
+
+  // nenhuma bolha do assistente é salva; toast de erro aparece
+  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(0)
+  await expect(page.locator('.toast').last()).toContainText('não respondeu nada')
+})
+
+test('fabula: sem conversas — o chat inicia uma automaticamente ao abrir', async ({ page }) => {
+  await semear(page) // conversas: []
+
+  await page.goto('/#/hoje')
+  await page.click('#fabula-toggle')
+
+  // uma conversa foi criada sozinha, o input está habilitado e persistiu
+  await expect(page.locator('.fabula-item')).toHaveCount(1)
+  await expect(page.locator('[data-fabula-input]')).toBeEnabled()
+  await expect
+    .poll(() =>
+      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.conversas?.length ?? 0)),
+    )
+    .toBe(1)
+  await expect(page.locator('.toast').last()).toContainText('comecei uma nova')
 })

@@ -1,7 +1,7 @@
 /** Visão Jogo — como o jogo funciona, progressão e o progresso do baralho. */
 
 import type { AppData } from '../../core/tipos'
-import { DANO_HABITO_NEGATIVO, DIFICULDADES, danoDe, nivelBaralhoCompleto, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../../core/jogo'
+import { DIFICULDADES, danoDe, nivelBaralhoCompleto, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../../core/jogo'
 import { graficoProgressao } from '../graficos'
 
 /** Níveis exibidos nos gráficos (até o baralho completo). */
@@ -84,8 +84,8 @@ export function montarFicha(raiz: HTMLElement, dados: AppData): void {
             `).join('')}
             <tr>
               <th scope="row">Hábito negativo</th>
-              <td>—</td>
-              <td><b>−${DANO_HABITO_NEGATIVO}</b></td>
+              <td>${DIFICULDADES[0].rotulo} a ${DIFICULDADES[DIFICULDADES.length - 1].rotulo}</td>
+              <td><b>−${danoDe(DIFICULDADES[0].id)} a −${danoDe(DIFICULDADES[DIFICULDADES.length - 1].id)}</b></td>
             </tr>
           </tbody>
         </table>

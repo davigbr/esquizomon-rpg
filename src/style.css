@@ -2497,6 +2497,13 @@ body.fabula-aberto .container {
   font-size: 11px;
 }
 
+/* reserva espaço à direita do texto: o botão copiar fica no canto e nunca
+   sobrepõe o conteúdo em balões curtos */
+.fabula-bolha-texto {
+  display: block;
+  padding-right: 26px;
+}
+
 .fabula-bolha--assistente {
   align-self: flex-start;
   background: var(--bg-tertiary);

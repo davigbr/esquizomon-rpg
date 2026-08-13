@@ -89,6 +89,8 @@ export interface Configuracao {
   ia?: ConfigIa
   /** Resumo da vida do usuário ("Sobre você") — a Fábula usa pra te conhecer. */
   resumo?: string
+  /** Efeitos sonoros (Web Audio, sintetizados) — padrão ligado. */
+  sons?: boolean
 }
 
 /** Provider de IA. MVP: deepseek e opencode Zen Go (ambos OpenAI-compatíveis). */

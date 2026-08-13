@@ -16,6 +16,7 @@ import { extrairAcoes, detectarPedidoInvocacao, detectarComando, type AcaoIA } f
 import { nomeDaCarta, resolverCartaId, tipoDaCarta, rotuloTipo, todasAsCartas } from '../core/baralho'
 import { invocarCarta } from '../stores/app'
 import { custoInvocacao, custoInvocacaoFabula, CUSTO_ANALISE } from '../core/jogo'
+import { tocarSom } from './sons'
 import { notificar } from './toast'
 import { escapar } from './util'
 import { confirmar } from './modal'
@@ -118,7 +119,30 @@ function renderizar(): void {
   sugestaoIdx = 0
   const dados: AppData = appStore.get()
   const conversas = dados.conversas ?? []
-  const conversa = estado.conversaAtivaId ? conversas.find((c) => c.id === estado.conversaAtivaId) ?? undefined : undefined
+  // Auto-recuperação (bug real 2026-08-12): se o id da conversa ativa é ÓRFÃO
+  // (ex.: import/export substituiu as conversas, ou painel antigo), seleciona a
+  // conversa mais recente em vez de deixar o chat morto (input desabilitado).
+  if (estado.conversaAtivaId && !conversas.some((c) => c.id === estado.conversaAtivaId)) {
+    estado.conversaAtivaId = conversas[0]?.id ?? null
+    salvarEstadoPainel(estado)
+  }
+  // Auto-início (usabilidade 2026-08-12, pedido do usuário): com o painel
+  // ABERTO e nenhuma conversa (ex.: import substituiu os dados), cria uma nova
+  // na hora — o chat nunca fica morto esperando o usuário achar o botão ✏.
+  if (estado.aberto && conversas.length === 0) {
+    const nova = criarConversa()
+    if (nova) {
+      estado.conversaAtivaId = nova.id
+      salvarEstadoPainel(estado)
+      notificar('Sem conversas — comecei uma nova pra você.')
+    }
+  }
+  // Relê do store: o auto-início acima pode ter acabado de criar uma conversa
+  // (a array `conversas` do topo é o snapshot ANTES da criação).
+  const conversasAtuais = appStore.get().conversas ?? []
+  const conversa = estado.conversaAtivaId
+    ? conversasAtuais.find((c) => c.id === estado.conversaAtivaId) ?? undefined
+    : undefined
   const ultima = conversa?.mensagens[conversa.mensagens.length - 1]
   const esperando = ocupado && ultima?.role === 'user'
 
@@ -132,9 +156,9 @@ function renderizar(): void {
         <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
       </button>
       <div class="fabula-lista" data-fabula-lista role="list" aria-label="Conversas">
-        ${conversas.length === 0
+        ${conversasAtuais.length === 0
           ? '<div class="fabula-vazio-lista">Sem conversas</div>'
-          : conversas.map(itemConversa).join('')}
+          : conversasAtuais.map(itemConversa).join('')}
       </div>
     </div>
 
@@ -175,7 +199,7 @@ function renderizar(): void {
         <textarea class="fabula-input" data-fabula-input rows="1" placeholder="${conversa ? "Converse com Fábula… ('invoca a carta X' custa mana)" : 'Crie uma conversa para começar'}" autocomplete="off" ${!conversa || ocupado ? 'disabled' : ''}></textarea>
         <button class="btn btn-icon" type="submit" aria-label="Enviar" ${!conversa || ocupado ? 'disabled' : ''}><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></button>
       </form>
-      <p class="fabula-dica">Peça: <b>invoca a carta &lt;nome&gt;</b> — ela chega (custa mana), vira apoio na conversa e devolve a pergunta pra você. Nomes na galeria de Cartas.</p>
+      <p class="fabula-dica">Comandos: <b>/invocar &lt;carta&gt;</b> (custa mana) · <b>/invocar</b> sem nome (a Fábula escolhe, custa mais) · <b>/analisar</b> (10 mana, análise esquizoanalítica). Ou peça no texto: <b>invoca a carta &lt;nome&gt;</b>.</p>
     </div>
   `
 
@@ -568,33 +592,34 @@ async function enviar(texto: string): Promise<void> {
     return
   }
 
-  // 0. comandos (/) — converte pra frase natural e orquestra a ação no app
-  let textoEnviado = texto
+  // 0. comandos (/) — o texto CRU do comando vai pro histórico e pra Fábula
+  // (decisão 2026-08-12: "deve aparecer exatamente o texto do comando no chat
+  // e enviar à Fábula"); o app orquestra a ação por cima (mana, invocação).
   let escolhaFabula = false
   let analisePedida = false
+  let analiseRecusada = false
   const comando = detectarComando(texto)
-  if (comando?.tipo === 'invocar' && !comando.escolhaFabula) {
-    // /invocar <carta> → frase natural; o fluxo de invocação detecta o verbo
-    textoEnviado = `invoca a carta ${comando.carta}`
-  } else if (comando?.tipo === 'invocar') {
+  if (comando?.tipo === 'invocar' && comando.escolhaFabula) {
     // /invocar sem nome → a Fábula escolhe a carta (custo premium ×1,5)
-    textoEnviado = 'Fábula, escolha a carta a invocar.'
     escolhaFabula = true
   } else if (comando?.tipo === 'analisar') {
     // /analisar → análise esquizoanalítica profunda (custa mana)
     const p = appStore.get().personagem
     if (p.mana < CUSTO_ANALISE) {
-      notificar(`Mana insuficiente para a análise — precisa de ${CUSTO_ANALISE}.`, 'erro')
-      return
+      // não descarta o pedido: a Fábula explica no chat (mana intacta)
+      analiseRecusada = true
+    } else {
+      appStore.set({ ...appStore.get(), personagem: { ...p, mana: p.mana - CUSTO_ANALISE } })
+      notificar(`Análise esquizoanalítica (−${CUSTO_ANALISE} mana)`)
+      tocarSom('analise')
+      analisePedida = true
     }
-    appStore.set({ ...appStore.get(), personagem: { ...p, mana: p.mana - CUSTO_ANALISE } })
-    notificar(`Análise esquizoanalítica (−${CUSTO_ANALISE} mana)`)
-    textoEnviado = 'Fábula, faz uma análise.'
-    analisePedida = true
   }
+  // /invocar <carta>: nada a fazer aqui — a detecção do verbo abaixo
+  // (detectarPedidoInvocacao) executa a invocação com o texto cru.
 
-  // 1. push user (a frase convertida — o histórico lê como conversa natural)
-  const userMsg: MensagemIA = { role: 'user', content: textoEnviado, ts: new Date().toISOString() }
+  // 1. push user (texto cru — o comando aparece como digitado)
+  const userMsg: MensagemIA = { role: 'user', content: texto, ts: new Date().toISOString() }
   adicionarMensagem(conversa.id, userMsg)
   // Garante que a conversa ativa é a que estamos editando (re-ordenada por atualizadaEm).
   estado.conversaAtivaId = conversa.id
@@ -614,13 +639,13 @@ async function enviar(texto: string): Promise<void> {
 
   // 3. pedido de invocação: executa NO APP (determinístico) e avisa a Fábula
   // via mensagem de sistema — não depende do modelo emitir o marcador.
-  const pedidoInvocacao = detectarPedidoInvocacao(textoEnviado)
+  const pedidoInvocacao = detectarPedidoInvocacao(texto)
   const notaInvocacao = pedidoInvocacao ? prepararInvocacao(pedidoInvocacao) : null
   if (notaInvocacao) historico.push({ role: 'system', content: notaInvocacao.nota })
 
   // 3b. comandos especiais: a Fábula escolhe a carta (/invocar sem nome, custo
-  // premium — ela pode emitir o marcador SÓ neste turno) e a análise
-  // esquizoanalítica (/analisar, mana já descontada).
+  // premium — ela pode emitir o marcador SÓ neste turno), a análise
+  // esquizoanalítica (/analisar, mana já descontada) e a recusa por mana.
   if (escolhaFabula) {
     historico.push({
       role: 'system',
@@ -634,9 +659,16 @@ async function enviar(texto: string): Promise<void> {
     historico.push({
       role: 'system',
       content:
-        'O jogador pediu uma ANÁLISE ESQUIZOANALÍTICA (o app já descontou 10 de mana). ' +
+        'O jogador pediu uma ANÁLISE ESQUIZOANALÍTICA (comando /analisar — o app já descontou 10 de mana). ' +
         'Faça uma análise profunda no método esquizoanalítico: mapeie as máquinas desejantes em funcionamento (peças, fluxos e cortes), as linhas de fuga e os devires em curso, os territórios e ritornelos — ' +
         'a partir do resumo "Sobre você", do diário e do que ele disse agora. Análise extensa (10-16 frases), metáforas concretas, sem jargão acadêmico; termine com 2-3 perguntas que fiquem ecoando.',
+    })
+  }
+  if (analiseRecusada) {
+    const p = appStore.get().personagem
+    historico.push({
+      role: 'system',
+      content: `O jogador pediu /analisar mas não tem mana suficiente (tem ${p.mana}/${p.manaMax}; a análise custa ${CUSTO_ANALISE}). NÃO faça a análise: explique com delicadeza que as forças estão baixas, sugira voltar amanhã (a mana regenera no reset) e devolva uma pergunta.`,
     })
   }
 
@@ -692,6 +724,12 @@ async function enviar(texto: string): Promise<void> {
         area.scrollTop = area.scrollHeight
       },
     })
+    // Resposta vazia do modelo (ex.: só raciocínio, ou recusa silenciosa):
+    // mostra erro em vez de salvar uma bolha vazia (bug real 2026-08-12).
+    if (!resposta.trim()) {
+      notificar('A Fábula não respondeu nada. Tente de novo.', 'erro')
+      return
+    }
     // 4. executa as ações da Fábula (marcador [[acao:...]]) e salva a mensagem.
     // Regra (2026-08-12): marcador SÓ executa quando o turno é a ESCOLHA da
     // Fábula (/invocar sem nome); eco do marcador após invocação do app ou

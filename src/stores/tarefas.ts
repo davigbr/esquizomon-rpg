@@ -1,9 +1,10 @@
 /** Domínio das tarefas: CRUD, alternância (XP/recompensas) e hábitos. */
 
 import type { AppData, Personagem, RecompensaConclusao, Tarefa, TipoTarefa } from '../core/tipos'
-import { DANO_HABITO_NEGATIVO, hojeISO, novoId, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../core/jogo'
+import { danoDe, hojeISO, novoId, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../core/jogo'
 import { appStore, registrarLog, tarefaPorId } from './base'
 import type { DadosTarefa, Resultado } from './base'
+import { tocarSom } from '../ui/sons'
 import { aplicarDano, ganharXP } from './personagem'
 
 export function tagsEmUso(dados: AppData): string[] {
@@ -121,6 +122,7 @@ export function alternarRecorrenteHoje(id: string, data: string = hojeISO()): st
       registrarLog('tarefa', `Concluiu recorrente: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP)`)
       const antes = appStore.get().personagem
       const novas = ganharXP(xpDe(tarefa.dificuldade)).novasCartas
+      tocarSom('tarefa')
       registrarRecompensa(tarefa.id, data, antes, novas)
       return novas
     }
@@ -156,6 +158,7 @@ export function alternarUnica(id: string, data: string = hojeISO()): string[] {
     registrarLog('tarefa', `Concluiu: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP)`)
     const antes = appStore.get().personagem
     const novas = ganharXP(xpDe(tarefa.dificuldade)).novasCartas
+    tocarSom('tarefa')
     registrarRecompensa(tarefa.id, data, antes, novas)
     return novas
   }
@@ -256,10 +259,14 @@ export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data
   if (tarefa) {
     if (sinal === 'positivo') {
       registrarLog('habito', `Hábito positivo: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP)`)
-      return ganharXP(xpDe(tarefa.dificuldade)).novasCartas
+      const novas = ganharXP(xpDe(tarefa.dificuldade)).novasCartas
+      tocarSom('habito-pos')
+      return novas
     }
-    aplicarDano(DANO_HABITO_NEGATIVO)
-    registrarLog('habito', `Hábito negativo: ${tarefa.titulo} (−${DANO_HABITO_NEGATIVO} vida)`)
+    const dano = danoDe(tarefa.dificuldade) // escala com a dificuldade (3/5/8/12)
+    aplicarDano(dano)
+    tocarSom('habito-neg')
+    registrarLog('habito', `Hábito negativo: ${tarefa.titulo} (−${dano} vida)`)
   }
   return []
 }

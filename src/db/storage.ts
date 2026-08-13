@@ -6,6 +6,27 @@ import { hpMaxDe, manaMaxDe, personagemInicial, xpProximoDe } from '../core/jogo
 
 const memory = new Map<string, string>()
 
+/* ---------- aviso de falha de persistência ----------
+ * Quando o localStorage falha (quota cheia, modo privado, storage bloqueado),
+ * a escrita cai no fallback em memória: o app segue "funcionando" mas os
+ * dados somem no reload SEM aviso (bug real 2026-08-12). A UI registra um
+ * callback aqui pra transformar a perda silenciosa em alerta. */
+
+let avisarFalha: (motivo: string) => void = () => {}
+let jaAvisou = false
+
+/** A UI (main.ts) registra aqui para avisar o usuário quando a persistência falhar. */
+export function aoFalharPersistencia(cb: (motivo: string) => void): void {
+  avisarFalha = cb
+}
+
+function falhaPersistencia(motivo: string): void {
+  console.error(`[storage] persistência falhou (${motivo}) — dados só em memória; some no reload`)
+  if (jaAvisou) return
+  jaAvisou = true
+  avisarFalha(motivo)
+}
+
 export function storageGet(key: string): string | null {
   try {
     return localStorage.getItem(key)
@@ -17,7 +38,12 @@ export function storageGet(key: string): string | null {
 export function storageSet(key: string, value: string): void {
   try {
     localStorage.setItem(key, value)
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'QuotaExceededError') {
+      falhaPersistencia('Armazenamento cheio — os dados podem não sobreviver ao reload. Exporte um backup em Config.')
+    } else {
+      falhaPersistencia('Navegador bloqueou o armazenamento (modo privado?) — os dados podem não sobreviver ao reload.')
+    }
     memory.set(key, value)
   }
 }
@@ -166,6 +192,7 @@ function normalizarConfiguracao(v: unknown): Configuracao {
   const out: Configuracao = { tema, modoRelaxado }
   if (ia) out.ia = ia
   if (ehObjeto(v) && typeof v.resumo === 'string' && v.resumo.trim()) out.resumo = v.resumo
+  if (ehObjeto(v) && typeof v.sons === 'boolean') out.sons = v.sons
   return out
 }
 

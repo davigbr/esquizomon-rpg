@@ -16,7 +16,8 @@ import { iniciarAuth } from './sync/auth'
 import { iniciarSync } from './sync/sync'
 import { montarBotaoConta } from './ui/headerConta'
 import { carregarDeck } from './core/baralho'
-import { storageGet } from './db/storage'
+import { aoFalharPersistencia, storageGet } from './db/storage'
+import { notificar } from './ui/toast'
 import type { Tema } from './core/tipos'
 
 const raiz = document.getElementById('app')!
@@ -208,6 +209,10 @@ verificarCheckin()
 /* ---------- conta & sincronização (opcional — o app roda offline) ---------- */
 
 void iniciarAuth().then(() => iniciarSync())
+
+/* ---------- aviso de falha de persistência (quota cheia / storage bloqueado) ---------- */
+
+aoFalharPersistencia((motivo) => notificar(motivo, 'erro'))
 
 /* ---------- baralho (carrega o deck e sorteia as cartas iniciais) ---------- */
 

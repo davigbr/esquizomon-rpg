@@ -26,6 +26,7 @@ function iaAtual(dados: AppData): ConfigIa {
 export function montarConfig(raiz: HTMLElement, dados: AppData): void {
   const tema = dados.configuracao.tema
   const modoRelaxado = dados.configuracao.modoRelaxado === true
+  const sons = dados.configuracao.sons !== false
   const resumo = dados.configuracao.resumo ?? ''
   const ia = iaAtual(dados)
   const total = dados.tarefas.length
@@ -62,6 +63,16 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
         <select class="filtro-select" data-modo-relaxado>
           <option value="off" ${!modoRelaxado ? 'selected' : ''}>Desligado</option>
           <option value="on" ${modoRelaxado ? 'selected' : ''}>Ligado</option>
+        </select>
+      </div>
+      <div class="config-linha">
+        <div>
+          <div class="config-rotulo">Efeitos sonoros</div>
+          <div class="config-dica">Tique ao marcar · hábito + sobe, hábito − desce · fanfarra ao subir de nível · som sombrio na invocação · acorde na análise</div>
+        </div>
+        <select class="filtro-select" data-sons>
+          <option value="on" ${sons !== false ? 'selected' : ''}>Ligados</option>
+          <option value="off" ${sons === false ? 'selected' : ''}>Desligados</option>
         </select>
       </div>
     </div>
@@ -105,6 +116,12 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
     const valor = (e.target as HTMLSelectElement).value === 'on'
     definirConfiguracao({ modoRelaxado: valor })
     notificar(valor ? 'Modo relaxado ligado — sem dano.' : 'Modo relaxado desligado.')
+  })
+
+  raiz.querySelector('[data-sons]')!.addEventListener('change', (e) => {
+    const ligados = (e.target as HTMLSelectElement).value === 'on'
+    definirConfiguracao({ sons: ligados })
+    notificar(ligados ? 'Efeitos sonoros ligados.' : 'Efeitos sonoros desligados.')
   })
 
   raiz.querySelector('[data-resumo]')?.addEventListener('change', (e) => {
