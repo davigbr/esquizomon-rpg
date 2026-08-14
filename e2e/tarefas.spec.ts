@@ -66,3 +66,27 @@ test('recorrente: marca o dia no histórico e desmarca', async ({ page }) => {
   await expect(card.locator('.tarefa-check')).not.toHaveClass(/marcado/)
   await expect(page.locator('[data-s-xp]')).toHaveText('XP 0/80')
 })
+
+test('hábito: repetição negativa EXTREMA tira 12 de vida (dano escala com a dificuldade)', async ({ page }) => {
+  await page.goto('/#/hoje')
+  await expect(page.locator('[data-s-hp]')).toHaveText('50/50')
+
+  // cria hábito de dificuldade extrema (×2.5 → danoDe = 12)
+  await page.locator('[data-novo-tipo="habito"]').click()
+  await page.locator('input[name="titulo"]').fill('Hábito extremo E2E')
+  await page.locator('select[name="dificuldade"]').selectOption('extrema')
+  await page.locator('select[name="sinal"]').selectOption('ambos')
+  await page.locator('button[type="submit"]').click()
+
+  const card = page.locator('.habito-card', { hasText: 'Hábito extremo E2E' })
+  await expect(card).toBeVisible()
+
+  // − → 50 − 12 = 38, e o log registra o dano por dificuldade
+  await card.locator('[data-habito="negativo"]').click()
+  await expect(page.locator('[data-s-hp]')).toHaveText('38/50')
+  await expect
+    .poll(() =>
+      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.log?.[0]?.texto ?? '')),
+    )
+    .toContain('(−12 vida)')
+})
