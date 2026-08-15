@@ -91,8 +91,11 @@ async function enviarAgora(): Promise<void> {
   }
 }
 
-/** Puxa a nuvem e decide quem é mais novo (last-write-wins por salvoEm). */
-export async function sincronizarAgora(): Promise<void> {
+/** Sincroniza com a nuvem. `forcar` decide a direção (pergunta da UI no
+ *  login com dados locais — 2026-08-12): 'local' envia SEMPRE (o dispositivo
+ *  sobrescreve a nuvem), 'nuvem' aplica SEMPRE (a nuvem sobrescreve o local),
+ *  omitido = last-write-wins por `salvoEm`. */
+export async function sincronizarAgora(forcar?: 'local' | 'nuvem'): Promise<void> {
   const token = await obterTokenValido()
   if (!token) {
     definirEstado('local')
@@ -105,9 +108,15 @@ export async function sincronizarAgora(): Promise<void> {
     const envelope = (await res.json()) as { salvoEm: string | null; dados: unknown }
     const local = lerMetadados()
 
-    const blobMaisNovo = envelope.salvoEm && (!local.salvoEm || envelope.salvoEm > local.salvoEm)
+    if (forcar === 'local') {
+      await enviarAgora()
+      return
+    }
+
+    const blobMaisNovo =
+      forcar === 'nuvem' || (envelope.salvoEm && (!local.salvoEm || envelope.salvoEm > local.salvoEm))
     if (blobMaisNovo && envelope.dados) {
-      // nuvem mais nova → aplica
+      // nuvem mais nova (ou forçado) → aplica
       carregando = true
       substituirDados(envelope.dados)
       carregando = false
@@ -125,9 +134,9 @@ export async function sincronizarAgora(): Promise<void> {
 }
 
 /** Chama quando a sessão muda (login/sair) — re-sincroniza ou volta ao local. */
-export function aposMudancaSessao(): void {
+export function aposMudancaSessao(forcar?: 'local' | 'nuvem'): void {
   if (sessaoAtual()) {
-    void sincronizarAgora()
+    void sincronizarAgora(forcar)
   } else {
     definirEstado('local')
   }

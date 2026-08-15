@@ -7,8 +7,51 @@ import { notificar } from './toast'
 import { consumirAvisoConfirmacao, criarConta, login, recuperarSenha, sair, sessaoAtual } from '../sync/auth'
 import { aposMudancaSessao } from '../sync/sync'
 import { escapar } from './util'
+import { appStore } from '../stores/base'
 
 type Modo = 'entrar' | 'criar' | 'recuperar'
+
+/** Tem dados de uso real salvos neste dispositivo? (para a pergunta de sync) */
+function temDadosLocais(): boolean {
+  const d = appStore.get()
+  return (
+    d.tarefas.length > 0 ||
+    (d.diario?.length ?? 0) > 0 ||
+    d.log.length > 0 ||
+    (d.conversas?.length ?? 0) > 0 ||
+    d.personagem.xp > 0
+  )
+}
+
+/** Pergunta qual direção da sincronização persistir (2026-08-12): o login
+ *  encontrou dados locais E a conta pode ter outros. Recomenda exportar. */
+function abrirEscolhaSync(): void {
+  abrirModal(`
+    <h2 class="login-titulo">Sincronizar com a conta</h2>
+    <p class="login-sub">Este dispositivo tem dados salvos — e a conta pode ter outros. Qual versão deve ficar?</p>
+    <p class="login-dica login-dica--aviso">⚠️ Recomendamos <strong>exportar um backup antes</strong> (Config → Exportar). Assim você não perde nada, aconteça o que acontecer.</p>
+    <div class="form-acoes form-acoes--coluna">
+      <button class="btn btn-primary" data-sync-local>Manter os dados deste dispositivo</button>
+      <button class="btn" data-sync-nuvem>Usar os dados da conta</button>
+      <button class="btn btn--texto" data-sync-cancelar>Cancelar — quero exportar antes</button>
+    </div>
+  `)
+  const body = document.getElementById('modal-body')!
+  body.querySelector('[data-sync-local]')?.addEventListener('click', () => {
+    aposMudancaSessao('local')
+    notificar('Seus dados deste dispositivo foram enviados para a conta.')
+    fecharModal()
+  })
+  body.querySelector('[data-sync-nuvem]')?.addEventListener('click', () => {
+    aposMudancaSessao('nuvem')
+    notificar('Os dados da conta foram aplicados neste dispositivo.')
+    fecharModal()
+  })
+  body.querySelector('[data-sync-cancelar]')?.addEventListener('click', () => {
+    fecharModal()
+    notificar('Sem sincronizar por ora. Exporte um backup na Config quando puder.')
+  })
+}
 
 function campo(label: string, tipo: string, nome: string, autocomplete: string): string {
   return `
@@ -97,7 +140,10 @@ export function abrirLoginModal(): void {
   })
 
   // aviso pós-confirmação de email (link do correio)
-  if (consumirAvisoConfirmacao()) avisar('E-mail confirmado! Agora é só entrar.')
+  const avisoConfirmacao = consumirAvisoConfirmacao()
+  if (avisoConfirmacao === 'ok') avisar('E-mail confirmado! Agora é só entrar.')
+  else if (avisoConfirmacao === 'falhou')
+    avisar('Não foi possível confirmar seu e-mail pelo link — ele pode ter expirado ou já foi usado. Use "Esqueci a senha" para receber um novo.', true)
 
   const ocupar = (b: HTMLButtonElement, texto: string): void => {
     b.disabled = true
@@ -117,9 +163,14 @@ export function abrirLoginModal(): void {
     const r = await login(email, senha)
     liberar(botao, 'Entrar')
     if (!r.ok) return avisar(r.motivo ?? 'Falha ao entrar.', true)
-    aposMudancaSessao()
-    notificar('Sincronização ativada — seus dados ganharam uma cópia na nuvem.')
     fecharModal()
+    if (temDadosLocais()) {
+      // conta já tinha dados possíveis + este dispositivo tem dados → perguntar
+      abrirEscolhaSync()
+    } else {
+      aposMudancaSessao()
+      notificar('Sincronização ativada — seus dados ganharam uma cópia na nuvem.')
+    }
   })
 
   forms.criar.addEventListener('submit', async (ev) => {

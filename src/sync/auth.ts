@@ -75,12 +75,28 @@ function montarSessao(tokens: { accessToken: string; refreshToken: string; expir
   return { ...tokens, usuario }
 }
 
-/** Mensagem de erro amigável a partir da resposta do goTrue. */
+/** Mensagem de erro amigável a partir da resposta do goTrue — os erros do
+ *  servidor vêm em INGLÊS; traduzimos os comuns para pt-BR (2026-08-12). */
+const ERROS_TRADUZIDOS: Array<[RegExp, string]> = [
+  [/email.{0,20}not.{0,15}confirmed|not confirmed|confirm your email/i, 'Seu e-mail ainda não foi confirmado. Abra o link que enviamos (confira também o spam) e tente de novo.'],
+  [/invalid login|invalid.{0,10}password|incorrect/i, 'E-mail ou senha incorretos.'],
+  [/already registered|user already exist/i, 'Este e-mail já tem uma conta. Entre ou use "Esqueci a senha".'],
+  [/password.{0,20}(short|least|minimum|6)/i, 'A senha precisa ter ao menos 6 caracteres.'],
+  [/invalid.{0,10}email|email.{0,10}invalid/i, 'E-mail inválido.'],
+  [/no user|user.{0,15}not found|no account/i, 'Conta não encontrada.'],
+  [/token.{0,15}(invalid|expired)|link.{0,10}expired/i, 'Este link expirou ou é inválido. Peça um novo.'],
+  [/too many requests/i, 'Muitas tentativas seguidas. Espere um pouco e tente de novo.'],
+  [/rate limit/i, 'Limite de tentativas atingido. Espere um pouco.']
+]
+
 function extrairErro(res: Response, corpo: unknown): string {
   const c = (corpo ?? {}) as { error_description?: string; msg?: string; message?: string; errors?: Array<{ message?: string }> }
-  const msg =
+  const bruto =
     c.error_description ?? c.msg ?? c.message ?? (Array.isArray(c.errors) ? c.errors.map((e) => e.message ?? '').join(', ') : '') ?? ''
-  if (msg) return msg
+  for (const [regex, pt] of ERROS_TRADUZIDOS) {
+    if (regex.test(bruto)) return pt
+  }
+  if (bruto) return bruto
   if (res.status === 400) return 'E-mail ou senha incorretos.'
   if (res.status === 422) return 'E-mail inválido ou senha fraca demais.'
   return `Falha na autenticação (HTTP ${res.status}).`
@@ -261,6 +277,14 @@ export async function sair(): Promise<void> {
 
 // ── Inicialização (boot) ────────────────────────────────────────────
 
+/** Link de confirmação: o goTrue espera type 'signup' (não 'confirmation'!)
+ *  — bug real 2026-08-12: o verify falhava 400 e a conta nunca confirmava. */
+const TIPOS_VERIFY: Record<string, string> = {
+  confirmation: 'signup',
+  invite: 'invite',
+  recovery: 'recovery',
+}
+
 /**
  * Processa o hash de confirmação (link do email) e restaura a sessão.
  * Deve rodar ANTES do router (o hash carrega confirmation_token, não rota).
@@ -269,7 +293,7 @@ export async function iniciarAuth(): Promise<Sessao | null> {
   // Link de confirmação/convite/recuperação: https://site/#confirmation_token=...
   const match = location.hash.match(/(confirmation|invite|recovery)_token=([^&]+)/)
   if (match) {
-    const tipo = match[1]!
+    const tipo = TIPOS_VERIFY[match[1]!] ?? match[1]!
     const token = decodeURIComponent(match[2]!)
     location.hash = '' // limpa antes do router ver
     try {
@@ -279,8 +303,12 @@ export async function iniciarAuth(): Promise<Sessao | null> {
         body: JSON.stringify({ token, type: tipo }),
       })
       if (res.ok) sessionStorage.setItem('esquizomon-rpg:confirmado', '1')
+      else {
+        console.warn('[auth] verify rejeitado', res.status, await res.text().catch(() => ''))
+        sessionStorage.setItem('esquizomon-rpg:confirmacao-falhou', '1')
+      }
     } catch {
-      /* offline — o aviso de erro aparece na tela de login */
+      sessionStorage.setItem('esquizomon-rpg:confirmacao-falhou', '1')
     }
   }
 
@@ -296,9 +324,14 @@ export async function iniciarAuth(): Promise<Sessao | null> {
   return sessao
 }
 
-/** Aviso pós-confirmação de email (lido e limpo pela tela de login). */
-export function consumirAvisoConfirmacao(): boolean {
-  const tem = sessionStorage.getItem('esquizomon-rpg:confirmado') === '1'
-  if (tem) sessionStorage.removeItem('esquizomon-rpg:confirmado')
-  return tem
+/** Aviso pós-confirmação de email (lido e limpo pela tela de login):
+ *  'ok' = confirmado, 'falhou' = o link não funcionou, null = sem aviso. */
+export function consumirAvisoConfirmacao(): 'ok' | 'falhou' | null {
+  const ok = sessionStorage.getItem('esquizomon-rpg:confirmado') === '1'
+  const falhou = sessionStorage.getItem('esquizomon-rpg:confirmacao-falhou') === '1'
+  if (ok) sessionStorage.removeItem('esquizomon-rpg:confirmado')
+  if (falhou) sessionStorage.removeItem('esquizomon-rpg:confirmacao-falhou')
+  if (ok) return 'ok'
+  if (falhou) return 'falhou'
+  return null
 }
