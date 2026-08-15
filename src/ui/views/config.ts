@@ -1,6 +1,6 @@
 /** Visão Config — tema, jogo, IA, export/import de dados e zona de perigo. */
 
-import type { AppData, ConfigIa, ProviderIA } from '../../core/tipos'
+import type { AppData, ConfigIa, ProviderIA, Tema } from '../../core/tipos'
 import { MODELOS_POR_PROVIDER, modeloPadrao, testarConexao, ErroIA } from '../../ia/cliente'
 import { SYSTEM_PROMPT_PADRAO } from '../../ia/prompt'
 import { apagarTodosDados, definirConfiguracao, definirTema, exportarJSON, importarJSON } from '../../stores/app'
@@ -43,9 +43,10 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
       <div class="config-linha">
         <div>
           <div class="config-rotulo">Tema</div>
-          <div class="config-dica">Escuro ou claro</div>
+          <div class="config-dica">Sistema segue o padrão do dispositivo</div>
         </div>
         <select class="filtro-select" data-tema>
+          <option value="sistema" ${tema === 'sistema' ? 'selected' : ''}>Sistema</option>
           <option value="dark" ${tema === 'dark' ? 'selected' : ''}>Escuro</option>
           <option value="light" ${tema === 'light' ? 'selected' : ''}>Claro</option>
         </select>
@@ -108,7 +109,7 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
   `
 
   raiz.querySelector('[data-tema]')!.addEventListener('change', (e) => {
-    const valor = (e.target as HTMLSelectElement).value as 'dark' | 'light'
+    const valor = (e.target as HTMLSelectElement).value as Tema
     definirTema(valor)
   })
 

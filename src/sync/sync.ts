@@ -135,9 +135,13 @@ export function aposMudancaSessao(): void {
 
 /** Registra mudanças locais e agenda o envio (quando logado). */
 appStore.subscribe(() => {
-  // timestamp da mudança local — base do last-write-wins mesmo offline
+  // ECO do pull: NÃO marca como mudança local — senão o last-write-wins vira
+  // "local sempre vence" e a nuvem (backup) é sobrescrita à toa. O pull grava
+  // o salvoEm da nuvem explicitamente (ver substituirDados/sincronizarAgora).
+  if (carregando) return
+  // Mudança REAL: marca o timestamp do last-write-wins — mesmo offline
+  // (no próximo login, o que mudou por último vence).
   gravarMetadados({ salvoEm: new Date().toISOString() })
-  if (carregando) return // eco do pull — não re-envia
   if (!sessaoAtual()) return
   if (timer) clearTimeout(timer)
   timer = setTimeout(() => {

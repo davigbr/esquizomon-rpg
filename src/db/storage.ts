@@ -59,7 +59,8 @@ export function storageRemove(key: string): void {
 /* ---------- tema ---------- */
 
 export function temaInicial(): Tema {
-  return storageGet(TEMA_KEY) === 'light' ? 'light' : 'dark'
+  const t = storageGet(TEMA_KEY)
+  return t === 'light' || t === 'dark' ? t : 'sistema'
 }
 
 export function salvarTema(tema: Tema): void {
@@ -186,7 +187,7 @@ function normalizarPersonagem(v: unknown): Personagem {
 }
 
 function normalizarConfiguracao(v: unknown): Configuracao {
-  const tema = ehObjeto(v) && (v.tema === 'light' || v.tema === 'dark') ? v.tema : 'dark'
+  const tema = ehObjeto(v) && (v.tema === 'light' || v.tema === 'dark' || v.tema === 'sistema') ? v.tema : 'sistema'
   const modoRelaxado = ehObjeto(v) && v.modoRelaxado === true
   const ia = ehObjeto(v) ? normalizarConfigIa(v.ia) : undefined
   const out: Configuracao = { tema, modoRelaxado }

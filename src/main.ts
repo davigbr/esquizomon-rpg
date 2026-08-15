@@ -3,7 +3,7 @@
 import '@fortawesome/fontawesome-free/css/fontawesome.min.css'
 import './style.css'
 
-import { appStore, consumirMorte, definirTema, registrarDeck, renovarDia } from './stores/app'
+import { appStore, aplicarTemaEfetivo, consumirMorte, definirTema, registrarDeck, renovarDia } from './stores/app'
 import { montarHoje } from './ui/views/hoje'
 import { montarFicha } from './ui/views/ficha'
 import { montarCartas } from './ui/views/cartas'
@@ -16,9 +16,8 @@ import { iniciarAuth } from './sync/auth'
 import { iniciarSync } from './sync/sync'
 import { montarBotaoConta } from './ui/headerConta'
 import { carregarDeck } from './core/baralho'
-import { aoFalharPersistencia, storageGet } from './db/storage'
+import { aoFalharPersistencia, temaInicial } from './db/storage'
 import { notificar } from './ui/toast'
-import type { Tema } from './core/tipos'
 
 const raiz = document.getElementById('app')!
 const navLinks = document.querySelectorAll<HTMLAnchorElement>('[data-rota]')
@@ -59,16 +58,14 @@ function montarRota(rota: Rota): void {
 /* ---------- tema ---------- */
 
 function aplicarTemaInicial(): void {
-  const tema = (storageGet('esquizomon-rpg:tema') as Tema | null) ?? 'dark'
+  const tema = temaInicial()
   definirTema(tema)
 }
 
-document.getElementById('theme-toggle')!.addEventListener('click', () => {
-  const atual = appStore.get().configuracao.tema
-  const proximo = atual === 'dark' ? 'light' : 'dark'
-  definirTema(proximo)
-  const icone = document.querySelector('#theme-toggle i')
-  if (icone) icone.className = `fa-solid ${proximo === 'dark' ? 'fa-moon' : 'fa-sun'}`
+// Mudança do sistema (ex.: usuário trocou o modo escuro/claro do SO) → reaplica
+// quando o tema escolhido é "sistema".
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (appStore.get().configuracao.tema === 'sistema') aplicarTemaEfetivo('sistema')
 })
 
 /* ---------- barra de status (nível, HP, XP, mana — fixa em todas as telas) ---------- */
@@ -120,9 +117,11 @@ function montarStatusBar(): void {
   if (!el) {
     statusBar.innerHTML = `
       <div class="status-item status-item--nivel" title="Nível"><i class="fa-solid fa-arrow-trend-up" aria-hidden="true"></i><span data-s-nivel></span></div>
-      <div class="status-item status-item--hp" title="Vida"><i class="fa-solid fa-heart" aria-hidden="true"></i><span data-s-hp></span><div class="status-trilho"><div class="status-preenchimento status-preenchimento--hp" data-b-hp></div></div></div>
-      <div class="status-item status-item--xp" title="Experiência"><i class="fa-solid fa-star" aria-hidden="true"></i><span data-s-xp></span><div class="status-trilho"><div class="status-preenchimento status-preenchimento--xp" data-b-xp></div></div></div>
-      <div class="status-item status-item--mana" title="Mana"><i class="fa-solid fa-droplet" aria-hidden="true"></i><span data-s-mana></span><div class="status-trilho"><div class="status-preenchimento status-preenchimento--mana" data-b-mana></div></div></div>
+      <div class="status-barras">
+        <div class="status-item status-item--hp" title="Vida"><i class="fa-solid fa-heart" aria-hidden="true"></i><span data-s-hp></span><div class="status-trilho"><div class="status-preenchimento status-preenchimento--hp" data-b-hp></div></div></div>
+        <div class="status-item status-item--xp" title="Experiência"><i class="fa-solid fa-star" aria-hidden="true"></i><span data-s-xp></span><div class="status-trilho"><div class="status-preenchimento status-preenchimento--xp" data-b-xp></div></div></div>
+        <div class="status-item status-item--mana" title="Mana"><i class="fa-solid fa-droplet" aria-hidden="true"></i><span data-s-mana></span><div class="status-trilho"><div class="status-preenchimento status-preenchimento--mana" data-b-mana></div></div></div>
+      </div>
       <div class="status-item status-item--esgotado" title="Esgotado" data-s-esgotado style="display:none"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>Esgotado</span></div>
     `
     const q = (s: string) => statusBar.querySelector<HTMLElement>(s)!

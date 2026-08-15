@@ -2,7 +2,8 @@
 
 export type TipoTarefa = 'recorrente' | 'unica' | 'habito'
 export type Dificuldade = 'facil' | 'media' | 'dificil' | 'extrema'
-export type Tema = 'dark' | 'light'
+/** Tema: 'sistema' segue o padrão do SO (preferência do usuário 2026-08-12). */
+export type Tema = 'dark' | 'light' | 'sistema'
 
 /** Agenda de uma tarefa recorrente.
  *  `dias` = dias da semana 0-6 (domingo = 0); vazio = todos os dias.

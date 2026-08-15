@@ -8,10 +8,34 @@ import { appStore, registrarLog } from './base'
 import type { Resultado } from './base'
 import { deckCarregado } from './personagem'
 
+/** Resolve o tema efetivo (sistema → prefers-color-scheme do SO) e aplica no <html>. */
+export function aplicarTemaEfetivo(tema: Tema): void {
+  const efetivo =
+    tema === 'sistema'
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light'
+      : tema
+  document.documentElement.dataset.theme = efetivo
+}
+
+/* matchMedia do tema do sistema — 'sistema' segue o SO em tempo real */
+let mqlTema: MediaQueryList | null = null
+
 export function definirTema(tema: Tema): void {
   salvarTema(tema)
   appStore.set({ ...appStore.get(), configuracao: { ...appStore.get().configuracao, tema } })
-  document.documentElement.dataset.theme = tema
+  mqlTema?.removeEventListener('change', aoMudarPreferenciaSistema)
+  mqlTema = null
+  if (tema === 'sistema') {
+    mqlTema = window.matchMedia('(prefers-color-scheme: dark)')
+    mqlTema.addEventListener('change', aoMudarPreferenciaSistema)
+  }
+  aplicarTemaEfetivo(tema)
+}
+
+function aoMudarPreferenciaSistema(): void {
+  if (appStore.get().configuracao.tema === 'sistema') aplicarTemaEfetivo('sistema')
 }
 
 export function definirConfiguracao(patch: Partial<Configuracao>): void {

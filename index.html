@@ -17,9 +17,11 @@
     />
     <script>
       // Aplica o tema antes do primeiro paint (evita flash).
+      // 'sistema' (padrão) segue o prefers-color-scheme do SO.
       try {
-        var tema = localStorage.getItem('esquizomon-rpg:tema')
-        if (tema === 'light') document.documentElement.dataset.theme = 'light'
+        var tema = localStorage.getItem('esquizomon-rpg:tema') || 'sistema'
+        var escuro = tema === 'dark' || (tema === 'sistema' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = escuro ? 'dark' : 'light'
       } catch (e) {}
     </script>
   </head>
@@ -32,20 +34,20 @@
         </a>
         <div class="navbar-links" id="nav-links">
           <div class="navbar-links-lista">
-            <a href="#/hoje" data-rota="hoje"><i class="fa-solid fa-house" aria-hidden="true"></i>Hoje</a>
-            <a href="#/diario" data-rota="diario"><i class="fa-solid fa-book" aria-hidden="true"></i>Diário</a>
-            <a href="#/cartas" data-rota="cartas"><i class="fa-solid fa-layer-group" aria-hidden="true"></i>Cartas</a>
-            <a href="#/ficha" data-rota="ficha"><i class="fa-solid fa-dice-d20" aria-hidden="true"></i>Jogo</a>
-            <a href="#/historico" data-rota="historico"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>Histórico</a>
-            <a href="#/config" data-rota="config" class="nav-icone" title="Configurações" aria-label="Configurações"><i class="fa-solid fa-gear" aria-hidden="true"></i></a>
+            <a href="#/hoje" data-rota="hoje"><i class="fa-solid fa-house" aria-hidden="true"></i><span class="nav-texto">Hoje</span></a>
+            <a href="#/diario" data-rota="diario"><i class="fa-solid fa-book" aria-hidden="true"></i><span class="nav-texto">Diário</span></a>
+            <a href="#/cartas" data-rota="cartas"><i class="fa-solid fa-layer-group" aria-hidden="true"></i><span class="nav-texto">Cartas</span></a>
+            <a href="#/ficha" data-rota="ficha"><i class="fa-solid fa-dice-d20" aria-hidden="true"></i><span class="nav-texto">Jogo</span></a>
+            <a href="#/historico" data-rota="historico"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><span class="nav-texto">Histórico</span></a>
           </div>
+          <!-- Config fixa à direita (fora da lista rolável), no lugar do antigo toggle de tema -->
+          <a href="#/config" data-rota="config" class="nav-theme" title="Configurações" aria-label="Configurações"><i class="fa-solid fa-gear" aria-hidden="true"></i></a>
           <button class="nav-theme nav-fabula" id="fabula-toggle" aria-label="Abrir chat com a Fábula" title="Fábula">
             <i class="fa-solid fa-feather" aria-hidden="true"></i>
           </button>
           <button class="nav-theme" id="conta-toggle" aria-label="Conta e sincronização" title="Conta e sincronização">
             <i class="fa-solid fa-cloud" aria-hidden="true"></i>
           </button>
-          <button class="nav-theme" id="theme-toggle" aria-label="Alternar tema"><i class="fa-solid fa-moon" aria-hidden="true"></i></button>
         </div>
       </div>
     </nav>

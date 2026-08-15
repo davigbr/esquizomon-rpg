@@ -212,6 +212,14 @@ body {
   border-color: var(--border-gold);
 }
 
+/* engrenagem de Config como botão (âncora no grupo direito) */
+.navbar-links a.nav-theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 /* ========== Layout ========== */
 .container {
   max-width: 1280px;
@@ -1856,6 +1864,13 @@ select.campo {
   background: #2868d0;
 }
 
+/* wrapper das 3 barras: display:contents — no desktop mantém a linha reta;
+   no mobile o grid de ≤900px (final desta seção) empilha as barras via os
+   próprios .status-item (nível à esquerda, centralizado) */
+.status-barras {
+  display: contents;
+}
+
 /* brilho ao ganhar (XP, cura) */
 @keyframes brilho-ganho {
   0% {
@@ -2216,6 +2231,57 @@ select.campo {
   #status-bar {
     top: 82px;
   }
+
+  /* menu somente de ícones no mobile (2026-08-12) */
+  .nav-texto {
+    display: none;
+  }
+
+  /* barra de status no mobile: NÍVEL à esquerda (centralizado verticalmente),
+     barras de vida/XP/mana empilhadas em 100% da largura (2026-08-12) */
+  #status-bar {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 5px;
+    overflow-x: visible;
+  }
+  .status-item--nivel {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    justify-self: start;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    padding-right: 12px;
+    border-right: 1px solid var(--border-color);
+  }
+  .status-item--hp {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .status-item--xp {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .status-item--mana {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .status-item--esgotado {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+  .status-item--hp,
+  .status-item--xp,
+  .status-item--mana {
+    width: 100%;
+  }
+  .status-item .status-trilho {
+    width: auto;
+    flex: 1;
+  }
 }
 
 @media (max-width: 640px) {
@@ -2223,6 +2289,7 @@ select.campo {
     padding: 8px 12px;
   }
 
+  /* menu somente de ícones no mobile — coberto pela regra de ≤900px acima */
   .navbar-links a {
     font-size: 13px;
     padding: 6px 8px;
@@ -2824,19 +2891,68 @@ body.fabula-aberto .container {
   cursor: not-allowed;
 }
 
-@media (max-width: 640px) {
+/* Fábula vira PÁGINA no mobile (≤900px): tela cheia (cobre o navbar), com o
+   seletor de conversas adaptado pra faixa horizontal no topo (2026-08-12). */
+@media (max-width: 900px) {
   #fabula-panel {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     width: 100% !important;
     max-width: none;
+    border-left: none;
+    border-radius: 0;
+    z-index: 400;
+    flex-direction: column;
   }
   body.fabula-aberto .container {
     margin-right: 0;
   }
-  .fabula-lateral {
-    width: 110px;
-  }
   .fabula-resize {
     display: none;
+  }
+  /* seletor de conversas: faixa horizontal (chips) no topo */
+  .fabula-lateral {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    overflow: hidden;
+  }
+  .fabula-nova {
+    margin: 0;
+    flex-shrink: 0;
+    padding: 6px 10px;
+    border-radius: 999px;
+  }
+  .fabula-lista {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 6px;
+    padding: 2px;
+  }
+  .fabula-item {
+    flex-shrink: 0;
+    max-width: 150px;
+    white-space: nowrap;
+  }
+  .fabula-item-preview {
+    display: none;
+  }
+  .fabula-item-titulo {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .fabula-conversa {
+    flex: 1;
+    min-height: 0;
   }
 }
 

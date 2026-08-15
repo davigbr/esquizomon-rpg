@@ -53,6 +53,17 @@ test('config: efeitos sonoros têm toggle persistente (padrão ligado)', async (
   await expect(page.locator('[data-sons]')).toHaveValue('off')
 })
 
+test('config: tema tem opção "sistema" como padrão e persiste a escolha', async ({ page }) => {
+  await page.goto('/#/config') // sem seed: instalação nova
+  const sel = page.locator('[data-tema]')
+  await expect(sel).toHaveValue('sistema') // padrão = segue o SO
+  await sel.selectOption('dark')
+  await expect.poll(() =>
+    page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.configuracao?.tema ?? null)),
+  ).toBe('dark')
+  await expect(page.evaluate(() => document.documentElement.dataset.theme)).resolves.toBe('dark')
+})
+
 test('config: "Sobre você" salva o resumo e persiste no reload', async ({ page }) => {
   await page.goto('/#/config')
   const campo = page.locator('[data-resumo]')
