@@ -19,6 +19,8 @@ import { custoInvocacao, custoInvocacaoFabula, CUSTO_ANALISE } from '../core/jog
 import { tocarSom } from './sons'
 import { notificar } from './toast'
 import { escapar } from './util'
+import { renderizarMarkdown } from './editorMd'
+import { abrirModalCarta } from './views/cartas'
 import { confirmar } from './modal'
 
 const PAINEL_CHAVE = 'esquizomon-rpg:chat-painel'
@@ -236,10 +238,23 @@ function instalarHandlers(conversa: Conversa | undefined): void {
   // Cópia por mensagem: delegação no container (cada bolha tem seu botão)
   msgsEl?.addEventListener('click', (e) => {
     const alvo = (e.target as HTMLElement).closest<HTMLElement>('[data-fabula-copiar-msg]')
-    if (!alvo) return
-    const idx = Number(alvo.dataset.fabulaCopiarMsg)
-    const m = conversaAtual()?.mensagens[idx]
-    if (m) void copiarMensagem(m)
+    if (alvo) {
+      const idx = Number(alvo.dataset.fabulaCopiarMsg)
+      const m = conversaAtual()?.mensagens[idx]
+      if (m) void copiarMensagem(m)
+      return
+    }
+    // miniatura da carta → mesmo modal da galeria
+    const carta = (e.target as HTMLElement).closest<HTMLElement>('[data-fabula-carta]')
+    if (carta) {
+      const id = carta.dataset.fabulaCarta ?? ''
+      if (!id) return
+      if (appStore.get().personagem.cartas.includes(id)) {
+        abrirModalCarta(id)
+      } else {
+        notificar('Carta bloqueada — suba de nível para desbloquear.')
+      }
+    }
   })
   // Input de renomeação: Enter salva, Escape cancela, blur salva (com guarda).
   const tituloInput = painel.querySelector<HTMLInputElement>('[data-fabula-titulo-input]')
@@ -473,15 +488,20 @@ function bolha(m: MensagemIA, idx: number): string {
   return `<div class="fabula-bolha fabula-bolha--assistente">${btnCopiar}<span class="fabula-bolha-texto">${renderizarConteudo(m.content)}</span>${raciocinio}</div>`
 }
 
-/** Renderiza o conteúdo da bolha: escapa o HTML e substitui [[carta:<id>]] pela
- *  miniatura da carta (id validado contra o deck — nada de HTML arbitrário). */
+/** Renderiza o conteúdo da bolha do assistente: markdown (negrito, listas,
+ *  tabelas, itálico…) + o marcador [[carta:<id>]] vira a miniatura CLICÁVEL
+ *  (abre o mesmo modal da galeria — 2026-08-12). */
 function renderizarConteudo(conteudo: string): string {
-  const seguro = escapar(conteudo)
-  return seguro.replace(/\[\[carta:([\w-]+)\]\]/g, (_match, id: string) => {
+  const renderizado = conteudo.trim() ? renderizarMarkdown(conteudo) : ''
+  let html = renderizado.replace(/\[\[carta:([\w-]+)\]\]/g, (_match, id: string) => {
     if (resolverCartaId(id) !== id) return _match
     const nome = nomeDaCarta(id)
-    return `<img class="fabula-carta" src="/images/cards/${escapar(id)}.png" alt="${escapar(nome)}" title="${escapar(nome)}" loading="lazy" />`
+    return `<button type="button" class="fabula-carta-btn" data-fabula-carta="${escapar(id)}" title="Ver carta: ${escapar(nome)}" aria-label="Ver carta: ${escapar(nome)}"><img class="fabula-carta" src="/images/cards/${escapar(id)}.png" alt="${escapar(nome)}" loading="lazy" /></button>`
   })
+  // a miniatura sozinha num parágrafo não pode carregar as margens do <p>
+  // (espaço antes/depois que o usuário reclamou)
+  html = html.replace(/<p>(\s*<button class="fabula-carta-btn".*?<\/button>\s*)<\/p>/gs, '$1')
+  return html
 }
 
 /** Gera o markdown de UMA mensagem pra colar em qualquer editor (Obsidian etc.).

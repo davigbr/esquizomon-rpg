@@ -2,7 +2,15 @@
  *  marcador [[acao:invocar]] é parseado, e citar carta desbloqueada no diário dá XP. */
 import { test, expect } from '@playwright/test'
 
-const hoje = new Date().toISOString().slice(0, 10)
+/** Data LOCAL (YYYY-MM-DD) — o app usa datas locais; toISOString() é UTC e
+ *  troca o dia à noite em fusos negativos (flakiness real 2026-08-12). */
+function dataLocal(offsetDias = 0): string {
+  const d = new Date()
+  d.setDate(d.getDate() + offsetDias)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+const hoje = dataLocal()
 
 /** Estado com a carta Ninho Enclausurado desbloqueada + mana sobrando.
  *  Semeia UMA vez: em reloads mantém o que o teste gravou (senão o seed
@@ -556,14 +564,47 @@ test('fabula: resposta vazia do modelo vira erro visível (sem bolha vazia)', as
   await expect(page.locator('.toast').last()).toContainText('não respondeu nada')
 })
 
+test('fabula: resposta em markdown renderiza negrito, lista, tabela e itálico na bolha', async ({ page }) => {
+  await semearChat(page)
+  const markdown =
+    '**Negrito** e *itálico*.\n\n- item um\n- item dois\n\n| Carta | Tipo |\n| --- | --- |\n| Ninho | Captura |\n\n[[carta:ninho-enclausurado]]'
+  await page.route('**/api/ia', (rota) => {
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake(markdown) })
+  })
+
+  await page.goto('/#/hoje')
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click()
+  await page.locator('[data-fabula-input]').fill('escreva markdown')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+
+  const bolha = page.locator('.fabula-bolha--assistente')
+  await expect(bolha.locator('strong')).toHaveText('Negrito')
+  await expect(bolha.locator('em')).toHaveText('itálico')
+  await expect(bolha.locator('ul li')).toHaveCount(2)
+  await expect(bolha.locator('table th').first()).toHaveText('Carta')
+  await expect(bolha.locator('table td').first()).toHaveText('Ninho')
+  // miniatura CLICÁVEL → abre o mesmo modal da galeria
+  const mini = bolha.locator('[data-fabula-carta]')
+  await expect(mini.locator('img.fabula-carta')).toBeVisible()
+  await mini.click()
+  await expect(page.locator('#modal')).toBeVisible()
+  await expect(page.locator('#modal')).toContainText('Ninho Enclausurado')
+  await page.keyboard.press('Escape')
+  // markdown cru não vaza pra bolha
+  await expect(bolha).not.toContainText('**Negrito**')
+})
+
 test('fabula: sem conversas — o chat inicia uma automaticamente ao abrir', async ({ page }) => {
   await semear(page) // conversas: []
 
   await page.goto('/#/hoje')
   await page.click('#fabula-toggle')
 
-  // uma conversa foi criada sozinha, o input está habilitado e persistiu
+  // uma conversa foi criada, com o título padrão de DATA/HORA, e o input habilitado
   await expect(page.locator('.fabula-item')).toHaveCount(1)
+  await expect(page.locator('.fabula-item--ativa .fabula-item-titulo')).toContainText(/^\d{2}\/\d{2}/)
   await expect(page.locator('[data-fabula-input]')).toBeEnabled()
   await expect
     .poll(() =>

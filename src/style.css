@@ -2504,6 +2504,90 @@ body.fabula-aberto .container {
   padding-right: 26px;
 }
 
+/* ===== markdown renderizado na bolha (e no preview do diário) ===== */
+.fabula-bolha-texto > *:first-child {
+  margin-top: 0;
+}
+.fabula-bolha-texto > *:last-child {
+  margin-bottom: 0;
+}
+.fabula-bolha-texto p {
+  margin: 6px 0;
+}
+.fabula-bolha-texto h1,
+.fabula-bolha-texto h2,
+.fabula-bolha-texto h3 {
+  margin: 10px 0 4px;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+.fabula-bolha-texto h3 {
+  font-size: 1.12em;
+}
+.fabula-bolha-texto h2 {
+  font-size: 1.28em;
+}
+.fabula-bolha-texto h1 {
+  font-size: 1.45em;
+}
+.fabula-bolha-texto ul,
+.fabula-bolha-texto ol {
+  margin: 6px 0;
+  padding-left: 22px;
+}
+.fabula-bolha-texto li {
+  margin: 3px 0;
+}
+.fabula-bolha-texto blockquote {
+  margin: 6px 0;
+  padding: 4px 10px;
+  border-left: 3px solid var(--accent-gold);
+  background: color-mix(in srgb, var(--accent-gold) 7%, transparent);
+  border-radius: 0 8px 8px 0;
+  color: var(--text-secondary);
+}
+.fabula-bolha-texto code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.92em;
+  background: var(--bg-tertiary);
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+.fabula-bolha-texto pre {
+  margin: 8px 0;
+  padding: 10px 12px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 12px;
+  max-width: 100%;
+}
+.fabula-bolha-texto pre code {
+  background: transparent;
+  padding: 0;
+}
+.fabula-bolha-texto table,
+.diario-preview table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12px;
+  width: 100%;
+}
+.fabula-bolha-texto th,
+.fabula-bolha-texto td,
+.diario-preview th,
+.diario-preview td {
+  border: 1px solid var(--border-color);
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.fabula-bolha-texto th,
+.diario-preview th {
+  font-weight: 700;
+  background: color-mix(in srgb, var(--accent-gold) 10%, transparent);
+}
+
 .fabula-bolha--assistente {
   align-self: flex-start;
   background: var(--bg-tertiary);
@@ -2696,8 +2780,23 @@ body.fabula-aberto .container {
   width: 72px;
   border-radius: 8px;
   border: 1px solid var(--border-gold);
-  margin-top: 8px;
   display: block;
+}
+
+/* miniatura clicável: abre o modal da carta (2026-08-12) */
+.fabula-carta-btn {
+  display: inline-block;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 4px 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.fabula-carta-btn:hover .fabula-carta,
+.fabula-carta-btn:focus-visible .fabula-carta {
+  outline: 2px solid var(--accent-gold);
+  outline-offset: 2px;
 }
 
 /* dica de invocação sob o form do chat */

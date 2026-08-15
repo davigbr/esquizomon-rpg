@@ -3,8 +3,16 @@
  *  incide nas não marcadas. */
 import { test, expect } from '@playwright/test'
 
-const hoje = new Date().toISOString().slice(0, 10)
-const ontem = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)
+/** Data LOCAL (YYYY-MM-DD) — o app usa datas locais; toISOString() é UTC e
+ *  troca o dia à noite em fusos negativos (flakiness real 2026-08-12). */
+function dataLocal(offsetDias = 0): string {
+  const d = new Date()
+  d.setDate(d.getDate() + offsetDias)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+const hoje = dataLocal()
+const ontem = dataLocal(-1)
 
 /** Estado com ultimoDia = ontem + 1 recorrente e 1 única vencida pendentes. */
 async function semearPendentes(page: import('@playwright/test').Page): Promise<void> {

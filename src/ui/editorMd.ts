@@ -29,7 +29,9 @@ export function formatarInline(esc: string): string {
   return s
 }
 
-/** Renderiza markdown cru em HTML de leitura (preview).
+/** Renderiza markdown cru em HTML de leitura (preview do diário + chat da
+ *  Fábula). Blocos: títulos, listas, citações, TABELAS (pipe), code fences,
+ *  parágrafos. Inline: links/strong/em/code.
  *  Cada linha é escapada+formatada ANTES do join — o <br> é HTML legítimo,
  *  escapá-lo depois faria o usuário ver "<br>" literal no lugar do Enter. */
 export function renderizarMarkdown(texto: string): string {
@@ -42,7 +44,27 @@ export function renderizarMarkdown(texto: string): string {
   const ehTitulo = (l: string): boolean => /^#{1,3}\s+/.test(l)
   const ehCitacao = (l: string): boolean => /^>\s?/.test(l)
   const ehFence = (l: string): boolean => /^```/.test(l)
+  const ehTabela = (l: string): boolean => /^\s*\|/.test(l) && l.includes('|')
   const inline = (l: string): string => formatarInline(escapar(l))
+
+  /** Tabela pipe: 1ª linha = cabeçalho quando a 2ª é o separador |---|---|. */
+  const renderTabela = (linhasT: string[]): string => {
+    const limpa = (l: string): string => l.trim().replace(/^\|/, '').replace(/\|$/, '')
+    const celulas = (l: string): string[] => limpa(l).split('|').map((c) => c.trim())
+    const ehSep = (l: string): boolean => /^[\s|:|-]+$/.test(l) && l.includes('-')
+    const filas = linhasT.map((l) => ({ cru: l, cel: celulas(l), sep: ehSep(l) }))
+    const temCabecalho = filas.length > 1 && filas[1].sep
+    const ths = temCabecalho ? filas[0] : null
+    const corpo = (temCabecalho ? filas.slice(2) : filas).filter((f) => !f.sep)
+    let html = ''
+    if (ths) {
+      html += `<thead><tr>${ths.cel.map((c) => `<th>${inline(c)}</th>`).join('')}</tr></thead>`
+    }
+    html += `<tbody>${corpo
+      .map((f) => `<tr>${f.cel.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`)
+      .join('')}</tbody>`
+    return `<table>${html}</table>`
+  }
 
   while (i < linhas.length) {
     const linha = linhas[i]
@@ -81,6 +103,14 @@ export function renderizarMarkdown(texto: string): string {
         i++
       }
       blocos.push(`<ol>${itens.join('')}</ol>`)
+    } else if (ehTabela(linha)) {
+      const bufT: string[] = [linha]
+      i++
+      while (i < linhas.length && ehTabela(linhas[i])) {
+        bufT.push(linhas[i])
+        i++
+      }
+      blocos.push(renderTabela(bufT))
     } else if (linha.trim() === '') {
       i++
     } else {

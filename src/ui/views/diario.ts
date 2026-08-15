@@ -119,7 +119,7 @@ export function montarDiario(raiz: HTMLElement, dados: AppData): void {
             spellcheck="true" aria-label="Crônica em markdown">${escapar(entrada?.texto ?? '')}</textarea>
           <div class="diario-preview" data-diario-preview hidden></div>
         </div>
-        <p class="config-dica diario-dica">Markdown: <code>## título</code> · <code>- lista</code> · <code>1.</code> · <code>&gt; citação</code> · <code>**negrito**</code> · <code>*itálico*</code> · <code>[link](url)</code></p>
+        <p class="config-dica diario-dica">Markdown: <code>## título</code> · <code>- lista</code> · <code>1.</code> · <code>&gt; citação</code> · <code>**negrito**</code> · <code>*itálico*</code> · <code>[link](url)</code> · <code>| tabela |</code></p>
       </section>
     </div>
   `

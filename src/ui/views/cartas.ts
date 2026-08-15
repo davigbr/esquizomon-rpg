@@ -2,7 +2,7 @@
  *  ⚠️ Invocação virou EXCLUSIVA do chat (2026-08-12): peça à Fábula. */
 
 import type { AppData } from '../../core/tipos'
-import { carregarDeck, rotuloTipo, tipoDe, type Carta, type TipoCarta } from '../../core/baralho'
+import { carregarDeck, rotuloTipo, tipoDe, todasAsCartas, type Carta, type TipoCarta } from '../../core/baralho'
 import { custoInvocacao, nivelBaralhoCompleto } from '../../core/jogo'
 import { appStore } from '../../stores/app'
 import { abrirModal, modalBody } from '../modal'
@@ -92,8 +92,10 @@ function cardCarta(c: Carta, desbloqueada: boolean): string {
   `
 }
 
-function abrirModalCarta(id: string): void {
-  const deck = deckCache ?? []
+/** Abre o modal de uma carta (navega entre as desbloqueadas). Exportado porque
+ *  a miniatura do CHAT também abre o modal (2026-08-12). */
+export function abrirModalCarta(id: string): void {
+  const deck = todasAsCartas()
   const dados = appStore.get()
   // apenas cartas desbloqueadas navegam no modal
   const desbloqueadas = deck.filter((c) => dados.personagem.cartas.includes(c.id))

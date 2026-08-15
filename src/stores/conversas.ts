@@ -13,10 +13,20 @@ function salvarConversas(conversas: Conversa[]): void {
   appStore.set({ ...appStore.get(), conversas })
 }
 
+/** Título padrão de conversa nova: data e hora (ex.: "14/08, 21:37"). */
+function tituloPadraoConversa(): string {
+  return new Date().toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export function criarConversa(): Conversa {
   const id = novoId()
   const agora = new Date().toISOString()
-  const conversa: Conversa = { id, titulo: 'Nova conversa', mensagens: [], atualizadaEm: agora }
+  const conversa: Conversa = { id, titulo: tituloPadraoConversa(), mensagens: [], atualizadaEm: agora }
   salvarConversas([conversa, ...conversasAtuais()].slice(0, MAX_CONVERSAS))
   return conversa
 }
