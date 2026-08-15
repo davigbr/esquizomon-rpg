@@ -64,6 +64,81 @@ test('config: tema tem opção "sistema" como padrão e persiste a escolha', asy
   await expect(page.evaluate(() => document.documentElement.dataset.theme)).resolves.toBe('dark')
 })
 
+test('config: avatar — upload, corte quadrado, compressão e exibição ao lado do nível', async ({ page }) => {
+  await semear(page)
+  await page.goto('/#/config')
+  await page.locator('[data-avatar-escolher]').click()
+  await page.locator('[data-avatar-arquivo]').setInputFiles({
+    name: 'avatar.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64',
+    ),
+  })
+  // modal de corte abre; salva
+  await expect(page.locator('[data-avatar-janela]')).toBeVisible()
+  await page.locator('[data-avatar-salvar]').click()
+  // avatar persistido como JPEG comprimido
+  await expect
+    .poll(() =>
+      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.personagem?.avatar ?? '').startsWith('data:image/jpeg')),
+    )
+    .toBe(true)
+  // status bar: avatar à esquerda do nível
+  await page.goto('/#/hoje')
+  const avatar = await page.locator('.status-avatar').boundingBox()
+  const nivel = await page.locator('.status-item--nivel').boundingBox()
+  expect(avatar).not.toBeNull()
+  expect(nivel).not.toBeNull()
+  expect(avatar!.x).toBeLessThan(nivel!.x)
+  // remover com confirmação
+  await page.goto('/#/config')
+  await page.locator('[data-avatar-remover]').click()
+  await page.locator('[data-modal-confirmar]').click()
+  await expect
+    .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.personagem?.avatar ?? null))
+    .toBe(null)
+})
+
+test('config: nome monstruoso salva e aparece em negrito ao lado do avatar', async ({ page }) => {
+  await semearChat(page)
+  await page.goto('/#/config')
+  await page.locator('[data-nome-monstruoso]').fill('Devorador de Segundas')
+  await page.locator('[data-nome-monstruoso]').blur()
+  await expect.poll(() =>
+    page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.personagem?.nomeMonstruoso ?? null),
+  ).toBe('Devorador de Segundas')
+
+  // status bar: nome bold à direita do avatar
+  await page.goto('/#/hoje')
+  await page.evaluate(() => {
+    const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
+    d.personagem.avatar = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
+  })
+  await page.reload()
+  const nome = page.locator('.status-nome')
+  await expect(nome).toHaveText('Devorador de Segundas')
+  await expect(nome).toHaveCSS('font-weight', '700')
+  const boxNome = await nome.boundingBox()
+  const boxAvatar = await page.locator('.status-avatar').boundingBox()
+  expect(boxNome!.x).toBeGreaterThan(boxAvatar!.x + boxAvatar!.width) // à direita do avatar
+
+  // a Fábula recebe o nome monstruoso no estado (para se referir ao jogador)
+  const corpos: string[] = []
+  await page.route('**/api/ia', (rota) => {
+    corpos.push(rota.request().postData() ?? '')
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('Fala, monstro.') })
+  })
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-input]').fill('Fala comigo')
+  await page.locator('[data-fabula-input]').press('Enter')
+  await expect(page.locator('.fabula-bolha--assistente')).toContainText('Fala, monstro.')
+  const corpo = JSON.parse(corpos[corpos.length - 1]) as { messages: { role: string; content: string }[] }
+  expect(corpo.messages[0].content).toContain('NOME MONSTRUOSO: Devorador de Segundas')
+})
+
 test('config: "Sobre você" salva o resumo e persiste no reload', async ({ page }) => {
   await page.goto('/#/config')
   const campo = page.locator('[data-resumo]')

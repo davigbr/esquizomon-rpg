@@ -3,10 +3,11 @@
 import type { AppData, ConfigIa, ProviderIA, Tema } from '../../core/tipos'
 import { MODELOS_POR_PROVIDER, modeloPadrao, testarConexao, ErroIA } from '../../ia/cliente'
 import { SYSTEM_PROMPT_PADRAO } from '../../ia/prompt'
-import { apagarTodosDados, definirConfiguracao, definirTema, exportarJSON, importarJSON } from '../../stores/app'
+import { apagarTodosDados, definirAvatar, definirConfiguracao, definirNomeMonstruoso, definirTema, exportarJSON, importarJSON } from '../../stores/app'
 import { confirmar } from '../modal'
 import { notificar } from '../toast'
 import { escapar } from '../util'
+import { editarAvatar } from '../avatarEditor'
 import { sessaoAtual } from '../../sync/auth'
 import { aposMudancaSessao, inscreverSync, sincronizarAgora } from '../../sync/sync'
 import type { EstadoSync } from '../../sync/sync'
@@ -28,6 +29,7 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
   const modoRelaxado = dados.configuracao.modoRelaxado === true
   const sons = dados.configuracao.sons !== false
   const resumo = dados.configuracao.resumo ?? ''
+  const avatar = dados.personagem.avatar
   const ia = iaAtual(dados)
   const total = dados.tarefas.length
 
@@ -36,6 +38,26 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
       <h1>Config</h1>
       <p class="view-sub">Ajustes do app e dos seus dados.</p>
     </header>
+
+    <div class="config-secao">
+      <h3>Avatar</h3>
+      <div class="avatar-bloco">
+        <div class="avatar-atual" title="Seu avatar">
+          ${avatar ? `<img src="${escapar(avatar)}" alt="Seu avatar" />` : '<i class="fa-solid fa-user" aria-hidden="true"></i>'}
+        </div>
+        <div class="config-acoes-linha">
+          <button class="btn" data-avatar-escolher>Escolher imagem</button>
+          ${avatar ? '<button class="btn" data-avatar-remover>Remover</button>' : ''}
+        </div>
+        <div class="config-campo-linha">
+          <label class="config-rotulo" for="nome-monstruoso">Nome monstruoso</label>
+          <input id="nome-monstruoso" class="campo" data-nome-monstruoso value="${escapar(dados.personagem.nomeMonstruoso ?? '')}" placeholder="Ex.: Devorador de Segundas" maxlength="40" />
+          <p class="config-dica">Aparece em negrito ao lado do seu avatar (não é exibido no celular).</p>
+        </div>
+        <p class="config-dica">Corte sempre circular · comprimido · salvo junto aos dados · exibido ao lado do nível.</p>
+      </div>
+      <input type="file" accept="image/*" data-avatar-arquivo hidden />
+    </div>
 
     <div class="config-secao">
       <h3>Aparência</h3>
@@ -123,6 +145,29 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
     const ligados = (e.target as HTMLSelectElement).value === 'on'
     definirConfiguracao({ sons: ligados })
     notificar(ligados ? 'Efeitos sonoros ligados.' : 'Efeitos sonoros desligados.')
+  })
+
+  // avatar: escolher arquivo → editor de corte; remover com confirmação
+  const arquivoAvatar = raiz.querySelector<HTMLInputElement>('[data-avatar-arquivo]')
+  raiz.querySelector('[data-avatar-escolher]')?.addEventListener('click', () => arquivoAvatar?.click())
+  arquivoAvatar?.addEventListener('change', () => {
+    const f = arquivoAvatar.files?.[0]
+    if (f) {
+      editarAvatar(f)
+      arquivoAvatar.value = ''
+    }
+  })
+  raiz.querySelector('[data-avatar-remover]')?.addEventListener('click', () => {
+    void confirmar('Remover seu avatar?', 'Remover').then((ok) => {
+      if (ok) {
+        definirAvatar(null)
+        notificar('Avatar removido.')
+      }
+    })
+  })
+  // nome monstruoso: salva ao sair do campo
+  raiz.querySelector<HTMLInputElement>('[data-nome-monstruoso]')?.addEventListener('change', (e) => {
+    definirNomeMonstruoso((e.target as HTMLInputElement).value)
   })
 
   raiz.querySelector('[data-resumo]')?.addEventListener('change', (e) => {

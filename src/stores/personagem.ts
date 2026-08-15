@@ -1,3 +1,23 @@
+/** Define (ou remove) o avatar do personagem — data URL JPEG já comprimida
+ *  (128px, ~5KB) pelo editor de corte. */
+export function definirAvatar(avatar: string | null): void {
+  const p = appStore.get().personagem
+  appStore.set({
+    ...appStore.get(),
+    personagem: { ...p, avatar: avatar ?? undefined },
+  })
+}
+
+/** Define o nome monstruoso do personagem (bold ao lado do avatar, desktop). */
+export function definirNomeMonstruoso(nome: string): void {
+  const p = appStore.get().personagem
+  const limpo = nome.trim().slice(0, 40) || undefined
+  appStore.set({
+    ...appStore.get(),
+    personagem: { ...p, nomeMonstruoso: limpo },
+  })
+}
+
 /** Domínio do personagem: XP, nível, cartas, mana, dano e morte. */
 
 import type { Personagem } from '../core/tipos'

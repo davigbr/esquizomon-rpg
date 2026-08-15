@@ -24,6 +24,42 @@ test('mobile: Fábula abre como página fullscreen (cobre a tela toda)', async (
   expect(box!.height).toBeGreaterThanOrEqual(844)
 })
 
+test('mobile: nome monstruoso fica ACIMA do nível, tudo centralizado verticalmente', async ({ page }) => {
+  await page.addInitScript(() => {
+    const hoje = new Date().toISOString().slice(0, 10)
+    localStorage.setItem(
+      'esquizomon-rpg:v1',
+      JSON.stringify({
+        versao: 3,
+        tarefas: [],
+        log: [],
+        diario: [],
+        conversas: [],
+        configuracao: { tema: 'dark', ia: { provider: 'nenhum', modelo: '', apiKey: '' } },
+        personagem: {
+          nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20,
+          esgotado: false, ultimoDia: hoje, cartas: [], invocacoes: {},
+          avatar: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+          nomeMonstruoso: 'Devorador de Segundas',
+        },
+      }),
+    )
+  })
+  await page.goto('/#/hoje')
+  // nome monstruoso VISÍVEL, ACIMA do nível (mesma coluna à direita da foto)
+  await expect(page.locator('.status-nome')).toBeVisible()
+  const nome = await page.locator('.status-nome').boundingBox()
+  const avatar = await page.locator('.status-avatar').boundingBox()
+  const nivel = await page.locator('.status-item--nivel').boundingBox()
+  expect(nome!.y).toBeLessThan(nivel!.y) // nome acima do nível
+  expect(nome!.x).toBeCloseTo(nivel!.x, -1) // mesma coluna (à direita da foto)
+  // tudo centralizado verticalmente: centro do avatar ≈ centro da coluna nome+nível
+  const centroColuna = (nome!.y + nivel!.y + nivel!.height) / 2
+  expect(avatar!.y + avatar!.height / 2).toBeCloseTo(centroColuna, 0)
+  expect(avatar!.x).toBeLessThan(nome!.x) // foto à ESQUERDA da coluna
+  expect(avatar!.width).toBeGreaterThan(40) // bolinha maior no mobile (44px)
+})
+
 test('mobile: status bar empilha as barras (vida → XP → mana) com nível à esquerda', async ({ page }) => {
   await page.goto('/#/hoje')
   const hp = await page.locator('.status-item--hp').boundingBox()

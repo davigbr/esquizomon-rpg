@@ -1526,6 +1526,92 @@ select.campo {
   }
 }
 
+/* ========== Editor de corte de avatar (2026-08-12) ========== */
+.avatar-atual {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid var(--border-gold);
+  display: grid;
+  place-items: center;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.avatar-atual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.config-acoes-linha {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+/* seção do avatar: círculo no topo, botões logo abaixo (2026-08-12) */
+.avatar-bloco {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.avatar-mascara {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70.71%;
+  height: 70.71%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  z-index: 1;
+}
+.avatar-janela {
+  width: 240px;
+  height: 240px;
+  margin: 0 auto;
+  overflow: hidden;
+  position: relative;
+  border-radius: 12px;
+  border: 1px solid var(--border-gold);
+  cursor: grab;
+  background: var(--bg-tertiary);
+  touch-action: none;
+}
+.avatar-janela:active {
+  cursor: grabbing;
+}
+.avatar-janela img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  will-change: transform;
+  pointer-events: none;
+}
+.avatar-dica {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 0 0 12px;
+  text-align: center;
+}
+.avatar-zoom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px auto 0;
+  max-width: 240px;
+}
+.avatar-zoom input[type='range'] {
+  flex: 1;
+  accent-color: var(--accent-gold);
+}
+
 /* ========== Galeria de cartas ========== */
 .cartas-grade {
   display: grid;
@@ -1866,9 +1952,52 @@ select.campo {
 
 /* wrapper das 3 barras: display:contents — no desktop mantém a linha reta;
    no mobile o grid de ≤900px (final desta seção) empilha as barras via os
-   próprios .status-item (nível à esquerda, centralizado) */
+   próprios .status-item (nível à esquerda, centrado) */
 .status-barras {
   display: contents;
+}
+
+/* avatar + nome + nível agrupados (gap apertado 8px — nome perto da foto);
+   ordem desktop: avatar → nome → nível (flex `order`; o topo é display:contents)
+   mobile: grid interno — linha 1 = avatar+nível, linha 2 = nome ABAIXO da foto */
+.status-identidade {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.status-identidade-info {
+  display: contents;
+}
+
+/* nome monstruoso: bold ao lado do avatar (desktop); no mobile fica ACIMA do
+   nível na coluna da identidade — NUNCA display:none */
+.status-nome {
+  order: 2;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--texto);
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+}
+
+.status-avatar {
+  order: 1;
+}
+
+.status-item--nivel {
+  order: 3;
+}
+
+.status-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border-gold);
+  flex-shrink: 0;
 }
 
 /* brilho ao ganhar (XP, cura) */
@@ -2254,8 +2383,42 @@ select.campo {
     align-self: stretch;
     display: flex;
     align-items: center;
-    padding-right: 12px;
-    border-right: 1px solid var(--border-color);
+  }
+  /* mobile: avatar + coluna [nome ACIMA do nível], tudo centralizado
+     verticalmente (2026-08-12) */
+  .status-identidade {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .status-identidade-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.15;
+    gap: 4px; /* respiro entre nome e nível (2026-08-12) */
+    min-width: 0;
+    order: 2; /* a FOTO (order 1) fica à ESQUERDA (bug real 2026-08-12) */
+  }
+  .status-nome {
+    font-size: 11px;
+    line-height: 1.1;
+    max-width: 130px;
+    margin: 0;
+  }
+  /* identidade na coluna 1 do grid da status bar */
+  .status-identidade {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    justify-self: start;
+    align-self: stretch;
+    max-width: 100%;
+    min-width: 0;
+  }
+  /* mobile: bolinha maior (ocupa melhor o espaço vertical) */
+  .status-avatar {
+    width: 44px;
+    height: 44px;
   }
   .status-item--hp {
     grid-column: 2;

@@ -37,6 +37,10 @@ export interface Personagem {
   ultimoDia: string
   /** Ids das cartas do baralho desbloqueadas (galeria). */
   cartas: string[]
+  /** Avatar do jogador: data URL JPEG comprimido (~5KB), exibido na status bar. */
+  avatar?: string
+  /** Nome monstruoso do personagem — bold ao lado do avatar (desktop apenas). */
+  nomeMonstruoso?: string
   /** Nº de invocações por carta (custo de mana cresce até um teto). */
   invocacoes: Record<string, number>
 }

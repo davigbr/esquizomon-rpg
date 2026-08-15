@@ -116,7 +116,12 @@ function montarStatusBar(): void {
   // 1ª vez: cria a estrutura (a partir daí só atualiza valores, para a transição animar)
   if (!el) {
     statusBar.innerHTML = `
-      <div class="status-item status-item--nivel" title="Nível"><i class="fa-solid fa-arrow-trend-up" aria-hidden="true"></i><span data-s-nivel></span></div>
+      <div class="status-identidade">
+        <div class="status-identidade-info">
+          <span class="status-nome"></span>
+          <div class="status-item status-item--nivel" title="Nível"><i class="fa-solid fa-arrow-trend-up" aria-hidden="true"></i><span data-s-nivel></span></div>
+        </div>
+      </div>
       <div class="status-barras">
         <div class="status-item status-item--hp" title="Vida"><i class="fa-solid fa-heart" aria-hidden="true"></i><span data-s-hp></span><div class="status-trilho"><div class="status-preenchimento status-preenchimento--hp" data-b-hp></div></div></div>
         <div class="status-item status-item--xp" title="Experiência"><i class="fa-solid fa-star" aria-hidden="true"></i><span data-s-xp></span><div class="status-trilho"><div class="status-preenchimento status-preenchimento--xp" data-b-xp></div></div></div>
@@ -149,6 +154,31 @@ function montarStatusBar(): void {
   el.manaValor.textContent = `Mana ${p.mana}/${p.manaMax}`
   el.manaBarra.style.width = `${pctMana}%`
   if (el.esgotado) el.esgotado.style.display = p.esgotado ? 'inline-flex' : 'none'
+
+  // avatar: criado/removido dinamicamente (o upload acontece após o 1º render)
+  const avatarEl = statusBar.querySelector<HTMLImageElement>('.status-avatar')
+  const avatarAtual = p.avatar
+  // nome monstruoso: preenche o span FIXO do markup (display none se vazio)
+  const nomeSpan = statusBar.querySelector<HTMLElement>('.status-nome')
+  if (nomeSpan) {
+    const nome = p.nomeMonstruoso?.trim() ?? ''
+    nomeSpan.textContent = nome
+    nomeSpan.style.display = nome ? '' : 'none'
+  }
+  const identidade = statusBar.querySelector<HTMLElement>('.status-identidade')
+  const infoEl = statusBar.querySelector<HTMLElement>('.status-identidade-info')
+  if (avatarAtual && !avatarEl) {
+    const img = document.createElement('img')
+    img.className = 'status-avatar'
+    img.alt = 'Avatar'
+    img.src = avatarAtual
+    // insere ANTES do topo (nível) — na linha, à esquerda; ordem via flex `order`
+    identidade?.insertBefore(img, infoEl)
+  } else if (!avatarAtual && avatarEl) {
+    avatarEl.remove()
+  } else if (avatarAtual && avatarEl && avatarEl.getAttribute('src') !== avatarAtual) {
+    avatarEl.setAttribute('src', avatarAtual)
+  }
 
   // 3. brilho nas mudanças
   if (hpMudou) brilhar(el.hp, p.hp > hpAntes ? 'status-brilho-ganho' : 'status-brilho-perda')

@@ -183,6 +183,14 @@ function normalizarPersonagem(v: unknown): Personagem {
     ultimoDia: typeof p.ultimoDia === 'string' ? p.ultimoDia : '',
     cartas,
     invocacoes,
+    avatar:
+      typeof p.avatar === 'string' && p.avatar.startsWith('data:image/') && p.avatar.length < 200_000
+        ? p.avatar
+        : undefined,
+    nomeMonstruoso:
+      typeof p.nomeMonstruoso === 'string' && p.nomeMonstruoso.trim()
+        ? p.nomeMonstruoso.trim().slice(0, 40)
+        : undefined,
   }
 }
 

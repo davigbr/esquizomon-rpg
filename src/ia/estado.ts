@@ -69,6 +69,7 @@ export function montarContexto(dados: AppData): string {
 
   return `DATA DE HOJE: ${hoje}
 PERSONAGEM:
+${p.nomeMonstruoso?.trim() ? `NOME MONSTRUOSO: ${p.nomeMonstruoso.trim()} (é como você chama o jogador)` : ''}
 - Nível ${p.nivel} · XP ${p.xp}/${p.xpProximo}${p.esgotado ? ' (ESGOTADO)' : ''}
 - Vida ${p.hp}/${p.hpMax} · Mana ${p.mana}/${p.manaMax}
 - Cartas desbloqueadas: ${cartasDesbloqueadas ? p.cartas.length : 0}/65
