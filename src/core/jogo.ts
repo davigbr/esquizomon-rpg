@@ -67,12 +67,12 @@ export function manaMaxDe(nivel: number): number {
 /** Cartas desbloqueadas no início: ~10% de 65 = 7. */
 export const CARTAS_INICIAIS = 7
 
-/** Cartas desbloqueadas a cada nível acima do 1º (2 por nível → completo no nível 30). */
+/** Cartas desbloqueadas a cada nível acima do 1º (1 por nível → completo no nível 59). */
 export function cartasPorNivel(): number {
-  return 2
+  return 1
 }
 
-/** Nível em que o baralho fica completo (65 cartas, 7 iniciais + 2/nível). */
+/** Nível em que o baralho fica completo (65 cartas, 7 iniciais + 1/nível). */
 export function nivelBaralhoCompleto(): number {
   return 1 + Math.ceil((65 - CARTAS_INICIAIS) / cartasPorNivel())
 }

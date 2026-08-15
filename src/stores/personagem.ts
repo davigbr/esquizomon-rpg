@@ -23,7 +23,7 @@ export function definirNomeMonstruoso(nome: string): void {
 import type { Personagem } from '../core/tipos'
 import { cartasPorNivel, custoInvocacao, hpMaxDe, manaMaxDe, xpProximoDe } from '../core/jogo'
 import type { Carta } from '../core/baralho'
-import { sortearIds, sortearIniciais } from '../core/baralho'
+import { sortearIniciais, sortearIdsPonderado } from '../core/baralho'
 import { appStore, registrarLog } from './base'
 import type { Resultado } from './base'
 import { tocarSom } from '../ui/sons'
@@ -87,7 +87,7 @@ function desbloquearCartas(n: number): string[] {
     desbloqueioPendente += n
     return []
   }
-  const novos = sortearIds(deckCarregado, n, p.cartas)
+  const novos = sortearIdsPonderado(deckCarregado, n, p.cartas)
   if (novos.length === 0) return []
   appStore.set({
     ...dados,

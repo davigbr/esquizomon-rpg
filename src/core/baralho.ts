@@ -3,6 +3,12 @@
 
 import deck from '../data/deck.json'
 
+// Gancho de diagnóstico: expõe o deck para scripts de console (correção de
+// dados em produção — 2026-08-12). Inofensivo.
+if (typeof window !== 'undefined') {
+  ;(window as unknown as { esquizomonDeck?: Carta[] }).esquizomonDeck = deck as Carta[]
+}
+
 export type TipoCarta = 'monstro' | 'captura' | 'alianca'
 
 export interface Carta {
@@ -27,6 +33,36 @@ export function sortearIds(cartas: Carta[], n: number, excluir: string[] = []): 
   const disponiveis = cartas.map((c) => c.id).filter((id) => !excluir.includes(id))
   const embaralhado = [...disponiveis].sort(() => Math.random() - 0.5)
   return embaralhado.slice(0, Math.min(n, embaralhado.length))
+}
+
+/** Peso de raridade por tipo (2026-08-12): monstro é 3× mais comum que
+ *  aliança; captura 2×. */
+export function pesoDeRaridade(c: Carta): number {
+  return c.type === 'monstro' ? 3 : c.type === 'captura' ? 2 : 1
+}
+
+/** Sorteia N ids com pesos de raridade, sem repetir as já escolhidas —
+ *  usado nos desbloqueios por nível (2026-08-12). */
+export function sortearIdsPonderado(cartas: Carta[], n: number, excluir: string[] = []): string[] {
+  const disponiveis = cartas.filter((c) => !excluir.includes(c.id))
+  const escolhidos: string[] = []
+  const sorteiaUm = (): Carta | undefined => {
+    const total = disponiveis.reduce((s, c) => s + pesoDeRaridade(c), 0)
+    if (total <= 0) return undefined
+    let r = Math.random() * total
+    for (const c of disponiveis) {
+      r -= pesoDeRaridade(c)
+      if (r < 0) return c
+    }
+    return disponiveis[disponiveis.length - 1]
+  }
+  while (escolhidos.length < Math.min(n, disponiveis.length)) {
+    const c = sorteiaUm()
+    if (!c) break
+    escolhidos.push(c.id)
+    disponiveis.splice(disponiveis.indexOf(c), 1)
+  }
+  return escolhidos
 }
 
 /** Sorteia as cartas iniciais: exatamente 5 monstros + 1 captura + 1 aliança. */
