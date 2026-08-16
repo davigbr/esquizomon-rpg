@@ -1,5 +1,8 @@
-/* Service worker — cache do app shell (produção). */
-const CACHE = 'esquizomon-rpg-v1'
+/* Service worker — cache do app shell (produção).
+ * Navegação (HTML): NETWORK-FIRST — o app sempre busca a versão nova na rede
+ * (cache-first aqui era o bug do PWA preso na versão velha — 2026-08-16).
+ * Demais assets: stale-while-revalidate (rapidez + atualização). */
+const CACHE = 'esquizomon-rpg-v2'
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg', '/favicon.png', '/apple-touch-icon.png', '/images/logo-esquizomon.svg']
 
 self.addEventListener('install', (event) => {
@@ -20,6 +23,22 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request
   if (req.method !== 'GET') return
+
+  // Navegação: sempre tenta a rede primeiro (HTML atualizado → bundles novos)
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          const copia = res.clone()
+          void caches.open(CACHE).then((cache) => cache.put(req, copia))
+          return res
+        })
+        .catch(() => caches.match(req).then((c) => c || caches.match('/'))),
+    )
+    return
+  }
+
+  // Assets: responde do cache e atualiza em segundo plano
   event.respondWith(
     caches.match(req).then((emCache) => {
       const rede = fetch(req)
