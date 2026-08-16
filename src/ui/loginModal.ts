@@ -2,7 +2,7 @@
  *  Abas: Entrar / Criar conta / Esqueci a senha. Após autenticar, dispara a
  *  sincronização inicial (aposMudancaSessao). */
 
-import { abrirModal, fecharModal } from './modal'
+import { abrirModal, fecharModal, modalBody } from './modal'
 import { notificar } from './toast'
 import { consumirAvisoConfirmacao, criarConta, login, recuperarSenha, sair, sessaoAtual } from '../sync/auth'
 import { aposMudancaSessao } from '../sync/sync'
@@ -184,8 +184,7 @@ export function abrirLoginModal(): void {
     liberar(botao, 'Criar conta')
     if (!r.ok) return avisar(r.motivo ?? 'Falha ao criar a conta.', true)
     if (r.precisaConfirmar) {
-      avisar('Conta criada! Enviamos um link de confirmação para o seu e-mail — clique nele para ativar a conta (confira também o spam).')
-      mostrarFormulario('entrar')
+      mostrarSucessoCriacao(email)
       return
     }
     aposMudancaSessao()
@@ -204,4 +203,18 @@ export function abrirLoginModal(): void {
     avisar('Link de recuperação enviado! Confira seu e-mail.')
     mostrarFormulario('entrar')
   })
+}
+
+/** Tela de sucesso pós-criação: a mensagem e SÓ a opção de fechar — não
+ *  redireciona para o login (o usuário ainda precisa confirmar o e-mail). */
+function mostrarSucessoCriacao(email: string): void {
+  abrirModal(`
+    <h2>Conta criada! 🎉</h2>
+    <p class="login-dica">Enviamos um link de confirmação para <strong>${escapar(email)}</strong>.</p>
+    <p class="login-dica login-dica--aviso">Clique no link do e-mail para ativar a conta antes de entrar — ele pode levar alguns minutos para chegar (confira também o spam).</p>
+    <div class="form-acoes form-acoes--coluna">
+      <button type="button" class="btn btn-primary" data-fechar-criacao>Fechar</button>
+    </div>
+  `)
+  modalBody.querySelector<HTMLButtonElement>('[data-fechar-criacao]')?.addEventListener('click', () => fecharModal())
 }
