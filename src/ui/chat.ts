@@ -621,6 +621,9 @@ async function enviar(texto: string): Promise<void> {
   let analiseRecusada = false
   let capturasPedidas = false
   let capturasRecusadas = false
+  // Mana só é descontada quando a RESPOSTA chegar (2026-08-16): falha no
+  // retorno não cobra. Guarda o desconto agendado pelo comando.
+  let descontoPendente: { custo: number; rotulo: string } | null = null
   const comando = detectarComando(texto)
   if (comando?.tipo === 'invocar' && comando.escolhaFabula) {
     // /invocar sem nome → a Fábula escolhe a carta (custo premium ×1,5)
@@ -632,9 +635,8 @@ async function enviar(texto: string): Promise<void> {
       // não descarta o pedido: a Fábula explica no chat (mana intacta)
       analiseRecusada = true
     } else {
-      appStore.set({ ...appStore.get(), personagem: { ...p, mana: p.mana - CUSTO_ANALISE } })
-      notificar(`Análise esquizoanalítica (−${CUSTO_ANALISE} mana)`)
-      tocarSom('analise')
+      // desconto só no sucesso da resposta (ver descontoPendente após o stream)
+      descontoPendente = { custo: CUSTO_ANALISE, rotulo: 'Análise esquizoanalítica' }
       analisePedida = true
     }
   } else if (comando?.tipo === 'capturas') {
@@ -643,9 +645,7 @@ async function enviar(texto: string): Promise<void> {
     if (p.mana < CUSTO_CAPTURAS) {
       capturasRecusadas = true
     } else {
-      appStore.set({ ...appStore.get(), personagem: { ...p, mana: p.mana - CUSTO_CAPTURAS } })
-      notificar(`Varredura de capturas (−${CUSTO_CAPTURAS} mana)`)
-      tocarSom('analise')
+      descontoPendente = { custo: CUSTO_CAPTURAS, rotulo: 'Varredura de capturas' }
       capturasPedidas = true
     }
   }
@@ -779,6 +779,14 @@ async function enviar(texto: string): Promise<void> {
         area.scrollTop = area.scrollHeight
       },
     })
+    // Resposta veio: cobra a mana dos comandos AGORA (falha no retorno não cobra)
+    if (descontoPendente) {
+      const p = appStore.get().personagem
+      appStore.set({ ...appStore.get(), personagem: { ...p, mana: p.mana - descontoPendente.custo } })
+      notificar(`${descontoPendente.rotulo} (−${descontoPendente.custo} mana)`)
+      tocarSom('analise')
+      descontoPendente = null
+    }
     // Resposta vazia do modelo (ex.: só raciocínio, ou recusa silenciosa):
     // mostra erro em vez de salvar uma bolha vazia (bug real 2026-08-12).
     if (!resposta.trim()) {
@@ -810,6 +818,8 @@ async function enviar(texto: string): Promise<void> {
     }
     adicionarMensagem(conversa.id, assistantMsg)
   } catch (err) {
+    // falha no retorno → NÃO cobra a mana dos comandos
+    descontoPendente = null
     const msg = err instanceof ErroIA ? err.message : 'Não consegui falar com a IA.'
     notificar(msg, 'erro')
     if (resposta) {

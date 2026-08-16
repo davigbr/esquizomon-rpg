@@ -625,8 +625,9 @@ test('fabula: /capturas desconta 25 de mana e pede a varredura das capturas', as
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('/capturas')
   await page.locator('[data-fabula-form]').press('Enter')
-  await expect(page.locator('.toast').last()).toContainText('25') // toast some em ~3s — checar antes da bolha
+  // o desconto acontece com a RESPOSTA (não antes) — bolha primeiro, toast depois
   await expect(page.locator('.fabula-bolha--assistente')).toContainText('Câmara')
+  await expect(page.locator('.toast').last()).toContainText('25')
   const mana = await page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}') as { personagem: { mana: number } }).personagem.mana)
   expect(mana).toBe(15) // 40 − 25
   const corpo = JSON.parse(corpos[corpos.length - 1])
