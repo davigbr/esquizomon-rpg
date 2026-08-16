@@ -199,7 +199,7 @@ function renderizar(): void {
       </div>
 
       <form class="fabula-form" data-fabula-form>
-        <textarea class="fabula-input" data-fabula-input rows="1" placeholder="${conversa ? "Converse com Fábula… ('invoca a carta X' custa mana)" : 'Crie uma conversa para começar'}" autocomplete="off" ${!conversa || ocupado ? 'disabled' : ''}></textarea>
+        <textarea class="fabula-input" data-fabula-input rows="1" placeholder="${conversa ? '' : 'Crie uma conversa para começar'}" autocomplete="off" ${!conversa || ocupado ? 'disabled' : ''}></textarea>
         <button class="btn btn-icon" type="submit" aria-label="Enviar" ${!conversa || ocupado ? 'disabled' : ''}><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></button>
       </form>
       <p class="fabula-dica">Comandos: <b>/invocar &lt;carta&gt;</b> (custa mana) · <b>/invocar</b> sem nome (a Fábula escolhe, custa mais) · <b>/analisar</b> (10 mana, análise esquizoanalítica) · <b>/capturas</b> (25 mana, varredura das capturas desbloqueadas). Ou peça no texto: <b>invoca a carta &lt;nome&gt;</b>.</p>
