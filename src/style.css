@@ -3741,7 +3741,8 @@ body.fabula-aberto .container {
   line-height: 1.5;
 }
 
-/* botão de conta no header — logado mostra o ícone de perfil (2026-08-16) */
+/* botão de conta no header — logado mostra o ícone de perfil em dourado de
+   ACENTO (o border-gold é marrom escuro no tema escuro — ícone sumia) */
 #conta-toggle.logado {
-  color: var(--border-gold);
+  color: var(--accent-gold);
 }
