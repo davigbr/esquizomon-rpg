@@ -85,6 +85,7 @@ export function abrirLoginModal(): void {
       ${campo('E-mail', 'email', 'email', 'email')}
       ${campo('Senha', 'password', 'senha', 'new-password')}
       <small class="login-dica">Use uma senha que você não usa em outros lugares.</small>
+      <small class="login-dica login-dica--aviso">📧 Ao criar a conta, enviaremos um <strong>link de confirmação</strong> para o seu e-mail — clique nele para ativar a conta antes de entrar (confira também o spam).</small>
       <button type="submit" class="btn btn-primary" data-enviar>Criar conta</button>
     </form>
 
@@ -183,7 +184,7 @@ export function abrirLoginModal(): void {
     liberar(botao, 'Criar conta')
     if (!r.ok) return avisar(r.motivo ?? 'Falha ao criar a conta.', true)
     if (r.precisaConfirmar) {
-      avisar('Conta criada! Confirme seu e-mail pelo link que enviamos para entrar.')
+      avisar('Conta criada! Enviamos um link de confirmação para o seu e-mail — clique nele para ativar a conta (confira também o spam).')
       mostrarFormulario('entrar')
       return
     }
