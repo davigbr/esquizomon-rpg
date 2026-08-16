@@ -106,7 +106,7 @@ body {
   z-index: 100;
   background: rgba(10, 10, 10, 0.85);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--border-color);
+  /* border-bottom movido para a status-bar (ela é o fim do bloco) */
 }
 
 [data-theme='light'] .navbar {
@@ -1865,12 +1865,10 @@ select.campo {
   }
 }
 
-/* ========== Barra de status fixa (nível, HP, XP, mana) ========== */
+/* ========== Barra de status (nível, HP, XP, mana) ========== */
+/* DENTRO do .navbar sticky (2026-08-16): colada ao menu em qualquer altura —
+   antes era sticky top:56px e o navbar mobile (2 linhas) deixava uma fresta */
 .status-bar {
-  position: sticky;
-  /* abaixo do navbar (56px), sem colidir com ele */
-  top: 56px;
-  z-index: 30;
   display: flex;
   align-items: center;
   gap: 24px;
@@ -2480,7 +2478,8 @@ select.campo {
   display: flex;
   transform: translateX(105%);
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 50;
+  /* acima do navbar (100): o fullscreen mobile cobre menu + status bar */
+  z-index: 120;
 }
 
 #fabula-panel.aberto {
