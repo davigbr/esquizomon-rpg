@@ -3741,18 +3741,7 @@ body.fabula-aberto .container {
   line-height: 1.5;
 }
 
-/* botão de conta no header — logado mostra o e-mail (curto) */
+/* botão de conta no header — logado mostra o ícone de perfil (2026-08-16) */
 #conta-toggle.logado {
-  max-width: 150px;
-}
-
-.header-conta-email {
-  display: inline-block;
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent-gold);
+  color: var(--border-gold);
 }
