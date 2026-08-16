@@ -122,6 +122,10 @@ export function custoInvocacaoFabula(tipo: 'monstro' | 'captura' | 'alianca', in
 /** Custo da análise esquizoanalítica da Fábula (comando /analisar). */
 export const CUSTO_ANALISE = 10
 
+/** Custo da varredura de capturas (comando /capturas) — CARO: lê o cotidiano
+ *  com as cartas de captura desbloqueadas. */
+export const CUSTO_CAPTURAS = 25
+
 /** Personagem inicial (nível 1, 7 cartas sorteadas). */
 export function personagemInicial(cartasIniciais: string[] = []) {
   return {

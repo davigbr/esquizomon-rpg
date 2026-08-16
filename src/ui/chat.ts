@@ -15,7 +15,7 @@ import { montarSystemPrompt } from '../ia/prompt'
 import { extrairAcoes, detectarPedidoInvocacao, detectarComando, type AcaoIA } from '../ia/acoes'
 import { nomeDaCarta, resolverCartaId, tipoDaCarta, rotuloTipo, todasAsCartas } from '../core/baralho'
 import { invocarCarta } from '../stores/app'
-import { custoInvocacao, custoInvocacaoFabula, CUSTO_ANALISE } from '../core/jogo'
+import { custoInvocacao, custoInvocacaoFabula, CUSTO_ANALISE, CUSTO_CAPTURAS } from '../core/jogo'
 import { tocarSom } from './sons'
 import { notificar } from './toast'
 import { escapar } from './util'
@@ -98,7 +98,8 @@ interface Sugestao {
 }
 const COMANDOS = [
   { nome: 'invocar', descricao: 'invoca uma carta (custa mana; sem nome = Fábula escolhe, custa mais)' },
-  { nome: 'analisar', descricao: 'análise esquizoanalítica (10 mana)' },
+  { nome: 'analisar', descricao: 'análise esquizoanalítica técnica (10 mana)' },
+  { nome: 'capturas', descricao: 'varredura das cartas de captura desbloqueadas (25 mana)' },
 ] as const
 let sugestoes: Sugestao[] = []
 let sugestaoIdx = 0
@@ -201,7 +202,7 @@ function renderizar(): void {
         <textarea class="fabula-input" data-fabula-input rows="1" placeholder="${conversa ? "Converse com Fábula… ('invoca a carta X' custa mana)" : 'Crie uma conversa para começar'}" autocomplete="off" ${!conversa || ocupado ? 'disabled' : ''}></textarea>
         <button class="btn btn-icon" type="submit" aria-label="Enviar" ${!conversa || ocupado ? 'disabled' : ''}><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></button>
       </form>
-      <p class="fabula-dica">Comandos: <b>/invocar &lt;carta&gt;</b> (custa mana) · <b>/invocar</b> sem nome (a Fábula escolhe, custa mais) · <b>/analisar</b> (10 mana, análise esquizoanalítica). Ou peça no texto: <b>invoca a carta &lt;nome&gt;</b>.</p>
+      <p class="fabula-dica">Comandos: <b>/invocar &lt;carta&gt;</b> (custa mana) · <b>/invocar</b> sem nome (a Fábula escolhe, custa mais) · <b>/analisar</b> (10 mana, análise esquizoanalítica) · <b>/capturas</b> (25 mana, varredura das capturas desbloqueadas). Ou peça no texto: <b>invoca a carta &lt;nome&gt;</b>.</p>
     </div>
   `
 
@@ -618,6 +619,8 @@ async function enviar(texto: string): Promise<void> {
   let escolhaFabula = false
   let analisePedida = false
   let analiseRecusada = false
+  let capturasPedidas = false
+  let capturasRecusadas = false
   const comando = detectarComando(texto)
   if (comando?.tipo === 'invocar' && comando.escolhaFabula) {
     // /invocar sem nome → a Fábula escolhe a carta (custo premium ×1,5)
@@ -633,6 +636,17 @@ async function enviar(texto: string): Promise<void> {
       notificar(`Análise esquizoanalítica (−${CUSTO_ANALISE} mana)`)
       tocarSom('analise')
       analisePedida = true
+    }
+  } else if (comando?.tipo === 'capturas') {
+    // /capturas → varredura de capturas com as cartas desbloqueadas (mana CARA)
+    const p = appStore.get().personagem
+    if (p.mana < CUSTO_CAPTURAS) {
+      capturasRecusadas = true
+    } else {
+      appStore.set({ ...appStore.get(), personagem: { ...p, mana: p.mana - CUSTO_CAPTURAS } })
+      notificar(`Varredura de capturas (−${CUSTO_CAPTURAS} mana)`)
+      tocarSom('analise')
+      capturasPedidas = true
     }
   }
   // /invocar <carta>: nada a fazer aqui — a detecção do verbo abaixo
@@ -679,9 +693,30 @@ async function enviar(texto: string): Promise<void> {
     historico.push({
       role: 'system',
       content:
-        'O jogador pediu uma ANÁLISE ESQUIZOANALÍTICA (comando /analisar — o app já descontou 10 de mana). ' +
-        'Faça uma análise profunda no método esquizoanalítico: mapeie as máquinas desejantes em funcionamento (peças, fluxos e cortes), as linhas de fuga e os devires em curso, os territórios e ritornelos — ' +
-        'a partir do resumo "Sobre você", do diário e do que ele disse agora. Análise extensa (10-16 frases), metáforas concretas, sem jargão acadêmico; termine com 2-3 perguntas que fiquem ecoando.',
+        'O jogador pediu uma ANÁLISE ESQUIZOANALÍTICA TÉCNICA (comando /analisar — o app já descontou 10 de mana). ' +
+        'Método (seja técnica e precisa, sem ser acadêmica): 1) NOMEIE o desejo/conteúdo manifesto que ele trouxe (o que está investido de libido). ' +
+        '2) MAPEIE COM O QUE esse desejo está se conectando — objetos, pessoas, atividades, lugares, ritmos; e os fluxos que atravessam essas conexões. ' +
+        '3) DIGA O MODO DA CONEXÃO: REATIVO (o desejo é disparado por estímulo externo — responde, reage, é puxado) ou ATIVO (o desejo age — investe, busca, puxa o mundo para si); se houver os dois, nomeie onde cada um aparece. ' +
+        '4) LEIA O DIAGRAMA MAQUÍNICO: desenhe a máquina em funcionamento — peças, acoplamentos, cortes e fluxos (o que produz, o que consome, o que registra), os agenciamentos que ela forma e as linhas de fuga possíveis. ' +
+        'Use o resumo "Sobre você", o diário e o que ele disse agora. Análise extensa (10-16 frases), metáforas concretas, sem jargão; termine com 2-3 perguntas que fiquem ecoando.',
+    })
+  }
+  if (capturasPedidas) {
+    historico.push({
+      role: 'system',
+      content:
+        `O jogador pediu uma VARREDURA DE CAPTURAS (comando /capturas — o app já descontou ${CUSTO_CAPTURAS} de mana, um custo alto). ` +
+        'Use as CARTAS DE CAPTURA DESBLOQUEADAS dele (campo CARTAS DESBLOQUEADAS do estado, tipo "captura"). ' +
+        'Para CADA carta de captura desbloqueada, tente IDENTIFICAR A PRESENÇA dela no cotidiano do jogador: leia as tarefas, o diário, o histórico e o que ele disse agora e diga ONDE a carta se manifesta (que hábito, que padrão, que situação encarna a captura dela) e o que ela estaria capturando (que fluxo de vida ela prende/alimenta). ' +
+        'Se uma carta não tiver manifestação clara no que você vê, diga HONESTAMENTE que a presença dela não está visível agora e o que você suspeitaria procurar. ' +
+        'Formato: uma seção curta por carta (nome da carta em negrito, 2-4 frases cada); feche com 1 síntese — qual captura está mais ativa hoje. Análise extensa (8-14 frases no total).',
+    })
+  }
+  if (capturasRecusadas) {
+    const p = appStore.get().personagem
+    historico.push({
+      role: 'system',
+      content: `O jogador pediu /capturas mas não tem mana suficiente (tem ${p.mana}/${p.manaMax}; a varredura custa ${CUSTO_CAPTURAS}). NÃO faça a varredura: explique com delicadeza que uma varredura dessas exige forças que ele ainda não tem, sugira voltar amanhã (a mana regenera no reset) e devolva uma pergunta.`,
     })
   }
   if (analiseRecusada) {

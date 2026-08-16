@@ -250,10 +250,13 @@ test('fabula: invocarCarta (via chat) desconta mana e registra', async ({ page }
   expect(semMana.ok).toBe(false)
 })
 
-/** Seed com IA configurada (provider fake) + carta desbloqueada + mana. */
+/** Seed com IA configurada (provider fake) + carta desbloqueada + mana.
+ *  Semeia UMA vez (idempotente como o semear): reloads mantêm o que o teste
+ *  gravou — senão o nome/avatar salvo some e testes de persistência falham. */
 async function semearChat(page: import('@playwright/test').Page): Promise<void> {
   await page.addInitScript(
     ({ hoje }) => {
+      if (localStorage.getItem('esquizomon-rpg:v1')) return
       const d = {
         versao: 3,
         tarefas: [],
@@ -517,9 +520,9 @@ test('fabula: /invocar com autocomplete escolhe a carta e invoca (mana normal)',
   await page.locator('[data-fabula-nova]').click()
   const input = page.locator('[data-fabula-input]')
 
-  // "/" abre os comandos; Enter completa "/invocar "
+  // "/" abre os comandos (invocar, analisar, capturas); Enter completa "/invocar "
   await input.fill('/')
-  await expect(page.locator('.fabula-sugestao')).toHaveCount(2)
+  await expect(page.locator('.fabula-sugestao')).toHaveCount(3)
   await page.keyboard.press('Enter')
   await expect(input).toHaveValue('/invocar ')
 
@@ -600,6 +603,64 @@ test('fabula: /analisar desconta 10 de mana e pede análise esquizoanalítica', 
   const conteudos = corpo.messages.map((m: { content: string }) => m.content)
   // o comando cru vai pro histórico (e pra Fábula) como digitado
   expect(conteudos).toContain('/analisar')
+})
+
+test('fabula: /capturas desconta 25 de mana e pede a varredura das capturas', async ({ page }) => {
+  await semearChat(page)
+  const corpos: string[] = []
+  await page.route('**/api/ia', (rota) => {
+    corpos.push(rota.request().postData() ?? '')
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('A Câmara dos Ecos está ativa...') })
+  })
+
+  await page.goto('/#/hoje')
+  // o seed traz mana 20/max 20 — o /capturas custa 25; subir no STORE (o app
+  // normaliza o storage no boot e o addInitScript extra não sobrevive)
+  await page.evaluate(async () => {
+    const mod = await import('/src/stores/app')
+    const p = mod.appStore.get().personagem
+    mod.appStore.set({ ...mod.appStore.get(), personagem: { ...p, mana: 40, manaMax: 40 } })
+  })
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click()
+  await page.locator('[data-fabula-input]').fill('/capturas')
+  await page.locator('[data-fabula-form]').press('Enter')
+  await expect(page.locator('.toast').last()).toContainText('25') // toast some em ~3s — checar antes da bolha
+  await expect(page.locator('.fabula-bolha--assistente')).toContainText('Câmara')
+  const mana = await page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}') as { personagem: { mana: number } }).personagem.mana)
+  expect(mana).toBe(15) // 40 − 25
+  const corpo = JSON.parse(corpos[corpos.length - 1])
+  const sistema = corpo.messages
+    .filter((m: { role: string }) => m.role === 'system')
+    .map((m: { content: string }) => m.content)
+    .join('\n')
+  expect(sistema).toContain('VARREDURA DE CAPTURAS')
+  const conteudos = corpo.messages.map((m: { content: string }) => m.content)
+  expect(conteudos).toContain('/capturas')
+})
+
+test('fabula: /capturas sem mana — a Fábula explica no chat (mana intacta)', async ({ page }) => {
+  await semearChat(page)
+  const corpos: string[] = []
+  await page.route('**/api/ia', (rota) => {
+    corpos.push(rota.request().postData() ?? '')
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('Guarde suas forças.') })
+  })
+  // mana baixa: 10 < 25
+  await page.addInitScript(() => {
+    const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
+    d.personagem.mana = 10
+    localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
+  })
+
+  await page.goto('/#/hoje')
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click()
+  await page.locator('[data-fabula-input]').fill('/capturas')
+  await page.locator('[data-fabula-form]').press('Enter')
+  await expect(page.locator('.fabula-bolha--assistente')).toContainText('forças')
+  const mana = await page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}') as { personagem: { mana: number } }).personagem.mana)
+  expect(mana).toBe(10) // intacta
 })
 
 test('fabula: /analisar sem mana — a Fábula explica no chat (mana intacta)', async ({ page }) => {
