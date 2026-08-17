@@ -43,18 +43,32 @@ let carregando = false // evita o eco: puxar → store → auto-enviar
 let definirEstado: (e: EstadoSync) => void = () => {}
 let intervaloPull: ReturnType<typeof setInterval> | null = null
 let primeiroSubscribe = true
+let idleTimer: ReturnType<typeof setTimeout> | null = null
 const PULL_MS = 10_000
+const IDLE_MS = 3 * 60_000 // 3 min sem interação → o polling "dorme"
 
 /** Pull periódico + na volta à aba: com 2 dispositivos logados, as mudanças
  *  de um chegam ao outro em até ~30s (ou ao voltar para a aba). Sem isso, cada
  *  dispositivo só sincroniza no login/edição própria — ficam divergentes. */
 function aoDormir(): void {
-  // foi pro background: para o polling (o navegador throttla timers de fundo
-  // de qualquer forma — inútil puxar escondido)
+  // foi pro background OU ficou inativo: para o polling (o navegador throttla
+  // timers de fundo; e inatividade não precisa puxar — desperdiça bateria/rede)
   if (intervaloPull) {
     clearInterval(intervaloPull)
     intervaloPull = null
   }
+}
+function rearmarInatividade(): void {
+  if (idleTimer) clearTimeout(idleTimer)
+  idleTimer = setTimeout(() => {
+    idleTimer = null
+    aoDormir() // X sem interação (mesmo com a aba visível) → pausa o polling
+  }, IDLE_MS)
+}
+function aoInteragir(): void {
+  // toque/tecla/foco: acorda (sincroniza já + retoma o polling) e rearma o idle
+  aoAcordar()
+  rearmarInatividade()
 }
 function aoAcordar(): void {
   // voltou / o usuário interagiu: retoma o polling e sincroniza JÁ (traz o
@@ -72,15 +86,16 @@ function iniciarTimerPull(): void {
 }
 function aoMudarVisibilidade(): void {
   if (document.visibilityState === 'hidden') aoDormir()
-  else aoAcordar()
+  else aoInteragir() // voltar à aba: acorda + rearma o idle
 }
 function iniciarPullPeriodico(): void {
   if (intervaloPull) return // já tem listeners/timer
   iniciarTimerPull()
   document.addEventListener('visibilitychange', aoMudarVisibilidade)
-  window.addEventListener('focus', aoAcordar)
-  window.addEventListener('pointerdown', aoAcordar, { passive: true })
-  window.addEventListener('keydown', aoAcordar)
+  window.addEventListener('focus', aoInteragir)
+  window.addEventListener('pointerdown', aoInteragir, { passive: true })
+  window.addEventListener('keydown', aoInteragir)
+  rearmarInatividade()
 }
 
 function pararPullPeriodico(): void {
@@ -88,10 +103,14 @@ function pararPullPeriodico(): void {
     clearInterval(intervaloPull)
     intervaloPull = null
   }
+  if (idleTimer) {
+    clearTimeout(idleTimer)
+    idleTimer = null
+  }
   document.removeEventListener('visibilitychange', aoMudarVisibilidade)
-  window.removeEventListener('focus', aoAcordar)
-  window.removeEventListener('pointerdown', aoAcordar)
-  window.removeEventListener('keydown', aoAcordar)
+  window.removeEventListener('focus', aoInteragir)
+  window.removeEventListener('pointerdown', aoInteragir)
+  window.removeEventListener('keydown', aoInteragir)
 }
 
 /** A UI (Config) inscreve-se aqui para mostrar o status. */
