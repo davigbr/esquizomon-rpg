@@ -138,16 +138,26 @@ export async function obterTokenValido(): Promise<string | null> {
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(sessao.refreshToken)}`,
     })
-    if (!res.ok) throw new Error('refresh falhou')
+    // 401 = refresh_token revogado/inválido de VERDADE → só aqui deslogamos.
+    if (res.status === 401) {
+      sessao = null
+      gravarSessao(null)
+      return null
+    }
+    // Falha transitória (rede, 5xx, rate-limit, timeout): NÃO desloga. Devolve
+    // o access token atual de "última chance" — se ele estiver expirado, o
+    // servidor responde 401 e o sync renova via renovarToken (que não desloga).
+    if (!res.ok) return sessao.accessToken
     const t = await res.json()
     const tokens = montarTokens({ ...t, refresh_token: t.refresh_token ?? sessao.refreshToken })
     sessao = montarSessao(tokens, sessao.usuario) // o usuário não muda no refresh
     gravarSessao(sessao)
     return sessao.accessToken
   } catch {
-    sessao = null
-    gravarSessao(null)
-    return null
+    // transmissão falhou (timeout/rede): mantém a sessão; devolve o token atual.
+    // bug real 2026-08-17: aqui deslogava o usuário em QUALQUER falha de refresh
+    // (o token expira a cada ~1h → o app "deslogava sozinho" às vezes).
+    return sessao?.accessToken ?? null
   }
 }
 
