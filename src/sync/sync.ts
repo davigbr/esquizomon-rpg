@@ -14,6 +14,7 @@
 import { appStore } from '../stores/base'
 import { normalizarDados } from '../db/storage'
 import { obterTokenValido, renovarToken, sessaoAtual } from './auth'
+import { notificar } from '../ui/toast'
 
 const CHAVE_SYNC = 'esquizomon-rpg:sync' // metadados locais de sincronização
 const FUNCAO = '/.netlify/functions/dados'
@@ -40,6 +41,33 @@ function gravarMetadados(m: MetadadosSync): void {
 let timer: ReturnType<typeof setTimeout> | null = null
 let carregando = false // evita o eco: puxar → store → auto-enviar
 let definirEstado: (e: EstadoSync) => void = () => {}
+let intervaloPull: ReturnType<typeof setInterval> | null = null
+const PULL_MS = 30_000
+
+/** Pull periódico + na volta à aba: com 2 dispositivos logados, as mudanças
+ *  de um chegam ao outro em até ~30s (ou ao voltar para a aba). Sem isso, cada
+ *  dispositivo só sincroniza no login/edição própria — ficam divergentes. */
+function aoVoltarParaAba(): void {
+  if (document.visibilityState === 'visible' && sessaoAtual()) void sincronizarAgora()
+}
+
+function iniciarPullPeriodico(): void {
+  if (intervaloPull) return
+  intervaloPull = setInterval(() => {
+    if (sessaoAtual()) void sincronizarAgora()
+  }, PULL_MS)
+  document.addEventListener('visibilitychange', aoVoltarParaAba)
+  window.addEventListener('focus', aoVoltarParaAba)
+}
+
+function pararPullPeriodico(): void {
+  if (intervaloPull) {
+    clearInterval(intervaloPull)
+    intervaloPull = null
+  }
+  document.removeEventListener('visibilitychange', aoVoltarParaAba)
+  window.removeEventListener('focus', aoVoltarParaAba)
+}
 
 /** A UI (Config) inscreve-se aqui para mostrar o status. */
 export function inscreverSync(cb: (e: EstadoSync) => void): () => void {
@@ -121,6 +149,7 @@ export async function sincronizarAgora(forcar?: 'local' | 'nuvem'): Promise<void
       substituirDados(envelope.dados)
       carregando = false
       gravarMetadados({ salvoEm: envelope.salvoEm ?? undefined })
+      notificar('Sincronizado — dados atualizados da nuvem.')
       definirEstado('sincronizado')
     } else if (!envelope.salvoEm || (local.salvoEm && local.salvoEm > envelope.salvoEm)) {
       // nuvem vazia ou mais velha → envia o local (primeira migração)
@@ -136,8 +165,10 @@ export async function sincronizarAgora(forcar?: 'local' | 'nuvem'): Promise<void
 /** Chama quando a sessão muda (login/sair) — re-sincroniza ou volta ao local. */
 export function aposMudancaSessao(forcar?: 'local' | 'nuvem'): void {
   if (sessaoAtual()) {
+    iniciarPullPeriodico()
     void sincronizarAgora(forcar)
   } else {
+    pararPullPeriodico()
     definirEstado('local')
   }
 }
@@ -161,6 +192,10 @@ appStore.subscribe(() => {
 
 /** Boot: sincroniza se já estiver logado (sessão restaurada). */
 export function iniciarSync(): void {
-  if (sessaoAtual()) void sincronizarAgora()
-  else definirEstado('local')
+  if (sessaoAtual()) {
+    iniciarPullPeriodico()
+    void sincronizarAgora()
+  } else {
+    definirEstado('local')
+  }
 }
