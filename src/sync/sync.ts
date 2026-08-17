@@ -42,6 +42,7 @@ let timer: ReturnType<typeof setTimeout> | null = null
 let carregando = false // evita o eco: puxar → store → auto-enviar
 let definirEstado: (e: EstadoSync) => void = () => {}
 let intervaloPull: ReturnType<typeof setInterval> | null = null
+let primeiroSubscribe = true
 const PULL_MS = 30_000
 
 /** Pull periódico + na volta à aba: com 2 dispositivos logados, as mudanças
@@ -175,19 +176,28 @@ export function aposMudancaSessao(forcar?: 'local' | 'nuvem'): void {
 
 /** Registra mudanças locais e agenda o envio (quando logado). */
 appStore.subscribe(() => {
-  // ECO do pull: NÃO marca como mudança local — senão o last-write-wins vira
-  // "local sempre vence" e a nuvem (backup) é sobrescrita à toa. O pull grava
-  // o salvoEm da nuvem explicitamente (ver substituirDados/sincronizarAgora).
-  if (carregando) return
-  // Mudança REAL: marca o timestamp do last-write-wins — mesmo offline
-  // (no próximo login, o que mudou por último vence).
-  gravarMetadados({ salvoEm: new Date().toISOString() })
-  if (!sessaoAtual()) return
-  if (timer) clearTimeout(timer)
-  timer = setTimeout(() => {
-    timer = null
-    void enviarAgora()
-  }, DEBOUNCE_MS)
+  // Primeira chamada = bootstrap (o nanostores chama com o valor INICIAL ao
+  // registrar, sem haver edição). NÃO pode bumpar o salvoEm nem agendar envio —
+  // isso inflava o salvoEm local para "agora" a cada abertura e o pull nunca
+  // aplicava dados de outros dispositivos (bug real 2026-08-16: dessincronização).
+  if (!primeiroSubscribe) {
+    // ECO do pull: NÃO marca como mudança local — senão o last-write-wins vira
+    // "local sempre vence" e a nuvem (backup) é sobrescrita à toa. O pull grava
+    // o salvoEm da nuvem explicitamente.
+    if (!carregando) {
+      // Mudança REAL: marca o timestamp do last-write-wins
+      gravarMetadados({ salvoEm: new Date().toISOString() })
+      if (sessaoAtual()) {
+        if (timer) clearTimeout(timer)
+        timer = setTimeout(() => {
+          timer = null
+          void enviarAgora()
+        }, DEBOUNCE_MS)
+      }
+    }
+  } else {
+    primeiroSubscribe = false
+  }
 })
 
 /** Boot: sincroniza se já estiver logado (sessão restaurada). */
