@@ -13,7 +13,7 @@ import { montarDiario } from './ui/views/diario'
 import { alternarChat, montarChat, reagirMudancaStore } from './ui/chat'
 import { verificarCheckin } from './ui/checkin'
 import { iniciarAuth } from './sync/auth'
-import { iniciarSync } from './sync/sync'
+import { iniciarSync, inscreverSync, lerUltimaSync } from './sync/sync'
 import { montarBotaoConta } from './ui/headerConta'
 import { carregarDeck } from './core/baralho'
 import { aoFalharPersistencia, temaInicial } from './db/storage'
@@ -128,6 +128,7 @@ function montarStatusBar(): void {
         <div class="status-item status-item--mana" title="Mana"><i class="fa-solid fa-droplet" aria-hidden="true"></i><span data-s-mana></span><div class="status-trilho"><div class="status-preenchimento status-preenchimento--mana" data-b-mana></div></div></div>
       </div>
       <div class="status-item status-item--esgotado" title="Esgotado" data-s-esgotado style="display:none"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>Esgotado</span></div>
+      <div class="status-item status-item--sync" data-s-sync title="Última sincronização"></div>
     `
     const q = (s: string) => statusBar.querySelector<HTMLElement>(s)!
     el = {
@@ -237,6 +238,22 @@ verificarCheckin()
 
 /* ---------- conta & sincronização (opcional — o app roda offline) ---------- */
 
+/** Item "última sincronização" na status bar (desktop, à direita). */
+function atualizarSyncStatus(): void {
+  const el = document.querySelector<HTMLElement>('[data-s-sync]')
+  if (!el) return
+  const t = lerUltimaSync()
+  if (t) {
+    const d = new Date(t)
+    const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    el.innerHTML = `<i class="fa-solid fa-cloud" aria-hidden="true"></i><span>${hora}</span>`
+    el.title = `Última sincronização em ${d.toLocaleString('pt-BR')}`
+  } else {
+    el.innerHTML = '<i class="fa-solid fa-cloud" aria-hidden="true"></i><span>—</span>'
+    el.title = 'Ainda não sincronizado'
+  }
+}
+
 void iniciarAuth().then(() => iniciarSync())
 
 /* ---------- aviso de falha de persistência (quota cheia / storage bloqueado) ---------- */
@@ -261,4 +278,6 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 
 aplicarTemaInicial()
 montarStatusBar()
+inscreverSync(atualizarSyncStatus)
+atualizarSyncStatus()
 montarRota(rotaAtual())

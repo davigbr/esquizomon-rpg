@@ -1920,6 +1920,16 @@ select.campo {
   font-weight: 600;
 }
 
+.status-item--sync {
+  margin-left: auto; /* empurra para a extrema direita da status bar */
+  color: var(--texto-fraco);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.status-item--sync i {
+  font-size: 11px;
+}
+
 .status-trilho {
   width: 90px;
   height: 7px;
@@ -2433,6 +2443,10 @@ select.campo {
   .status-item--esgotado {
     grid-column: 1 / -1;
     grid-row: 4;
+  }
+  /* data da última sincronização só no desktop */
+  .status-item--sync {
+    display: none;
   }
   .status-item--hp,
   .status-item--xp,

@@ -24,6 +24,7 @@ export type EstadoSync = 'local' | 'enviando' | 'sincronizado' | 'sem-conexao'
 
 interface MetadadosSync {
   salvoEm?: string
+  ultimaSync?: string // momento da última sincronização bem-sucedida com a nuvem
 }
 
 function lerMetadados(): MetadadosSync {
@@ -40,7 +41,7 @@ function gravarMetadados(m: MetadadosSync): void {
 
 let timer: ReturnType<typeof setTimeout> | null = null
 let carregando = false // evita o eco: puxar → store → auto-enviar
-let definirEstado: (e: EstadoSync) => void = () => {}
+let inscritosSync: Array<(e: EstadoSync) => void> = []
 let intervaloPull: ReturnType<typeof setInterval> | null = null
 let primeiroSubscribe = true
 let idleTimer: ReturnType<typeof setTimeout> | null = null
@@ -113,11 +114,24 @@ function pararPullPeriodico(): void {
   window.removeEventListener('keydown', aoInteragir)
 }
 
-/** A UI (Config) inscreve-se aqui para mostrar o status. */
+/** Última sincronização bem-sucedida (ISO) ou null. */
+export function lerUltimaSync(): string | null {
+  return lerMetadados().ultimaSync ?? null
+}
+
+function definirEstado(e: EstadoSync): void {
+  if (e === 'sincronizado') {
+    const m = lerMetadados()
+    gravarMetadados({ ...m, ultimaSync: new Date().toISOString() })
+  }
+  for (const cb of inscritosSync) cb(e)
+}
+
+/** A UI inscreve-se aqui para mostrar o status (suporta vários listeners). */
 export function inscreverSync(cb: (e: EstadoSync) => void): () => void {
-  definirEstado = cb
+  inscritosSync.push(cb)
   return () => {
-    if (definirEstado === cb) definirEstado = () => {}
+    inscritosSync = inscritosSync.filter((x) => x !== cb)
   }
 }
 
