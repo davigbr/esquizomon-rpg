@@ -35,10 +35,10 @@ export function sortearIds(cartas: Carta[], n: number, excluir: string[] = []): 
   return embaralhado.slice(0, Math.min(n, embaralhado.length))
 }
 
-/** Peso de raridade por tipo (2026-08-12): monstro é 3× mais comum que
- *  aliança; captura 2×. */
+/** Peso de raridade por tipo: monstro é 6× mais comum que aliança; captura 2×
+ *  (2026-08-17 — subido de 3× para 6× para sair mais monstros). */
 export function pesoDeRaridade(c: Carta): number {
-  return c.type === 'monstro' ? 3 : c.type === 'captura' ? 2 : 1
+  return c.type === 'monstro' ? 6 : c.type === 'captura' ? 2 : 1
 }
 
 /** Sorteia N ids com pesos de raridade, sem repetir as já escolhidas —
