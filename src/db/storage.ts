@@ -330,7 +330,21 @@ export function normalizarDados(bruto: unknown): AppData | null {
     log,
     conversas,
     diario,
+    diarioXp: normalizarDiarioXp(b.diarioXp),
   }
+}
+
+/** `diarioXp`: data → ids de carta já premiados (filtra lixo do import). */
+function normalizarDiarioXp(x: unknown): Record<string, string[]> {
+  if (!x || typeof x !== 'object') return {}
+  const saida: Record<string, string[]> = {}
+  for (const [data, ids] of Object.entries(x as Record<string, unknown>)) {
+    if (Array.isArray(ids)) {
+      const limpos = ids.filter((i): i is string => typeof i === 'string')
+      if (limpos.length > 0) saida[data] = limpos
+    }
+  }
+  return saida
 }
 
 /** Limite de eventos guardados no histórico (evita inchar o localStorage). */
@@ -365,6 +379,7 @@ export function estadoVazio(): AppData {
     log: [],
     conversas: [],
     diario: [],
+    diarioXp: {},
   }
 }
 

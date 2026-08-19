@@ -157,6 +157,9 @@ export interface AppData {
   conversas?: Conversa[]
   /** Diário de bordo (1 entrada por dia, com texto/voz). Persistido. */
   diario?: EntradaDiario[]
+  /** Menções de cartas já recompensadas por dia (data → ids de carta).
+   *  Evita dar XP duas vezes pela mesma menção. */
+  diarioXp?: Record<string, string[]>
 }
 
 export const VERSAO_DADOS = 3

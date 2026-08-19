@@ -14,6 +14,7 @@ import { enviarParaIA, ErroIA, type MsgChat } from '../ia/cliente'
 import { montarSystemPrompt } from '../ia/prompt'
 import { extrairAcoes, detectarPedidoInvocacao, detectarComando, type AcaoIA } from '../ia/acoes'
 import { nomeDaCarta, resolverCartaId, tipoDaCarta, rotuloTipo, todasAsCartas } from '../core/baralho'
+import { processarMencoesDiario } from '../core/recompensa'
 import { invocarCarta } from '../stores/app'
 import { custoInvocacao, custoInvocacaoFabula, CUSTO_ANALISE, CUSTO_CAPTURAS } from '../core/jogo'
 import { tocarSom } from './sons'
@@ -676,6 +677,22 @@ async function enviar(texto: string): Promise<void> {
   const pedidoInvocacao = detectarPedidoInvocacao(texto)
   const notaInvocacao = pedidoInvocacao ? prepararInvocacao(pedidoInvocacao) : null
   if (notaInvocacao) historico.push({ role: 'system', content: notaInvocacao.nota })
+
+  // 3c. menções de cartas no diário: o app recompensa o XP quando a Fábula lê
+  // o diário (na interação) e ela celebra na resposta. Não duplica (diarioXp).
+  const mencoes = processarMencoesDiario()
+  if (mencoes.xp > 0) {
+    notificar(mencoes.nivelSubiu
+      ? `${mencoes.nomes.join(', ')} no diário! +${mencoes.xp} XP — você subiu de nível!`
+      : `${mencoes.nomes.join(', ')} no diário! +${mencoes.xp} XP`)
+    historico.push({
+      role: 'system',
+      content:
+        'O diário do jogador mencionou as cartas: ' + mencoes.nomes.join(', ') +
+        `. O app já aplicou +${mencoes.xp} XP de recompensa (menção de carta). ` +
+        'Aponte e celebre essa conexão com naturalidade, relacione a(s) carta(s) com o que foi vivido no diário e siga a conversa. Não invente cartas não mencionadas.',
+    })
+  }
 
   // 3b. comandos especiais: a Fábula escolhe a carta (/invocar sem nome, custo
   // premium — ela pode emitir o marcador SÓ neste turno), a análise

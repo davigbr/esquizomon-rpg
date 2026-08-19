@@ -605,6 +605,51 @@ test('fabula: /analisar desconta 10 de mana e pede análise esquizoanalítica', 
   expect(conteudos).toContain('/analisar')
 })
 
+test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async ({ page }) => {
+  await semearChat(page)
+  const corpos: string[] = []
+  await page.route('**/api/ia', (rota) => {
+    corpos.push(rota.request().postData() ?? '')
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('Que conexão linda...') })
+  })
+  const hoje = dataLocal()
+  await page.goto('/#/hoje')
+  await page.evaluate(
+    async (h: string) => {
+      const mod = await import('/src/stores/app')
+      const d = mod.appStore.get()
+      mod.appStore.set({
+        ...d,
+        diario: [{ id: 'm1', data: h, titulo: 'teste', texto: 'Hoje fui cercado pelo Ninho Enclausurado.' }],
+      })
+    },
+    hoje,
+  )
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click()
+  await page.locator('[data-fabula-input]').fill('oi')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  const xp1 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
+  expect(xp1).toBeGreaterThanOrEqual(10)
+
+  // a Fábula foi avisada (nota de sistema) com o nome + o XP
+  const corpo = JSON.parse(corpos[corpos.length - 1])
+  const sistema = corpo.messages
+    .filter((m: { role: string }) => m.role === 'system')
+    .map((m: { content: string }) => m.content)
+    .join('\n')
+  expect(sistema).toContain('Ninho Enclausurado')
+  expect(sistema).toContain('+10 XP')
+
+  // 2ª interação: não dá XP de novo (record diarioXp)
+  await page.locator('[data-fabula-input]').fill('oi de novo')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(2)
+  const xp2 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
+  expect(xp2).toBe(xp1)
+})
+
 test('fabula: /capturas desconta 25 de mana e pede a varredura das capturas', async ({ page }) => {
   await semearChat(page)
   const corpos: string[] = []
