@@ -11,7 +11,7 @@ import {
   excluirConversa,
 } from '../stores/app'
 import { enviarParaIA, ErroIA, type MsgChat } from '../ia/cliente'
-import { montarSystemPrompt } from '../ia/prompt'
+import { montarSystemPrompt, montarSystemPromptEsquizoanalista } from '../ia/prompt'
 import { extrairAcoes, detectarPedidoInvocacao, detectarComando, type AcaoIA } from '../ia/acoes'
 import { nomeDaCarta, resolverCartaId, tipoDaCarta, rotuloTipo, todasAsCartas } from '../core/baralho'
 import { processarMencoesDiario } from '../core/recompensa'
@@ -666,7 +666,9 @@ async function enviar(texto: string): Promise<void> {
   // objeto) — a IA respondia sem ver o que o usuário digitou (bug real:
   // "cada mensagem começa a conversa do zero").
   const atualizada = conversaAtual() ?? conversa
-  const systemPrompt = montarSystemPrompt(dados)
+  const systemPrompt = analisePedida
+    ? montarSystemPromptEsquizoanalista(dados)
+    : montarSystemPrompt(dados)
   const historico: MsgChat[] = [
     { role: 'system', content: systemPrompt },
     ...atualizada.mensagens.map((m) => ({ role: m.role, content: m.content })),
@@ -710,12 +712,7 @@ async function enviar(texto: string): Promise<void> {
     historico.push({
       role: 'system',
       content:
-        'O jogador pediu uma ANÁLISE ESQUIZOANALÍTICA TÉCNICA (comando /analisar — o app já descontou 10 de mana). ' +
-        'Método (seja técnica e precisa, sem ser acadêmica): 1) NOMEIE o desejo/conteúdo manifesto que ele trouxe (o que está investido de libido). ' +
-        '2) MAPEIE COM O QUE esse desejo está se conectando — objetos, pessoas, atividades, lugares, ritmos; e os fluxos que atravessam essas conexões. ' +
-        '3) DIGA O MODO DA CONEXÃO: REATIVO (o desejo é disparado por estímulo externo — responde, reage, é puxado) ou ATIVO (o desejo age — investe, busca, puxa o mundo para si); se houver os dois, nomeie onde cada um aparece. ' +
-        '4) LEIA O DIAGRAMA MAQUÍNICO: desenhe a máquina em funcionamento — peças, acoplamentos, cortes e fluxos (o que produz, o que consome, o que registra), os agenciamentos que ela forma e as linhas de fuga possíveis. ' +
-        'Use o resumo "Sobre você", o diário e o que ele disse agora. Análise extensa (10-16 frases), metáforas concretas, sem jargão; termine com 2-3 perguntas que fiquem ecoando.',
+        'O jogador pediu uma análise esquizoanalítica (comando /analisar — o app já descontou 10 de mana). Faça a análise do material apresentado com o método do esquizoanalista, em português, tratando-o por "você".',
     })
   }
   if (capturasPedidas) {
