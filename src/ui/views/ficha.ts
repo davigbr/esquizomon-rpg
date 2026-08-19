@@ -31,7 +31,7 @@ export function montarFicha(raiz: HTMLElement, dados: AppData): void {
         <li><b>Subir de nível</b> restaura vida e mana, e aumenta os máximos.</li>
         <li><b>Recorrentes perdidas</b> causam dano no dia seguinte, proporcional à dificuldade.</li>
         <li><b>Hábitos negativos</b> causam dano pequeno; positivos dão XP.</li>
-        <li><b>Citar cartas no diário</b> dá XP automático (+5 por carta, até 2 por entrada) — só para cartas já desbloqueadas; a Fábula anota. Cartas bloqueadas ficam no mistério.</li>
+        <li><b>Registrar o diário</b> dá +5 XP (uma vez por dia). <b>Mencionar o nome de uma carta no diário</b> dá +10 XP por menção, quando a Fábula lê o diário (na interação) — vale para qualquer carta da galeria e não se repete para a mesma menção.</li>
         <li><b>Invocar</b> é pedir à Fábula no chat — comando <b>/invocar &lt;carta&gt;</b> (ou dizer "invoca a carta X"): o app desconta a mana (monstros 4, capturas 8, alianças 12; reusar encarece até o teto) e a Fábula devolve uma análise extensa dos possíveis efeitos da carta. <b>/invocar</b> sem nome: a Fábula escolhe a carta (custo ×1,5). <b>/analisar</b>: análise esquizoanalítica (10 mana). Mencionar o nome de uma carta não invoca nada — só o pedido explícito conta.</li>
         <li><b>Morte não-destrutiva:</b> com vida zerada você fica <b>esgotado</b> — sem regeneração de mana — até o próximo dia. A queda custa uma carta do baralho.</li>
         <li><b>Modo relaxado${modoRelaxado ? ' (ativado)' : ''}:</b> desliga todo dano — o jogo vira só bônus. Alternar em Config.</li>

@@ -277,9 +277,6 @@ function normalizarEntradaDiario(v: unknown): EntradaDiario | null {
   const id = typeof v.id === 'string' && v.id ? v.id : null
   const data = typeof v.data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.data) ? v.data : null
   if (!id || !data) return null
-  const recompensas = Array.isArray(v.recompensas)
-    ? v.recompensas.filter((r): r is string => typeof r === 'string')
-    : undefined
   return {
     id,
     data,
@@ -287,7 +284,6 @@ function normalizarEntradaDiario(v: unknown): EntradaDiario | null {
     texto: typeof v.texto === 'string' ? v.texto : '',
     criadaEm: typeof v.criadaEm === 'string' ? v.criadaEm : new Date(data).toISOString(),
     editadaEm: typeof v.editadaEm === 'string' ? v.editadaEm : undefined,
-    recompensas: recompensas && recompensas.length > 0 ? recompensas : undefined,
   }
 }
 
@@ -331,7 +327,18 @@ export function normalizarDados(bruto: unknown): AppData | null {
     conversas,
     diario,
     diarioXp: normalizarDiarioXp(b.diarioXp),
+    diarioRegistroXp: normalizarDiarioRegistroXp(b.diarioRegistroXp),
   }
+}
+
+/** `diarioRegistroXp`: data → true (já rendeu XP de registro). Filtra lixo. */
+function normalizarDiarioRegistroXp(x: unknown): Record<string, boolean> {
+  if (!x || typeof x !== 'object') return {}
+  const saida: Record<string, boolean> = {}
+  for (const [data, ok] of Object.entries(x as Record<string, unknown>)) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(data) && ok) saida[data] = true
+  }
+  return saida
 }
 
 /** `diarioXp`: data → ids de carta já premiados (filtra lixo do import). */
@@ -380,6 +387,7 @@ export function estadoVazio(): AppData {
     conversas: [],
     diario: [],
     diarioXp: {},
+    diarioRegistroXp: {},
   }
 }
 

@@ -3,9 +3,8 @@
  *  salvamento automático. */
 
 import type { AppData, EntradaDiario } from '../../core/tipos'
-import { hojeISO, dataPorExtenso, MAX_CARTAS_RECOMPENSADAS_POR_ENTRADA, XP_POR_CARTA_CITADA } from '../../core/jogo'
-import { carregarDeck, cartasCitadasNoTexto, nomeDaCarta } from '../../core/baralho'
-import { appStore, excluirEntrada, importarDiario, moverEntrada, recompensarCartaCitada, salvarEntrada } from '../../stores/app'
+import { hojeISO, dataPorExtenso } from '../../core/jogo'
+import { appStore, excluirEntrada, importarDiario, moverEntrada, salvarEntrada } from '../../stores/app'
 import { abrirModal, fecharModal, modalBody, confirmar } from '../modal'
 import { notificar } from '../toast'
 import { escapar } from '../util'
@@ -324,28 +323,6 @@ function instalarEditor(raiz: HTMLElement, hoje: string): void {
     if (texto.trim() || tituloValor) {
       salvarEntrada(dataAlvo, { titulo: tituloValor, texto })
       if (statusEl) statusEl.textContent = `Salvo ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
-      void recompensarCitacoes(dataAlvo, texto)
-    }
-  }
-
-  /** Detecta cartas desbloqueadas citadas no texto e recompensa (máx. N por entrada,
-   *  dedup via entrada.recompensas — idempotente mesmo rodando no autosave). */
-  async function recompensarCitacoes(data: string, texto: string): Promise<void> {
-    if (!texto.trim()) return
-    const deck = await carregarDeck().catch(() => null)
-    if (!deck) return
-    const desbloqueadas = new Set(appStore.get().personagem.cartas)
-    const citadas = cartasCitadasNoTexto(texto, desbloqueadas)
-    const entrada = (appStore.get().diario ?? []).find((e) => e.data === data)
-    const ja = new Set(entrada?.recompensas ?? [])
-    const novas = citadas.filter((id) => !ja.has(id)).slice(0, MAX_CARTAS_RECOMPENSADAS_POR_ENTRADA)
-    if (novas.length === 0) return
-    const nomes: string[] = []
-    for (const id of novas) {
-      if (recompensarCartaCitada(data, id)) nomes.push(nomeDaCarta(id))
-    }
-    if (nomes.length > 0) {
-      notificar(`A Fábula anotou: você usou a carta ${nomes.join(' e ')} no diário (+${XP_POR_CARTA_CITADA * nomes.length} XP)`)
     }
   }
 

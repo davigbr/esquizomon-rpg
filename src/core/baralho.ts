@@ -92,14 +92,6 @@ export function rotuloTipo(tipo: TipoCarta): string {
 
 /** Cartas desbloqueadas cujo NOME aparece no texto (detecção de citações no
  *  diário). Case-insensitive; retorna ids distintos, na ordem do deck. */
-export function cartasCitadasNoTexto(texto: string, desbloqueadas: Set<string>): string[] {
-  const min = texto.toLocaleLowerCase('pt-BR')
-  return (deck as Carta[])
-    .filter((c) => desbloqueadas.has(c.id))
-    .filter((c) => min.includes(c.name.toLocaleLowerCase('pt-BR')))
-    .map((c) => c.id)
-}
-
 /** Resolve o termo que a Fábula usou no marcador: id (slug) ou nome da carta. */
 export function resolverCartaId(termo: string): string | null {
   const t = termo.trim().toLocaleLowerCase('pt-BR')

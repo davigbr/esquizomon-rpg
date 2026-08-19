@@ -42,10 +42,8 @@ export function danoDe(dificuldade: Dificuldade): number {
  *  dano do hábito também"). A constante fixa DANO_HABITO_NEGATIVO foi
  *  REMOVIDA — chamadores usam `danoDe(tarefa.dificuldade)`. */
 
-/** XP automático por carta citada no diário (a Fábula anota, o app recompensa). */
-export const XP_POR_CARTA_CITADA = 5
-/** Máximo de cartas recompensadas por entrada do diário. */
-export const MAX_CARTAS_RECOMPENSADAS_POR_ENTRADA = 2
+/** XP por registrar o diário (uma vez por dia — escrever a crônica). */
+export const XP_POR_REGISTRO_DIARIO = 5
 
 /** XP necessário para subir do nível atual (curva suave: nível n exige n×80). */
 export function xpProximoDe(nivel: number): number {

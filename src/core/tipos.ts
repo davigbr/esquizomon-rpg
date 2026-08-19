@@ -160,6 +160,8 @@ export interface AppData {
   /** Menções de cartas já recompensadas por dia (data → ids de carta).
    *  Evita dar XP duas vezes pela mesma menção. */
   diarioXp?: Record<string, string[]>
+  /** Datas em que registrar o diário já rendeu XP (data → true, 1×/dia). */
+  diarioRegistroXp?: Record<string, boolean>
 }
 
 export const VERSAO_DADOS = 3
@@ -177,8 +179,6 @@ export interface EntradaDiario {
   criadaEm: string
   /** ISO timestamp da última edição (undefined se nunca editada). */
   editadaEm?: string
-  /** Ids das cartas já recompensadas por citação nesta entrada (dedup do +XP). */
-  recompensas?: string[]
 }
 export const STORAGE_KEY = 'esquizomon-rpg:v1'
 export const TEMA_KEY = 'esquizomon-rpg:tema'

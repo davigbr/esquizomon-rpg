@@ -356,37 +356,6 @@ test('fabula: "invoca a carta X" executa no app, desconta mana e mostra a miniat
   await expect(page.locator('.fabula-bolha--assistente img.fabula-carta')).toHaveCount(1)
 })
 
-test('diário: citar carta desbloqueada dá +5 XP (uma vez por carta; bloqueada não conta)', async ({ page }) => {
-  await semear(page)
-  await page.goto('/#/diario')
-  await page.locator('[data-diario-novo]').click()
-  await page.locator('[data-diario-editor]').fill('Hoje lembrei do Ninho Enclausurado e do seu conceito.')
-  await page.keyboard.press('Tab')
-
-  // autosave → XP 5/80 e recompensa registrada na entrada
-  await expect
-    .poll(() => page.locator('[data-s-xp]').textContent())
-    .toBe('XP 5/80')
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.diario?.[0]?.recompensas ?? []).join(',')),
-    )
-    .toBe('ninho-enclausurado')
-
-  // editar de novo mantendo a citação → sem XP dobrado
-  await page.locator('[data-diario-editor]').fill('Hoje lembrei do Ninho Enclausurado de novo.')
-  await page.keyboard.press('Tab')
-  await page.waitForTimeout(1200)
-  await expect(page.locator('[data-s-xp]')).toHaveText('XP 5/80')
-
-  // carta BLOQUEADA (Internato de Ferro, não está em cartas[]) → sem XP
-  await page.locator('[data-diario-editor]').fill('O Internato de Ferro também me visitou.')
-  await page.keyboard.press('Tab')
-  await page.waitForTimeout(1200)
-  await expect(page.locator('[data-s-xp]')).toHaveText('XP 5/80')
-})
-
 test('fabula: cada mensagem tem botão copiar (markdown; carta vira nome)', async ({ page, context }) => {
   await semear(page)
   await page.addInitScript(() => {

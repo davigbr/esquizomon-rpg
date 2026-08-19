@@ -1,10 +1,10 @@
 /** Domínio do diário (1 entrada por dia). */
 
 import type { EntradaDiario } from '../core/tipos'
-import { novoId, XP_POR_CARTA_CITADA } from '../core/jogo'
-import { nomeDaCarta } from '../core/baralho'
+import { novoId, XP_POR_REGISTRO_DIARIO } from '../core/jogo'
 import { appStore, registrarLog } from './base'
 import { ganharXP } from './personagem'
+import { notificar } from '../ui/toast'
 import type { Resultado } from './base'
 
 export function diarioAtual(): EntradaDiario[] {
@@ -20,8 +20,10 @@ export function entradaDoDia(data: string): EntradaDiario | undefined {
   return diarioAtual().find((e) => e.data === data)
 }
 
-/** Cria ou atualiza a entrada de uma data (idempotente na data — 1/dia). */
+/** Cria ou atualiza a entrada de uma data (idempotente na data — 1/dia).
+ *  Registrar o diário com texto real rende XP uma vez por dia. */
 export function salvarEntrada(data: string, campos: { titulo?: string; texto: string }): EntradaDiario {
+  const textoReal = (campos.texto ?? '').trim()
   const atual = entradaDoDia(data)
   if (atual) {
     const patch: Partial<EntradaDiario> = {
@@ -31,6 +33,7 @@ export function salvarEntrada(data: string, campos: { titulo?: string; texto: st
     if (campos.titulo !== undefined) patch.titulo = campos.titulo
     const atualizada: EntradaDiario = { ...atual, ...patch }
     salvarDiario(diarioAtual().map((e) => (e.id === atual.id ? atualizada : e)))
+    recompensarRegistro(data, textoReal)
     return atualizada
   }
   const nova: EntradaDiario = {
@@ -41,7 +44,20 @@ export function salvarEntrada(data: string, campos: { titulo?: string; texto: st
     criadaEm: new Date().toISOString(),
   }
   salvarDiario([nova, ...diarioAtual()])
+  recompensarRegistro(data, textoReal)
   return nova
+}
+
+/** XP por registrar o diário: 1×/dia, só quando ganha texto REAL (a criação
+ *  vazia do editor ao abrir a página NÃO conta). Dedup via diarioRegistroXp. */
+function recompensarRegistro(data: string, textoReal: string): void {
+  if (!textoReal) return
+  const d = appStore.get()
+  if (d.diarioRegistroXp?.[data]) return
+  appStore.set({ ...d, diarioRegistroXp: { ...(d.diarioRegistroXp ?? {}), [data]: true } })
+  ganharXP(XP_POR_REGISTRO_DIARIO)
+  registrarLog('sistema', `Registrou o diário (+${XP_POR_REGISTRO_DIARIO} XP)`)
+  notificar(`Diário registrado! +${XP_POR_REGISTRO_DIARIO} XP`)
 }
 
 export function excluirEntrada(id: string): void {
@@ -59,25 +75,6 @@ export function moverEntrada(id: string, novaData: string): Resultado {
   const movida: EntradaDiario = { ...entrada, data: novaData, editadaEm: new Date().toISOString() }
   salvarDiario(diarioAtual().map((e) => (e.id === id ? movida : e)))
   return { ok: true }
-}
-
-/* ---------- tools da IA (acessadas pelo chat) ---------- */
-
-/** Recompensa uma carta citada na entrada do dia (dedup: 1 vez por carta).
- *  Dá XP automático (a Fábula anota, o app recompensa). Retorna se aplicou. */
-export function recompensarCartaCitada(data: string, cartaId: string): boolean {
-  const entrada = entradaDoDia(data)
-  if (!entrada) return false
-  const ja = entrada.recompensas ?? []
-  if (ja.includes(cartaId)) return false
-  ganharXP(XP_POR_CARTA_CITADA)
-  registrarLog('carta', `A Fábula anotou a carta "${nomeDaCarta(cartaId)}" no diário (+${XP_POR_CARTA_CITADA} XP)`)
-  salvarDiario(
-    diarioAtual().map((e) =>
-      e.id === entrada.id ? { ...e, recompensas: [...ja, cartaId] } : e,
-    ),
-  )
-  return true
 }
 
 /** Importa entradas em lote (respeitando 1/dia). Dias já existentes ou datas
