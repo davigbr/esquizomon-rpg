@@ -568,7 +568,7 @@ test('fabula: /analisar desconta 10 de mana e pede análise esquizoanalítica', 
     .filter((m: { role: string }) => m.role === 'system')
     .map((m: { content: string }) => m.content)
     .join('\n')
-  expect(sistema).toContain('ANÁLISE ESQUIZOANALÍTICA')
+  expect(sistema).toContain('máquinas desejantes') // a voz do Esquizoanalista (vault) entra no system
   const conteudos = corpo.messages.map((m: { content: string }) => m.content)
   // o comando cru vai pro histórico (e pra Fábula) como digitado
   expect(conteudos).toContain('/analisar')
