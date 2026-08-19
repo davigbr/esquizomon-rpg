@@ -34,7 +34,8 @@ export function criarTarefa(dados: DadosTarefa): Resultado {
     historico: [],
     criadaEm: new Date().toISOString(),
   }
-  appStore.set({ ...appStore.get(), tarefas: [...appStore.get().tarefas, tarefa] })
+  // nova tarefa entra no TOPO da lista (a mais recente acima) — 2026-08-17
+  appStore.set({ ...appStore.get(), tarefas: [tarefa, ...appStore.get().tarefas] })
   registrarLog('tarefa', `Criou: ${titulo} (${rotuloTipoTarefa(dados.tipo)})`)
   return { ok: true }
 }
