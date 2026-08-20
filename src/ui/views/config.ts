@@ -4,6 +4,7 @@ import type { AppData, ConfigIa, ProviderIA, Tema } from '../../core/tipos'
 import { MODELOS_POR_PROVIDER, modeloPadrao, testarConexao, ErroIA } from '../../ia/cliente'
 import { SYSTEM_PROMPT_PADRAO } from '../../ia/prompt'
 import { apagarTodosDados, definirAvatar, definirConfiguracao, definirNomeMonstruoso, definirTema, exportarJSON, importarJSON } from '../../stores/app'
+import { rerolarBaralho } from '../../stores/personagem'
 import { confirmar } from '../modal'
 import { notificar } from '../toast'
 import { escapar } from '../util'
@@ -117,6 +118,7 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
       <div class="config-acoes">
         <button class="btn" data-exportar><i class="fa-solid fa-download" aria-hidden="true"></i> Exportar (JSON)</button>
         <button class="btn" data-importar><i class="fa-solid fa-upload" aria-hidden="true"></i> Importar</button>
+        <button class="btn" data-rerolar-cartas title="Re-sorteia todas as cartas desbloqueadas"><i class="fa-solid fa-dice" aria-hidden="true"></i> Rerolar baralho</button>
       </div>
       <div class="config-dica config-dica-linha">${total} tarefa${total === 1 ? '' : 's'} · nível <b>${dados.personagem.nivel}</b> · <b>${dados.personagem.cartas.length}</b> cartas desbloqueadas</div>
       <div class="config-dica config-dica-linha backup-titulo">Backups automáticos (criados antes de cada sincronização que altera dados):</div>
@@ -212,6 +214,7 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
   })
 
   const areaBackups = raiz.querySelector('[data-backups]')
+
   function preencherBackups(): void {
     if (!areaBackups) return
     const lista = lerBackups()
@@ -238,6 +241,17 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
     })
   }
   preencherBackups()
+
+  raiz.querySelector<HTMLButtonElement>('[data-rerolar-cartas]')?.addEventListener('click', () => {
+    void confirmar(
+      'Rerolar re-sorteia TODAS as cartas desbloqueadas, mantendo a mesma quantidade e respeitando as chances (monstros 6×, capturas 2×, alianças 1×). A coleção atual será substituída. Continuar?',
+      'Rerolar baralho',
+    ).then((ok) => {
+      if (!ok) return
+      const r = rerolarBaralho()
+      notificar(`Baralho rerolado: ${r.antes} cartas re-sorteadas.`)
+    })
+  })
 
   raiz.querySelector('[data-apagar]')!.addEventListener('click', () => {
     void confirmar('Apagar todas as tarefas e o personagem? Isso não pode ser desfeito.', 'Apagar tudo').then((ok) => {

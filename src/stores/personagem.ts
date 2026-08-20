@@ -23,7 +23,7 @@ export function definirNomeMonstruoso(nome: string): void {
 import type { Personagem } from '../core/tipos'
 import { cartasPorNivel, custoInvocacao, hpMaxDe, manaMaxDe, xpProximoDe } from '../core/jogo'
 import type { Carta } from '../core/baralho'
-import { sortearIniciais, sortearIdsPonderado } from '../core/baralho'
+import { sortearIniciais, sortearIdsPonderado, todasAsCartas } from '../core/baralho'
 import { appStore, registrarLog } from './base'
 import type { Resultado } from './base'
 import { tocarSom } from '../ui/sons'
@@ -181,4 +181,16 @@ export function curar(quantidade: number): number {
   if (hp === antes) return 0
   appStore.set({ ...appStore.get(), personagem: { ...p, hp } })
   return hp - antes
+}
+
+/** Re-sorteia TODAS as cartas desbloqueadas (mesmo total), respeitando as
+ *  chances de cada tipo (monstro 6×, captura 2×, aliança 1×). Destrutivo —
+ *  a UI pede confirmação antes de chamar. */
+export function rerolarBaralho(): { antes: number } {
+  const p = appStore.get().personagem
+  const antes = p.cartas.length
+  const novos = sortearIdsPonderado(todasAsCartas(), antes)
+  appStore.set({ ...appStore.get(), personagem: { ...p, cartas: novos } })
+  registrarLog('carta', `Rerolou o baralho: ${antes} cartas re-sorteadas.`)
+  return { antes }
 }
