@@ -813,3 +813,18 @@ test('fabula: sem conversas — o chat inicia uma automaticamente ao abrir', asy
     .toBe(1)
   await expect(page.locator('.toast').last()).toContainText('comecei uma nova')
 })
+
+test('config: rerolar baralho pede confirmação e mantém o total de cartas', async ({ page }) => {
+  await semear(page)
+  await page.goto('/#/config')
+  const antes = await page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.personagem?.cartas?.length ?? 0))
+  expect(antes).toBeGreaterThan(0)
+  await page.locator('[data-rerolar-cartas]').click()
+  // o modal de confirmação (operação destrutiva) abre
+  await expect(page.locator('[data-modal-confirmar]')).toBeVisible()
+  await page.locator('[data-modal-confirmar]').click()
+  // após o reroll, o mesmo total de cartas é preservado
+  await expect
+    .poll(() => page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.personagem?.cartas?.length ?? 0)))
+    .toBe(antes)
+})
