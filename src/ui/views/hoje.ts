@@ -278,7 +278,7 @@ function cardHabito(t: Tarefa, ehHoje: boolean, ehOntem: boolean): string {
   const tituloDia = ehHoje ? ' hoje' : ' no dia referido'
   return `
     <div class="tarefa-card habito-card${antiga}" draggable="true" data-id="${t.id}">
-      <button class="habito-lado habito-lado--neg${negAtivo ? ' ativo' : ''}" data-habito="negativo" data-id="${t.id}" aria-label="Repetição negativa" title="${negAtivo ? `Negativo${tituloDia} (${hojeNeg}×)` : 'Repetição negativa'}" ${!podeNegativo ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>...
+      <button class="habito-lado habito-lado--neg${negAtivo ? ' ativo' : ''}" data-habito="negativo" data-id="${t.id}" aria-label="Repetição negativa" title="${negAtivo ? `Negativo${tituloDia} (${hojeNeg}×)` : 'Repetição negativa'}" ${!podeNegativo ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
       <div class="tarefa-corpo">
         <p class="tarefa-titulo">${escapar(t.titulo)}</p>
         ${t.notas ? `<p class="tarefa-notas">${renderizarNotas(t.notas)}</p>` : ''}
