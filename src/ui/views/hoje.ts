@@ -90,7 +90,7 @@ export function montarHoje(raiz: HTMLElement, dados: AppData): void {
           <button class="btn btn-icon coluna-add" data-novo-tipo="habito" aria-label="Novo hábito"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
         </header>
         <div class="coluna-cards">
-          ${habitos.length === 0 ? vazioColuna('Nada aqui. Use + para adicionar.') : habitos.map((t) => cardHabito(t, ehHoje)).join('')}
+          ${habitos.length === 0 ? vazioColuna('Nada aqui. Use + para adicionar.') : habitos.map((t) => cardHabito(t, ehHoje, ehOntem)).join('')}
         </div>
       </section>
 
@@ -258,22 +258,27 @@ function valeHoje(t: Tarefa, dia: number, diaMes: number): boolean {
   return !t.agenda || t.agenda.dias.length === 0 || t.agenda.dias.includes(dia)
 }
 
-function cardHabito(t: Tarefa, ehHoje: boolean): string {
+function cardHabito(t: Tarefa, ehHoje: boolean, ehOntem: boolean): string {
   const d = dificuldadeDe(t.dificuldade)
   const streak = calcularStreak(t.historico, dataVisivel)
-  const hojePos = ehHoje ? (t.contador?.hoje ?? 0) : 0
+  // dia passado: mostra se marcou positivo nele (derivado do histórico);
+  // hoje: usa o contador do dia
+  const marcouNesteDia = !ehHoje && t.historico.includes(dataVisivel)
+  const hojePos = ehHoje ? (t.contador?.hoje ?? 0) : marcouNesteDia ? 1 : 0
   const hojeNeg = ehHoje ? (t.contador?.hojeNeg ?? 0) : 0
   const sinal = t.sinal ?? 'positivo'
   const antiga = classeAntiga(t)
-  // botões sempre visíveis, colados às bordas (estilo Habitica); desabilitados quando o hábito não tem aquele sinal
-  const podePositivo = sinal === 'positivo' || sinal === 'ambos'
-  const podeNegativo = sinal === 'negativo' || sinal === 'ambos'
-  // cue visual: botão acionado hoje fica dourado (já contado)
-  const posAtivo = ehHoje && hojePos > 0
-  const negAtivo = ehHoje && hojeNeg > 0
+  // permite marcar no HOJE e no ONTEM (retroativo — ajusta streak/XP); nunca mais pra trás
+  const podeMarcar = ehHoje || ehOntem
+  const podePositivo = (sinal === 'positivo' || sinal === 'ambos') && podeMarcar
+  const podeNegativo = (sinal === 'negativo' || sinal === 'ambos') && podeMarcar
+  // cue visual: botão acionado (hoje ou no dia visível) fica dourado
+  const posAtivo = hojePos > 0
+  const negAtivo = hojeNeg > 0
+  const tituloDia = ehHoje ? ' hoje' : ' no dia referido'
   return `
     <div class="tarefa-card habito-card${antiga}" draggable="true" data-id="${t.id}">
-      <button class="habito-lado habito-lado--neg${negAtivo ? ' ativo' : ''}" data-habito="negativo" data-id="${t.id}" aria-label="Repetição negativa" title="${negAtivo ? `Negativo hoje (${hojeNeg}×)` : 'Repetição negativa'}" ${!podeNegativo || !ehHoje ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
+      <button class="habito-lado habito-lado--neg${negAtivo ? ' ativo' : ''}" data-habito="negativo" data-id="${t.id}" aria-label="Repetição negativa" title="${negAtivo ? `Negativo${tituloDia} (${hojeNeg}×)` : 'Repetição negativa'}" ${!podeNegativo ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>...
       <div class="tarefa-corpo">
         <p class="tarefa-titulo">${escapar(t.titulo)}</p>
         ${t.notas ? `<p class="tarefa-notas">${renderizarNotas(t.notas)}</p>` : ''}
@@ -290,7 +295,7 @@ function cardHabito(t: Tarefa, ehHoje: boolean): string {
         <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
         <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       </div>
-      <button class="habito-lado habito-lado--pos${posAtivo ? ' ativo' : ''}" data-habito="positivo" data-id="${t.id}" aria-label="Repetição positiva" title="${posAtivo ? `Positivo hoje (${hojePos}×)` : 'Repetição positiva'}" ${!podePositivo || !ehHoje ? 'disabled' : ''}><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+      <button class="habito-lado habito-lado--pos${posAtivo ? ' ativo' : ''}" data-habito="positivo" data-id="${t.id}" aria-label="Repetição positiva" title="${posAtivo ? `Positivo${tituloDia} (${hojePos}×)` : 'Repetição positiva'}" ${!podePositivo ? 'disabled' : ''}><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
     </div>
   `
 }

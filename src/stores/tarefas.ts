@@ -5,6 +5,7 @@ import { danoDe, hojeISO, novoId, xpDe, xpProximoDe, hpMaxDe, manaMaxDe, VIDA_PO
 import { appStore, registrarLog, tarefaPorId } from './base'
 import type { DadosTarefa, Resultado } from './base'
 import { tocarSom } from '../ui/sons'
+import { notificar } from '../ui/toast'
 import { aplicarDano, curar, ganharXP } from './personagem'
 
 export function tagsEmUso(dados: AppData): string[] {
@@ -241,10 +242,16 @@ function reverterRecompensa(t: Tarefa, data: string): void {
 
 /** Hábito: registra uma repetição positiva (+) ou negativa (−). Retorna cartas novas. */
 export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data: string = hojeISO()): string[] {
+  let jaMarcado = false
   const tarefas = appStore.get().tarefas.map((t) => {
     if (t.id !== id || t.tipo !== 'habito') return t
     const contador = t.contador ?? { hoje: 0, hojeNeg: 0, totalPositivo: 0, totalNegativo: 0 }
     if (sinal === 'positivo') {
+      // dia passado (não-hoje) já marcado → não re-marca nem dá XP de novo
+      if (data < hojeISO() && t.historico.includes(data)) {
+        jaMarcado = true
+        return t
+      }
       const historico = t.historico.includes(data) ? t.historico : [...t.historico, data]
       return {
         ...t,
@@ -263,6 +270,10 @@ export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data
   const tarefa = tarefas.find((t) => t.id === id)
   if (tarefa) {
     if (sinal === 'positivo') {
+      if (jaMarcado) {
+        notificar('Já marcado neste dia.')
+        return []
+      }
       registrarLog('habito', `Hábito positivo: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP, +${VIDA_POR_HABITO_POSITIVO} vida)`)
       const novas = ganharXP(xpDe(tarefa.dificuldade)).novasCartas
       curar(VIDA_POR_HABITO_POSITIVO)

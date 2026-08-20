@@ -574,6 +574,44 @@ test('fabula: /analisar desconta 10 de mana e pede análise esquizoanalítica', 
   expect(conteudos).toContain('/analisar')
 })
 
+test('hábito: marcar no dia anterior (ontem) marca retroativo e dá XP', async ({ page }) => {
+  await semear(page)
+  await page.goto('/#/hoje')
+  // adiciona um hábito positivo ao estado
+  await page.evaluate(async () => {
+    const mod = await import('/src/stores/app')
+    const agora = new Date().toISOString()
+    const d = mod.appStore.get()
+    mod.appStore.set({
+      ...d,
+      tarefas: [{
+        id: 'h1', titulo: 'Ler', tipo: 'habito', dificuldade: 'facil', sinal: 'positivo', notas: '',
+        historico: [], contador: { hoje: 0, hojeNeg: 0, totalPositivo: 0, totalNegativo: 0 },
+        tags: [], criadaEm: agora, editadaEm: agora, recompensas: {},
+      }],
+    })
+  })
+  // navega para ONTEM
+  await page.locator('[data-dia-anterior]').click()
+  const xp0 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
+  // o botão positivo está habilitado em ontem (retroativo)
+  await expect(page.locator('[data-habito="positivo"]')).toBeEnabled()
+  await page.locator('[data-habito="positivo"]').click()
+  await expect(page.locator('.toast').last()).toContainText('Repetição registrada')
+  const xp1 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
+  expect(xp1).toBe(xp0 + 10) // hábito fácil = +10 XP
+  // streak do dia visível = 1 (marcado retroativa/ontem)
+  await expect(page.locator('.habito-card')).toContainText('seq 1')
+  // clicar de novo (dedup em dia passado) NÃO dá XP de novo
+  const xpAntesDedup = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
+  await page.locator('[data-habito="positivo"]').click()
+  const xpDepoisDedup = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
+  expect(xpDepoisDedup).toBe(xpAntesDedup)
+  // antes de ontem: botão desabilitado
+  await page.locator('[data-dia-anterior]').click() // agora em "anteontem"
+  await expect(page.locator('[data-habito="positivo"]')).toBeDisabled()
+})
+
 test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async ({ page }) => {
   await semearChat(page)
   const corpos: string[] = []
