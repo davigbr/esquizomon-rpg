@@ -12,11 +12,11 @@ import {
 } from '../stores/app'
 import { enviarParaIA, ErroIA, type MsgChat } from '../ia/cliente'
 import { montarSystemPrompt, montarSystemPromptEsquizoanalista } from '../ia/prompt'
-import { extrairAcoes, detectarPedidoInvocacao, detectarComando, type AcaoIA } from '../ia/acoes'
+import { extrairAcoes, detectarPedidoInvocacao, type AcaoIA } from '../ia/acoes'
+import { coletarNotasDeComando } from '../ia/notasDeComando'
 import { nomeDaCarta, resolverCartaId, tipoDaCarta, rotuloTipo, todasAsCartas } from '../core/baralho'
-import { processarMencoesDiario } from '../core/recompensa'
 import { invocarCarta } from '../stores/app'
-import { custoInvocacao, custoInvocacaoFabula, CUSTO_ANALISE, CUSTO_CAPTURAS } from '../core/jogo'
+import { custoInvocacao, custoInvocacaoFabula } from '../core/jogo'
 import { tocarSom } from './sons'
 import { notificar } from './toast'
 import { escapar } from './util'
@@ -614,44 +614,10 @@ async function enviar(texto: string): Promise<void> {
     return
   }
 
-  // 0. comandos (/) — o texto CRU do comando vai pro histórico e pra Fábula
-  // (decisão 2026-08-12: "deve aparecer exatamente o texto do comando no chat
-  // e enviar à Fábula"); o app orquestra a ação por cima (mana, invocação).
-  let escolhaFabula = false
-  let analisePedida = false
-  let analiseRecusada = false
-  let capturasPedidas = false
-  let capturasRecusadas = false
-  // Mana só é descontada quando a RESPOSTA chegar (2026-08-16): falha no
-  // retorno não cobra. Guarda o desconto agendado pelo comando.
-  let descontoPendente: { custo: number; rotulo: string } | null = null
-  const comando = detectarComando(texto)
-  if (comando?.tipo === 'invocar' && comando.escolhaFabula) {
-    // /invocar sem nome → a Fábula escolhe a carta (custo premium ×1,5)
-    escolhaFabula = true
-  } else if (comando?.tipo === 'analisar') {
-    // /analisar → análise esquizoanalítica profunda (custa mana)
-    const p = appStore.get().personagem
-    if (p.mana < CUSTO_ANALISE) {
-      // não descarta o pedido: a Fábula explica no chat (mana intacta)
-      analiseRecusada = true
-    } else {
-      // desconto só no sucesso da resposta (ver descontoPendente após o stream)
-      descontoPendente = { custo: CUSTO_ANALISE, rotulo: 'Análise esquizoanalítica' }
-      analisePedida = true
-    }
-  } else if (comando?.tipo === 'capturas') {
-    // /capturas → varredura de capturas com as cartas desbloqueadas (mana CARA)
-    const p = appStore.get().personagem
-    if (p.mana < CUSTO_CAPTURAS) {
-      capturasRecusadas = true
-    } else {
-      descontoPendente = { custo: CUSTO_CAPTURAS, rotulo: 'Varredura de capturas' }
-      capturasPedidas = true
-    }
-  }
-  // /invocar <carta>: nada a fazer aqui — a detecção do verbo abaixo
-  // (detectarPedidoInvocacao) executa a invocação com o texto cru.
+  // 0. comandos (/) — a lógica (flags, desconto agendado e notas de sistema)
+  // fica em `notasDeComando`; o texto CRU do comando vai pro histórico e pra
+  // Fábula, e o app orquestra a ação por cima (mana, invocação).
+  const notas = coletarNotasDeComando(texto, dados)
 
   // 1. push user (texto cru — o comando aparece como digitado)
   const userMsg: MensagemIA = { role: 'user', content: texto, ts: new Date().toISOString() }
@@ -666,7 +632,7 @@ async function enviar(texto: string): Promise<void> {
   // objeto) — a IA respondia sem ver o que o usuário digitou (bug real:
   // "cada mensagem começa a conversa do zero").
   const atualizada = conversaAtual() ?? conversa
-  const systemPrompt = analisePedida
+  const systemPrompt = notas.analisePedida
     ? montarSystemPromptEsquizoanalista(dados)
     : montarSystemPrompt(dados)
   const historico: MsgChat[] = [
@@ -680,66 +646,10 @@ async function enviar(texto: string): Promise<void> {
   const notaInvocacao = pedidoInvocacao ? prepararInvocacao(pedidoInvocacao) : null
   if (notaInvocacao) historico.push({ role: 'system', content: notaInvocacao.nota })
 
-  // 3c. menções de cartas no diário: o app recompensa o XP quando a Fábula lê
-  // o diário (na interação) e ela celebra na resposta. Não duplica (diarioXp).
-  const mencoes = processarMencoesDiario()
-  if (mencoes.xp > 0) {
-    notificar(mencoes.nivelSubiu
-      ? `${mencoes.nomes.join(', ')} no diário! +${mencoes.xp} XP — você subiu de nível!`
-      : `${mencoes.nomes.join(', ')} no diário! +${mencoes.xp} XP`)
-    historico.push({
-      role: 'system',
-      content:
-        'O diário do jogador mencionou as cartas: ' + mencoes.nomes.join(', ') +
-        `. O app já aplicou +${mencoes.xp} XP de recompensa (menção de carta). ` +
-        'Aponte e celebre essa conexão com naturalidade, relacione a(s) carta(s) com o que foi vivido no diário e siga a conversa. Não invente cartas não mencionadas.',
-    })
-  }
-
-  // 3b. comandos especiais: a Fábula escolhe a carta (/invocar sem nome, custo
-  // premium — ela pode emitir o marcador SÓ neste turno), a análise
-  // esquizoanalítica (/analisar, mana já descontada) e a recusa por mana.
-  if (escolhaFabula) {
-    historico.push({
-      role: 'system',
-      content:
-        'O jogador pediu que VOCÊ escolha a carta a invocar (comando /invocar sem nome — custo PREMIUM: ×1,5 do normal: monstro 6, captura 12, aliança 18, crescendo com reusos). ' +
-        'Escolha UMA carta desbloqueada (lista CARTAS DESBLOQUEADAS abaixo) que sirva ao momento dele, justifique a escolha em 1-2 frases, responda de forma EXTENSA sobre os possíveis efeitos dela, ' +
-        'e emita o marcador exato na última linha: [[acao:{"tipo":"invocar","carta":"<id>"}]] — o app valida a mana premium e executa.',
-    })
-  }
-  if (analisePedida) {
-    historico.push({
-      role: 'system',
-      content:
-        'O jogador pediu uma análise esquizoanalítica (comando /analisar — o app já descontou 10 de mana). Faça a análise do material apresentado com o método do esquizoanalista, em português, tratando-o por "você".',
-    })
-  }
-  if (capturasPedidas) {
-    historico.push({
-      role: 'system',
-      content:
-        `O jogador pediu uma VARREDURA DE CAPTURAS (comando /capturas — o app já descontou ${CUSTO_CAPTURAS} de mana, um custo alto). ` +
-        'Use as CARTAS DE CAPTURA DESBLOQUEADAS dele (campo CARTAS DESBLOQUEADAS do estado, tipo "captura"). ' +
-        'Para CADA carta de captura desbloqueada, tente IDENTIFICAR A PRESENÇA dela no cotidiano do jogador: leia as tarefas, o diário, o histórico e o que ele disse agora e diga ONDE a carta se manifesta (que hábito, que padrão, que situação encarna a captura dela) e o que ela estaria capturando (que fluxo de vida ela prende/alimenta). ' +
-        'Se uma carta não tiver manifestação clara no que você vê, diga HONESTAMENTE que a presença dela não está visível agora e o que você suspeitaria procurar. ' +
-        'Formato: uma seção curta por carta (nome da carta em negrito, 2-4 frases cada); feche com 1 síntese — qual captura está mais ativa hoje. Análise extensa (8-14 frases no total).',
-    })
-  }
-  if (capturasRecusadas) {
-    const p = appStore.get().personagem
-    historico.push({
-      role: 'system',
-      content: `O jogador pediu /capturas mas não tem mana suficiente (tem ${p.mana}/${p.manaMax}; a varredura custa ${CUSTO_CAPTURAS}). NÃO faça a varredura: explique com delicadeza que uma varredura dessas exige forças que ele ainda não tem, sugira voltar amanhã (a mana regenera no reset) e devolva uma pergunta.`,
-    })
-  }
-  if (analiseRecusada) {
-    const p = appStore.get().personagem
-    historico.push({
-      role: 'system',
-      content: `O jogador pediu /analisar mas não tem mana suficiente (tem ${p.mana}/${p.manaMax}; a análise custa ${CUSTO_ANALISE}). NÃO faça a análise: explique com delicadeza que as forças estão baixas, sugira voltar amanhã (a mana regenera no reset) e devolva uma pergunta.`,
-    })
-  }
+  // 3b. notas dos comandos (/) + recompensa por menção no diário — vêm prontas
+  // do módulo notasDeComando (a Fábula lê o diário na interação e celebra).
+  if (notas.avisoMencoes) notificar(notas.avisoMencoes)
+  historico.push(...notas.sistema)
 
   // 4. streaming
   let resposta = ''
@@ -794,12 +704,12 @@ async function enviar(texto: string): Promise<void> {
       },
     })
     // Resposta veio: cobra a mana dos comandos AGORA (falha no retorno não cobra)
-    if (descontoPendente) {
+    if (notas.descontoPendente) {
       const p = appStore.get().personagem
-      appStore.set({ ...appStore.get(), personagem: { ...p, mana: p.mana - descontoPendente.custo } })
-      notificar(`${descontoPendente.rotulo} (−${descontoPendente.custo} mana)`)
+      appStore.set({ ...appStore.get(), personagem: { ...p, mana: p.mana - notas.descontoPendente.custo } })
+      notificar(`${notas.descontoPendente.rotulo} (−${notas.descontoPendente.custo} mana)`)
       tocarSom('analise')
-      descontoPendente = null
+      notas.descontoPendente = null
     }
     // Resposta vazia do modelo (ex.: só raciocínio, ou recusa silenciosa):
     // mostra erro em vez de salvar uma bolha vazia (bug real 2026-08-12).
@@ -815,7 +725,7 @@ async function enviar(texto: string): Promise<void> {
     let conteudoFinal = textoLimpo
     let cartaInvocadaNoTurno: string | null = notaInvocacao?.cartaId ?? null
     for (const acao of acoes) {
-      const exec = executarAcao(acao, { appJaInvocou: notaInvocacao !== null, escolhaFabula })
+      const exec = executarAcao(acao, { appJaInvocou: notaInvocacao !== null, escolhaFabula: notas.escolhaFabula })
       if (exec.nota) conteudoFinal += `\n\n${exec.nota}`
       if (exec.cartaId) cartaInvocadaNoTurno = exec.cartaId
     }
@@ -833,7 +743,7 @@ async function enviar(texto: string): Promise<void> {
     adicionarMensagem(conversa.id, assistantMsg)
   } catch (err) {
     // falha no retorno → NÃO cobra a mana dos comandos
-    descontoPendente = null
+    notas.descontoPendente = null
     const msg = err instanceof ErroIA ? err.message : 'Não consegui falar com a IA.'
     notificar(msg, 'erro')
     if (resposta) {
