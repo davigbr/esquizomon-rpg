@@ -157,6 +157,9 @@ export interface AppData {
   log: LogEvento[]
   /** Conversas com a Fábula (chat com IA). Múltiplas, persistidas. */
   conversas?: Conversa[]
+  /** Tarefas excluídas (id → data): tombstone pra o merge não re-adicionar
+   *  uma tarefa que um dispositivo já excluiu. */
+  tarefasExcluidas?: Record<string, string>
   /** Diário de bordo (1 entrada por dia, com texto/voz). Persistido. */
   diario?: EntradaDiario[]
   /** Menções de cartas já recompensadas por dia (data → ids de carta).

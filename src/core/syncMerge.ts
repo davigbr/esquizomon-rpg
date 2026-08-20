@@ -50,12 +50,25 @@ export function fundirDados(local: AppData, nuvem: AppData): AppData {
   const conversas = fundirPorChave<Conversa>(local.conversas ?? [], nuvem.conversas ?? [], (c) => c.id, (c) => c.atualizadaEm)
   const log = fundirLog(local.log ?? [], nuvem.log ?? [])
 
+  // Tombstone de exclusão: tarefa excluída em QUALQUER lado some do merge.
+  // `vivos` = ids presentes em algum dos arrays brutos (o outro lado ainda tem
+  // a tarefa → mantém o tombstone); ids fora dos dois → assenta (limpa).
+  const excluidas = { ...(local.tarefasExcluidas ?? {}), ...(nuvem.tarefasExcluidas ?? {}) }
+  const excluidasIds = new Set(Object.keys(excluidas))
+  const vivos = new Set([...local.tarefas, ...nuvem.tarefas].map((t) => t.id))
+  const excluidasAssentadas: Record<string, string> = {}
+  for (const [tid, ts] of Object.entries(excluidas)) {
+    if (vivos.has(tid)) excluidasAssentadas[tid] = ts // o outro lado ainda tem → mantém o tombstone
+  }
+  const tarefasComExclusao = tarefas.filter((t) => !excluidasIds.has(t.id))
+
   return {
     ...local,
-    tarefas,
+    tarefas: tarefasComExclusao,
     diario,
     conversas,
     log,
+    tarefasExcluidas: excluidasAssentadas,
     diarioXp: { ...(nuvem.diarioXp ?? {}), ...(local.diarioXp ?? {}) },
     diarioRegistroXp: { ...(nuvem.diarioRegistroXp ?? {}), ...(local.diarioRegistroXp ?? {}) },
   }

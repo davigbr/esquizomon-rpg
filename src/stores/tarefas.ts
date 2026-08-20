@@ -88,7 +88,13 @@ export function atualizarTarefa(id: string, dados: Partial<DadosTarefa>): Result
 
 export function excluirTarefa(id: string): void {
   const tarefa = tarefaPorId(id)
-  appStore.set({ ...appStore.get(), tarefas: appStore.get().tarefas.filter((t) => t.id !== id) })
+  const d = appStore.get()
+  // tombstone: o merge não pode re-adicionar uma tarefa já excluída
+  appStore.set({
+    ...d,
+    tarefas: d.tarefas.filter((t) => t.id !== id),
+    tarefasExcluidas: { ...(d.tarefasExcluidas ?? {}), [id]: new Date().toISOString() },
+  })
   if (tarefa) registrarLog('tarefa', `Excluiu: ${tarefa.titulo}`)
 }
 

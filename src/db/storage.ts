@@ -327,12 +327,21 @@ export function normalizarDados(bruto: unknown): AppData | null {
     log,
     conversas,
     diario,
+    tarefasExcluidas: normalizarMapaString(b.tarefasExcluidas),
     diarioXp: normalizarDiarioXp(b.diarioXp),
     diarioRegistroXp: normalizarDiarioRegistroXp(b.diarioRegistroXp),
   }
 }
 
-/** `diarioRegistroXp`: data → true (já rendeu XP de registro). Filtra lixo. */
+/** Normaliza um mapa string→string (ex.: tarefasExcluidas). */
+function normalizarMapaString(x: unknown): Record<string, string> {
+  if (!x || typeof x !== 'object') return {}
+  const saida: Record<string, string> = {}
+  for (const [k, v] of Object.entries(x)) {
+    if (typeof v === 'string') saida[k] = v
+  }
+  return saida
+}/** `diarioRegistroXp`: data → true (já rendeu XP de registro). Filtra lixo. */
 function normalizarDiarioRegistroXp(x: unknown): Record<string, boolean> {
   if (!x || typeof x !== 'object') return {}
   const saida: Record<string, boolean> = {}
@@ -387,6 +396,7 @@ export function estadoVazio(): AppData {
     log: [],
     conversas: [],
     diario: [],
+    tarefasExcluidas: {},
     diarioXp: {},
     diarioRegistroXp: {},
   }

@@ -20,6 +20,24 @@ test('sync: fundirDados mescla criações dos dois lados (nada se perde)', async
   expect(r.tituloA).toBe('criada no local')
 })
 
+test('sync: exclusão não é revertida pelo merge (tombstone)', async ({ page }) => {
+  await page.goto('/#/hoje')
+  const r = await page.evaluate(async () => {
+    const { fundirDados } = await import('/src/core/syncMerge')
+    const t = (id: string, titulo: string, editadaEm: string) => ({
+      id, titulo, tipo: 'unica', dificuldade: 'facil', concluida: false, historico: [], tags: [], criadaEm: editadaEm, editadaEm,
+    })
+    const base = { tarefas: [], diario: [], conversas: [], log: [], personagem: {}, configuracao: {}, versao: 6 } as any
+    // local: excluiu 'b' (tombstone); nuvem: ainda tem 'b'
+    const local = { ...base, tarefas: [{ ...t('a', 'A', '2026-01-01T00:00:00Z') }], tarefasExcluidas: { b: '2026-01-02T00:00:00Z' } }
+    const nuvem = { ...base, tarefas: [{ ...t('a', 'A', '2026-01-01T00:00:00Z') }, { ...t('b', 'B', '2026-01-01T00:00:00Z') }] }
+    const f = fundirDados(local as any, nuvem as any) as any
+    return { ids: f.tarefas.map((x: any) => x.id).sort(), aindaExcluida: f.tarefasExcluidas.b }
+  })
+  expect(r.ids).toEqual(['a']) // 'b' NÃO volta
+  expect(r.aindaExcluida).toBe('2026-01-02T00:00:00Z') // tombstone mantido (nuvem ainda tinha)
+})
+
 test('sync: conflito na mesma tarefa vence a mais recente', async ({ page }) => {
   await page.goto('/#/hoje')
   const r = await page.evaluate(async () => {
