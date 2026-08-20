@@ -359,7 +359,7 @@ test('fabula: "invoca a carta X" executa no app, desconta mana e mostra a miniat
 test('fabula: cada mensagem tem botão copiar (markdown; carta vira nome)', async ({ page, context }) => {
   await semear(page)
   await page.addInitScript(() => {
-    localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ open: false, conversaAtivaId: 'conv-copia' }))
+    localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ open: false, activeConversationId: 'conv-copia' }))
   })
   await page.addInitScript(() => {
     const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
@@ -420,7 +420,7 @@ test('fabula: cada mensagem tem botão copiar (markdown; carta vira nome)', asyn
 test('fabula: conversa pode ser renomeada (Enter salva e persiste)', async ({ page }) => {
   await semear(page)
   await page.addInitScript(() => {
-    localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ open: false, conversaAtivaId: 'conv-renome' }))
+    localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ open: false, activeConversationId: 'conv-renome' }))
   })
   await page.addInitScript(() => {
     const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
@@ -627,7 +627,7 @@ test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async 
       const d = mod.appStore.get()
       mod.appStore.set({
         ...d,
-        diary: [{ id: 'm1', data: h, title: 'teste', texto: 'Hoje fui cercado pelo Ninho Enclausurado.' }],
+        diary: [{ id: 'm1', date: h, title: 'teste', text: 'Hoje fui cercado pelo Ninho Enclausurado.' }],
       })
     },
     hoje,

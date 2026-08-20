@@ -39,7 +39,7 @@ export function extractActions(text: string): { text: string; actions: AiAction[
     }
     return ''
   })
-  return { text: clean.trim(), actions }
+  return { text: clean.replace(/\[\[acao:[\s\S]*?\]\]/g, '').trim(), actions }
 }
 
 /** Detecta um pedido EXPLÍCITO de invocação na mensagem do usuário

@@ -40,10 +40,12 @@ function loadPanelState(): PanelState {
   try {
     const raw = localStorage.getItem(PANEL_KEY)
     if (!raw) return { open: false, activeConversationId: null }
-    const obj = JSON.parse(raw) as Partial<PanelState>
+    const obj = JSON.parse(raw) as Partial<PanelState> & Record<string, unknown>
     return {
       open: obj.open === true,
-      activeConversationId: typeof obj.activeConversationId === 'string' ? obj.activeConversationId : null,
+      activeConversationId: typeof obj.activeConversationId === 'string'
+        ? obj.activeConversationId
+        : typeof obj.conversaAtivaId === 'string' ? obj.conversaAtivaId : null,
     }
   } catch {
     return { open: false, activeConversationId: null }
