@@ -156,29 +156,13 @@ async function handle(req: Request): Promise<Response> {
   })
 }
 
-// Netlify Functions (formato AWS Lambda-style) e Vite middleware
-// (que importam este arquivo) precisam do mesmo handler. Exportamos
-// `handler` (Lambda) e `handle` (Request/Response) — o middleware usa
-// o segundo, a Netlify adapta o primeiro.
-export async function handler(event: { httpMethod: string; body: string | null }): Promise<{
-  statusCode: number
-  headers: Record<string, string>
-  body: string
-  isBase64Encoded?: boolean
-}> {
-  const req = new Request('https://local/api/ia', {
-    method: event.httpMethod,
-    body: event.body ?? undefined,
-    headers: { 'Content-Type': 'application/json' },
-  })
-  const res = await handle(req)
-  const headers: Record<string, string> = {}
-  res.headers.forEach((v, k) => (headers[k] = v))
-  return {
-    statusCode: res.status,
-    headers,
-    body: await res.text(),
-  }
-}
+// Netlify Functions **v2** (`export default`): suporta RESPOSTA STREAMING real.
+// O handler v1 (AWS Lambda) abaixo acumulava a resposta inteira com
+// `res.text()` e estourava o timeout em respostas longas (invocação, /analisar)
+// → 502. Com o v2, o `new Response(up.body, ...)` transmite os chunks SSE
+// conforme chegam (o HTTP começa a fluir no 1º token), sem esperar o fim.
+//
+// O Vite middleware (dev) continua usando `handle` exportada abaixo.
+export default async (req: Request): Promise<Response> => handle(req)
 
 export { handle }
