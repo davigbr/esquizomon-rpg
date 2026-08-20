@@ -1,83 +1,83 @@
-/** Domínio de configuração: tema, preferências, import/export e zeragem. */
+/** Settings domain: theme, preferences, import/export and wipe. */
 
-import type { Configuracao, Tema } from '../core/tipos'
-import { personagemInicial } from '../core/jogo'
-import { sortearIniciais } from '../core/baralho'
-import { apagarTudo, normalizarDados, salvarTema } from '../db/storage'
-import { appStore, registrarLog } from './base'
-import type { Resultado } from './base'
-import { deckCarregado } from './personagem'
+import type { Settings, Theme } from '../core/tipos'
+import { initialCharacter } from '../core/jogo'
+import { drawInitialIds } from '../core/baralho'
+import { wipeAll, normalizeData, saveTheme } from '../db/storage'
+import { appStore, addLog } from './base'
+import type { Result } from './base'
+import { loadedDeck } from './personagem'
 
-/** Resolve o tema efetivo (sistema → prefers-color-scheme do SO) e aplica no <html>. */
-export function aplicarTemaEfetivo(tema: Tema): void {
-  const efetivo =
-    tema === 'sistema'
+/** Resolves the effective theme (sistema → OS prefers-color-scheme) and applies it to <html>. */
+export function applyEffectiveTheme(theme: Theme): void {
+  const effective =
+    theme === 'sistema'
       ? window.matchMedia('(prefers-color-scheme: dark)').matches
         ? 'dark'
         : 'light'
-      : tema
-  document.documentElement.dataset.theme = efetivo
+      : theme
+  document.documentElement.dataset.theme = effective
 }
 
-/* matchMedia do tema do sistema — 'sistema' segue o SO em tempo real */
-let mqlTema: MediaQueryList | null = null
+/* system theme matchMedia — 'sistema' follows the OS in real time */
+let themeMql: MediaQueryList | null = null
 
-export function definirTema(tema: Tema): void {
-  salvarTema(tema)
-  appStore.set({ ...appStore.get(), configuracao: { ...appStore.get().configuracao, tema } })
-  mqlTema?.removeEventListener('change', aoMudarPreferenciaSistema)
-  mqlTema = null
-  if (tema === 'sistema') {
-    mqlTema = window.matchMedia('(prefers-color-scheme: dark)')
-    mqlTema.addEventListener('change', aoMudarPreferenciaSistema)
+export function setTheme(theme: Theme): void {
+  saveTheme(theme)
+  appStore.set({ ...appStore.get(), settings: { ...appStore.get().settings, theme } })
+  themeMql?.removeEventListener('change', onSystemPreferenceChange)
+  themeMql = null
+  if (theme === 'sistema') {
+    themeMql = window.matchMedia('(prefers-color-scheme: dark)')
+    themeMql.addEventListener('change', onSystemPreferenceChange)
   }
-  aplicarTemaEfetivo(tema)
+  applyEffectiveTheme(theme)
 }
 
-function aoMudarPreferenciaSistema(): void {
-  if (appStore.get().configuracao.tema === 'sistema') aplicarTemaEfetivo('sistema')
+function onSystemPreferenceChange(): void {
+  if (appStore.get().settings.theme === 'sistema') applyEffectiveTheme('sistema')
 }
 
-export function definirConfiguracao(patch: Partial<Configuracao>): void {
-  appStore.set({ ...appStore.get(), configuracao: { ...appStore.get().configuracao, ...patch } })
+export function setSettings(patch: Partial<Settings>): void {
+  appStore.set({ ...appStore.get(), settings: { ...appStore.get().settings, ...patch } })
 }
 
 /* ---------- import/export ---------- */
 
-export function exportarJSON(): string {
+export function exportJSON(): string {
   return JSON.stringify(appStore.get(), null, 2)
 }
 
-export function importarJSON(texto: string): Resultado {
+export function importJSON(text: string): Result {
   try {
-    const bruto = JSON.parse(texto)
-    if (typeof bruto !== 'object' || bruto === null || !Array.isArray(bruto.tarefas)) {
-      return { ok: false, motivo: 'Arquivo com formato desconhecido.' }
+    const raw = JSON.parse(text)
+    if (typeof raw !== 'object' || raw === null || (!Array.isArray(raw.tasks) && !Array.isArray(raw.tarefas))) {
+      return { ok: false, reason: 'Arquivo com formato desconhecido.' }
     }
-    const normalizado = normalizarDados(bruto)
-    if (!normalizado) return { ok: false, motivo: 'Dados inválidos no arquivo.' }
-    appStore.set(normalizado)
+    const normalized = normalizeData(raw)
+    if (!normalized) return { ok: false, reason: 'Dados inválidos no arquivo.' }
+    appStore.set(normalized)
     return { ok: true }
   } catch {
-    return { ok: false, motivo: 'Não deu para ler o arquivo (JSON inválido).' }
+    return { ok: false, reason: 'Não deu para ler o arquivo (JSON inválido).' }
   }
 }
 
-export function apagarTodosDados(): void {
-  apagarTudo()
+export function wipeAllData(): void {
+  wipeAll()
   appStore.set({
-    versao: appStore.get().versao,
-    tarefas: [],
-    personagem: personagemInicial(),
-    configuracao: appStore.get().configuracao,
+    version: appStore.get().version,
+    tasks: [],
+    character: initialCharacter(),
+    settings: appStore.get().settings,
     log: [],
-    conversas: [],
-    diario: [],
+    conversations: [],
+    diary: [],
   })
-  // o deck já carregou no boot — re-sorteia as cartas iniciais do baralho zerado
-  if (deckCarregado) {
-    const iniciais = sortearIniciais(deckCarregado)
-    appStore.set({ ...appStore.get(), personagem: { ...appStore.get().personagem, cartas: iniciais } })
+  // the deck already loaded on boot — re-draws the initial cards of the wiped deck
+  if (loadedDeck) {
+    const initial = drawInitialIds(loadedDeck)
+    appStore.set({ ...appStore.get(), character: { ...appStore.get().character, cards: initial } })
   }
-  registrarLog('sistema', 'Dados apagados — novo território')
+  addLog('sistema', 'Dados apagados — novo território')
 }

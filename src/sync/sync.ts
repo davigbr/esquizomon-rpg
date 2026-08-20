@@ -12,39 +12,39 @@
  */
 
 import { appStore } from '../stores/base'
-import { normalizarDados } from '../db/storage'
-import { obterTokenValido, renovarToken, sessaoAtual } from './auth'
+import { normalizeData } from '../db/storage'
+import { getValidToken, renewToken, currentSession } from './auth'
 import type { AppData } from '../core/tipos'
-import { fundirDados } from '../core/syncMerge'
+import { mergeData } from '../core/syncMerge'
 
-const CHAVE_SYNC = 'esquizomon-rpg:sync' // metadados locais de sincronização
-const FUNCAO = '/.netlify/functions/dados'
+const SYNC_KEY = 'esquizomon-rpg:sync' // metadados locais de sincronização
+const ENDPOINT = '/.netlify/functions/dados'
 const DEBOUNCE_MS = 2000
 
-export type EstadoSync = 'local' | 'enviando' | 'sincronizado' | 'sem-conexao'
+export type SyncState = 'local' | 'enviando' | 'sincronizado' | 'sem-conexao'
 
-interface MetadadosSync {
+interface SyncMeta {
   salvoEm?: string
-  ultimaSync?: string // momento da última sincronização bem-sucedida com a nuvem
+  lastSync?: string // momento da última sincronização bem-sucedida com a nuvem
 }
 
-function lerMetadados(): MetadadosSync {
+function readMeta(): SyncMeta {
   try {
-    return JSON.parse(localStorage.getItem(CHAVE_SYNC) ?? '{}') as MetadadosSync
+    return JSON.parse(localStorage.getItem(SYNC_KEY) ?? '{}') as SyncMeta
   } catch {
     return {}
   }
 }
 
-function gravarMetadados(m: MetadadosSync): void {
-  localStorage.setItem(CHAVE_SYNC, JSON.stringify(m))
+function writeMeta(m: SyncMeta): void {
+  localStorage.setItem(SYNC_KEY, JSON.stringify(m))
 }
 
 let timer: ReturnType<typeof setTimeout> | null = null
-let carregando = false // evita o eco: puxar → store → auto-enviar
-let inscritosSync: Array<(e: EstadoSync) => void> = []
-let intervaloPull: ReturnType<typeof setInterval> | null = null
-let primeiroSubscribe = true
+let loading = false // evita o eco: puxar → store → auto-enviar
+let syncSubscribers: Array<(e: SyncState) => void> = []
+let pullInterval: ReturnType<typeof setInterval> | null = null
+let firstSubscribe = true
 let idleTimer: ReturnType<typeof setTimeout> | null = null
 const PULL_MS = 10_000
 const IDLE_MS = 3 * 60_000 // 3 min sem interação → o polling "dorme"
@@ -52,87 +52,87 @@ const IDLE_MS = 3 * 60_000 // 3 min sem interação → o polling "dorme"
 /** Pull periódico + na volta à aba: com 2 dispositivos logados, as mudanças
  *  de um chegam ao outro em até ~30s (ou ao voltar para a aba). Sem isso, cada
  *  dispositivo só sincroniza no login/edição própria — ficam divergentes. */
-function aoDormir(): void {
+function onSleep(): void {
   // foi pro background OU ficou inativo: para o polling (o navegador throttla
   // timers de fundo; e inatividade não precisa puxar — desperdiça bateria/rede)
-  if (intervaloPull) {
-    clearInterval(intervaloPull)
-    intervaloPull = null
+  if (pullInterval) {
+    clearInterval(pullInterval)
+    pullInterval = null
   }
 }
-function rearmarInatividade(): void {
+function rearmIdle(): void {
   if (idleTimer) clearTimeout(idleTimer)
   idleTimer = setTimeout(() => {
     idleTimer = null
-    aoDormir() // X sem interação (mesmo com a aba visível) → pausa o polling
+    onSleep() // X sem interação (mesmo com a aba visível) → pausa o polling
   }, IDLE_MS)
 }
-function aoInteragir(): void {
+function onInteract(): void {
   // toque/tecla/foco: acorda (sincroniza já + retoma o polling) e rearma o idle
-  aoAcordar()
-  rearmarInatividade()
+  onWake()
+  rearmIdle()
 }
-function aoAcordar(): void {
+function onWake(): void {
   // voltou / o usuário interagiu: retoma o polling e sincroniza JÁ (traz o
   // que aconteceu enquanto "dormia")
-  if (document.visibilityState === 'visible' && sessaoAtual()) {
-    if (!intervaloPull) iniciarTimerPull()
-    void sincronizarAgora()
+  if (document.visibilityState === 'visible' && currentSession()) {
+    if (!pullInterval) startPullTimer()
+    void syncNow()
   }
 }
-function iniciarTimerPull(): void {
-  if (intervaloPull) return
-  intervaloPull = setInterval(() => {
-    if (document.visibilityState === 'visible' && sessaoAtual()) void sincronizarAgora()
+function startPullTimer(): void {
+  if (pullInterval) return
+  pullInterval = setInterval(() => {
+    if (document.visibilityState === 'visible' && currentSession()) void syncNow()
   }, PULL_MS)
 }
-function aoMudarVisibilidade(): void {
-  if (document.visibilityState === 'hidden') aoDormir()
-  else aoInteragir() // voltar à aba: acorda + rearma o idle
+function onVisibilityChange(): void {
+  if (document.visibilityState === 'hidden') onSleep()
+  else onInteract() // voltar à aba: acorda + rearma o idle
 }
-function iniciarPullPeriodico(): void {
-  if (intervaloPull) return // já tem listeners/timer
-  iniciarTimerPull()
-  document.addEventListener('visibilitychange', aoMudarVisibilidade)
-  window.addEventListener('focus', aoInteragir)
-  window.addEventListener('pointerdown', aoInteragir, { passive: true })
-  window.addEventListener('keydown', aoInteragir)
-  rearmarInatividade()
+function startPeriodicPull(): void {
+  if (pullInterval) return // já tem listeners/timer
+  startPullTimer()
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  window.addEventListener('focus', onInteract)
+  window.addEventListener('pointerdown', onInteract, { passive: true })
+  window.addEventListener('keydown', onInteract)
+  rearmIdle()
 }
 
-function pararPullPeriodico(): void {
-  if (intervaloPull) {
-    clearInterval(intervaloPull)
-    intervaloPull = null
+function stopPeriodicPull(): void {
+  if (pullInterval) {
+    clearInterval(pullInterval)
+    pullInterval = null
   }
   if (idleTimer) {
     clearTimeout(idleTimer)
     idleTimer = null
   }
-  document.removeEventListener('visibilitychange', aoMudarVisibilidade)
-  window.removeEventListener('focus', aoInteragir)
-  window.removeEventListener('pointerdown', aoInteragir)
-  window.removeEventListener('keydown', aoInteragir)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  window.removeEventListener('focus', onInteract)
+  window.removeEventListener('pointerdown', onInteract)
+  window.removeEventListener('keydown', onInteract)
 }
 
 /** Última sincronização bem-sucedida (ISO) ou null. */
-export function lerUltimaSync(): string | null {
-  return lerMetadados().ultimaSync ?? null
+export function getLastSync(): string | null {
+  return readMeta().lastSync ?? null
 }
 
-function definirEstado(e: EstadoSync): void {
+function setSyncState(e: SyncState): void {
   if (e === 'sincronizado') {
-    const m = lerMetadados()
-    gravarMetadados({ ...m, ultimaSync: new Date().toISOString() })
+    const m = readMeta()
+    writeMeta({ ...m, lastSync: new Date().toISOString() })
   }
-  for (const cb of inscritosSync) cb(e)
+  for (const cb of syncSubscribers) cb(e)
 }
 
 /** A UI inscreve-se aqui para mostrar o status (suporta vários listeners). */
-export function inscreverSync(cb: (e: EstadoSync) => void): () => void {
-  inscritosSync.push(cb)
+export function subscribeSync(cb: (e: SyncState) => void): () => void {
+  syncSubscribers.push(cb)
   return () => {
-    inscritosSync = inscritosSync.filter((x) => x !== cb)
+    syncSubscribers = syncSubscribers.filter((x) => x !== cb)
   }
 }
 
@@ -142,40 +142,40 @@ export function inscreverSync(cb: (e: EstadoSync) => void): () => void {
  * como "sem conexão"; a sessão NUNCA é destruída sozinha (evita o loop
  * login → reload → login).
  */
-async function chamarAutenticado(metodo: 'GET' | 'PUT', url: string, corpo?: string): Promise<Response> {
-  let token = await obterTokenValido()
+async function authedFetch(method: 'GET' | 'PUT', url: string, body?: string): Promise<Response> {
+  let token = await getValidToken()
   if (!token) throw new Error('sem token')
-  let res = await fetch(url, { method: metodo, headers: { Authorization: `Bearer ${token}` }, body: corpo })
+  let res = await fetch(url, { method, headers: { Authorization: `Bearer ${token}` }, body })
   if (res.status !== 401) return res
 
   console.warn('[sync] 401 — renovando o token e tentando de novo…')
-  token = await renovarToken()
+  token = await renewToken()
   if (!token) throw new Error('renovação do token falhou')
-  return fetch(url, { method: metodo, headers: { Authorization: `Bearer ${token}` }, body: corpo })
+  return fetch(url, { method, headers: { Authorization: `Bearer ${token}` }, body })
 }
 
-async function chamar(metodo: 'GET' | 'PUT', corpo?: string): Promise<Response> {
-  return chamarAutenticado(metodo, FUNCAO, corpo)
+async function request(method: 'GET' | 'PUT', body?: string): Promise<Response> {
+  return authedFetch(method, ENDPOINT, body)
 }
 
 /** Substitui o estado do app pelos dados vindos da nuvem. */
-function substituirDados(dados: unknown): void {
-  const normalizado = normalizarDados(dados)
-  if (normalizado) appStore.set(normalizado)
+function replaceData(data: unknown): void {
+  const normalized = normalizeData(data)
+  if (normalized) appStore.set(normalized)
 }
 
 /* ---------- paraquedas: backup local versionado (caminho "E", 2026-08-17) ---------- */
 
-const CHAVE_BACKUP = 'esquizomon-rpg:backup'
+const BACKUP_KEY = 'esquizomon-rpg:backup'
 
-interface BackupLocal {
+interface LocalBackup {
   ts: string
-  dados: AppData
+  data: AppData
 }
 
-function lerBackupBruto(): BackupLocal[] {
+function readRawBackup(): LocalBackup[] {
   try {
-    const lista = JSON.parse(localStorage.getItem(CHAVE_BACKUP) ?? '[]') as BackupLocal[]
+    const lista = JSON.parse(localStorage.getItem(BACKUP_KEY) ?? '[]') as LocalBackup[]
     return Array.isArray(lista) ? lista : []
   } catch {
     return []
@@ -184,119 +184,119 @@ function lerBackupBruto(): BackupLocal[] {
 
 /** Guarda a versão local atual ANTES de uma sobreescrita (merge) — as últimas
  *  3 cópias ficam recuperáveis. */
-function backupLocal(dados: AppData): void {
+function takeBackup(data: AppData): void {
   try {
-    const historico = lerBackupBruto()
-    historico.push({ ts: new Date().toISOString(), dados: (normalizarDados(dados) ?? dados) })
-    localStorage.setItem(CHAVE_BACKUP, JSON.stringify(historico.slice(-3)))
+    const historico = readRawBackup()
+    historico.push({ ts: new Date().toISOString(), data: (normalizeData(data) ?? data) })
+    localStorage.setItem(BACKUP_KEY, JSON.stringify(historico.slice(-3)))
   } catch {
     /* sincronização importa mais que backup */
   }
 }
 
 /** Backups locais salvos (tela de restauração da Config). */
-export function lerBackups(): Array<{ ts: string }> {
-  return lerBackupBruto().map((b) => ({ ts: b.ts }))
+export function getBackups(): Array<{ ts: string }> {
+  return readRawBackup().map((b) => ({ ts: b.ts }))
 }
 
 /** Restaura uma cópia de backup (sobrescreve o estado atual, guardando o atual). */
-export function restaurarBackup(ts: string): boolean {
-  const b = lerBackupBruto().find((x) => x.ts === ts)
+export function restoreBackup(ts: string): boolean {
+  const b = readRawBackup().find((x) => x.ts === ts)
   if (!b) return false
-  backupLocal(appStore.get())
-  substituirDados(b.dados)
+  takeBackup(appStore.get())
+  replaceData(b.data)
   return true
 }
 
-async function enviarAgora(): Promise<void> {
-  const token = await obterTokenValido()
+async function sendNow(): Promise<void> {
+  const token = await getValidToken()
   if (!token) return
-  definirEstado('enviando')
-  const salvoEm = lerMetadados().salvoEm ?? new Date().toISOString()
+  setSyncState('enviando')
+  const savedAt = readMeta().salvoEm ?? new Date().toISOString()
   try {
-    const res = await chamar('PUT', JSON.stringify({ salvoEm, dados: appStore.get() }))
+    const res = await request('PUT', JSON.stringify({ salvoEm: savedAt, dados: appStore.get() }))
     if (!res.ok) throw new Error(`PUT falhou: HTTP ${res.status}`)
-    definirEstado('sincronizado')
+    setSyncState('sincronizado')
   } catch {
-    definirEstado('sem-conexao')
+    setSyncState('sem-conexao')
   }
 }
 
 /** Sincroniza com a nuvem — MERGE não-destrutivo (caminho "E", 2026-08-17).
- *  `forcar` decide apenas a BASE do personagem/configuração (a pergunta do
+ *  `force` decide apenas a BASE do personagem/configuração (a pergunta do
  *  login); as coleções (tarefas, diário, conversas) sempre mesclam por item.
  *  Nunca há sobrescrita global que perca entidades. */
-export async function sincronizarAgora(forcar?: 'local' | 'nuvem'): Promise<void> {
-  const token = await obterTokenValido()
+export async function syncNow(force?: 'local' | 'nuvem'): Promise<void> {
+  const token = await getValidToken()
   if (!token) {
-    definirEstado('local')
+    setSyncState('local')
     return
   }
-  definirEstado('enviando')
+  setSyncState('enviando')
   try {
-    const res = await chamar('GET')
+    const res = await request('GET')
     if (!res.ok) throw new Error(`GET falhou: HTTP ${res.status}`)
     const envelope = (await res.json()) as { salvoEm: string | null; dados: unknown }
     const local = appStore.get()
-    const localSalvoEm = lerMetadados().salvoEm ?? ''
-    const nuvem: AppData | null = envelope.dados ? normalizarDados(envelope.dados) : null
+    const localSavedAt = readMeta().salvoEm ?? ''
+    const cloud: AppData | null = envelope.dados ? normalizeData(envelope.dados) : null
 
-    if (!nuvem) {
+    if (!cloud) {
       // nuvem vazia (primeira vez) → o local vira a nuvem
-      await enviarAgora()
+      await sendNow()
       return
     }
 
     // BASE do personagem/configuração: forçar, senão LWW global (salvoEm).
     // As coleções mesclam de forma comutativa independentemente da base.
     let base: AppData
-    let outro: AppData
-    if (forcar === 'nuvem') {
-      base = nuvem
-      outro = local
-    } else if (forcar === 'local') {
+    let other: AppData
+    if (force === 'nuvem') {
+      base = cloud
+      other = local
+    } else if (force === 'local') {
       base = local
-      outro = nuvem
-    } else if ((envelope.salvoEm ?? '') > localSalvoEm) {
-      base = nuvem
-      outro = local
+      other = cloud
+    } else if ((envelope.salvoEm ?? '') > localSavedAt) {
+      base = cloud
+      other = local
     } else {
       base = local
-      outro = nuvem
+      other = cloud
     }
 
-    const fundido = fundirDados(base, outro)
+    const merged = mergeData(base, other)
 
-    const localMudou = JSON.stringify(fundido) !== JSON.stringify(local)
-    if (localMudou) {
-      backupLocal(local) // paraquedas: guarda a versão anterior
-      carregando = true
-      substituirDados(fundido)
-      carregando = false
-      gravarMetadados({
-        salvoEm: ((envelope.salvoEm ?? '') > localSalvoEm ? envelope.salvoEm : localSalvoEm) ?? undefined,
+    const localChanged = JSON.stringify(merged) !== JSON.stringify(local)
+    if (localChanged) {
+      takeBackup(local) // paraquedas: guarda a versão anterior
+      loading = true
+      replaceData(merged)
+      loading = false
+      writeMeta({
+        salvoEm: ((envelope.salvoEm ?? '') > localSavedAt ? envelope.salvoEm : localSavedAt) ?? undefined,
       })
     }
 
-    const nuvemMudou = JSON.stringify(fundido) !== JSON.stringify(nuvem)
-    if (nuvemMudou) {
-      await enviarAgora() // PUT usa appStore.get() — o fundido (aplicado ao local acima)
+    const cloudChanged = JSON.stringify(merged) !== JSON.stringify(cloud)
+    if (cloudChanged) {
+      await sendNow() // PUT usa appStore.get() — o fundido (aplicado ao local acima)
       return
     }
-    definirEstado('sincronizado')
+    setSyncState('sincronizado')
   } catch {
-    definirEstado('sem-conexao')
+    setSyncState('sem-conexao')
   }
 }
 
 /** Chama quando a sessão muda (login/sair) — re-sincroniza ou volta ao local. */
-export function aposMudancaSessao(forcar?: 'local' | 'nuvem'): void {
-  if (sessaoAtual()) {
-    iniciarPullPeriodico()
-    void sincronizarAgora(forcar)
+export function onSessionChange(force?: 'local' | 'nuvem'): void {
+  if (currentSession()) {
+    startPeriodicPull()
+    void syncNow(force)
   } else {
-    pararPullPeriodico()
-    definirEstado('local')
+    stopPeriodicPull()
+    setSyncState('local')
   }
 }
 
@@ -306,32 +306,32 @@ appStore.subscribe(() => {
   // registrar, sem haver edição). NÃO pode bumpar o salvoEm nem agendar envio —
   // isso inflava o salvoEm local para "agora" a cada abertura e o pull nunca
   // aplicava dados de outros dispositivos (bug real 2026-08-16: dessincronização).
-  if (!primeiroSubscribe) {
+  if (!firstSubscribe) {
     // ECO do pull: NÃO marca como mudança local — senão o last-write-wins vira
     // "local sempre vence" e a nuvem (backup) é sobrescrita à toa. O pull grava
     // o salvoEm da nuvem explicitamente.
-    if (!carregando) {
+    if (!loading) {
       // Mudança REAL: marca o timestamp do last-write-wins
-      gravarMetadados({ salvoEm: new Date().toISOString() })
-      if (sessaoAtual()) {
+      writeMeta({ salvoEm: new Date().toISOString() })
+      if (currentSession()) {
         if (timer) clearTimeout(timer)
         timer = setTimeout(() => {
           timer = null
-          void enviarAgora()
+          void sendNow()
         }, DEBOUNCE_MS)
       }
     }
   } else {
-    primeiroSubscribe = false
+    firstSubscribe = false
   }
 })
 
 /** Boot: sincroniza se já estiver logado (sessão restaurada). */
-export function iniciarSync(): void {
-  if (sessaoAtual()) {
-    iniciarPullPeriodico()
-    void sincronizarAgora()
+export function initSync(): void {
+  if (currentSession()) {
+    startPeriodicPull()
+    void syncNow()
   } else {
-    definirEstado('local')
+    setSyncState('local')
   }
 }

@@ -1,9 +1,9 @@
-/** Renderização de notas com markdown simples — reusa o formatador inline
- *  unificado do preview (escapar + links/strong/em) e adiciona quebras de linha. */
+/** Renders notes with simple markdown — reuses the unified inline formatter
+ *  from the preview (escape + links/strong/em) and adds line breaks. */
 
-import { escapar } from './util'
-import { formatarInline } from './editorMd'
+import { escapeHtml } from './util'
+import { formatInline } from './editorMd'
 
-export function renderizarNotas(texto: string): string {
-  return formatarInline(escapar(texto)).replace(/\n/g, '<br>')
+export function renderNotes(text: string): string {
+  return formatInline(escapeHtml(text)).replace(/\n/g, '<br>')
 }

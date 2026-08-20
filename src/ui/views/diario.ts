@@ -1,157 +1,157 @@
-/** Visão Diário — lista de entradas à esquerda (como arquivos), editor à direita
- *  com textarea markdown nativo + toggle Editar/Ver (preview renderizado) e
- *  salvamento automático. */
+/** Diary view — list of entries on the left (like files), editor on the right
+ *  with native markdown textarea + Editar/Ver toggle (rendered preview) and
+ *  auto-save. */
 
-import type { AppData, EntradaDiario } from '../../core/tipos'
-import { hojeISO, dataPorExtenso } from '../../core/jogo'
-import { appStore, excluirEntrada, importarDiario, moverEntrada, salvarEntrada } from '../../stores/app'
-import { abrirModal, fecharModal, modalBody, confirmar } from '../modal'
-import { notificar } from '../toast'
-import { escapar } from '../util'
-import { renderizarMarkdown } from '../editorMd'
-import { parsearMarkdownDiario } from '../importDiario'
+import type { AppData, DiaryEntry } from '../../core/tipos'
+import { formatLongDate, todayISO } from '../../core/jogo'
+import { appStore, deleteEntry, importDiary, moveEntry, saveEntry } from '../../stores/app'
+import { closeModal, confirm, modalBody, openModal } from '../modal'
+import { notify } from '../toast'
+import { escapeHtml } from '../util'
+import { renderMarkdown } from '../editorMd'
+import { parseDiaryMarkdown } from '../importDiario'
 
-/** Data da entrada aberta no editor (módulo — sobrevive a re-renders). */
-let aberta: string | null = null
+/** Date of the entry open in the editor (module — survives re-renders). */
+let active: string | null = null
 
-/** Data cujo conteúdo o DOM do editor representa (último render completo). */
-let abertaRenderizada: string | null = null
+/** Date whose content the editor DOM represents (last full render). */
+let renderedDate: string | null = null
 
-/** Conteúdo com que o editor foi renderizado por último. A guarda de edição
- *  ativa compara o DOM com ESTE (o que renderizamos), não com o storage: assim
- *  escrita externa (import, sync) não parece "edição não salva", e trocar de
- *  entrada re-renderiza o editor. */
-let ultimoRenderConteudo: { texto: string; titulo: string } | null = null
+/** Content with which the editor was last rendered. The edit guard compares
+ *  the DOM with THIS (what we rendered), not with storage: so external writes
+ *  (import, sync) don't look like "unsaved edit", and switching entries
+ *  re-renders the editor. */
+let lastRenderedContent: { text: string; title: string } | null = null
 
-/** Modo do editor: false = edição (textarea), true = visualização (preview). */
-let modoVisualizacao = false
+/** Editor mode: false = editing (textarea), true = preview. */
+let isPreview = false
 
-/** Timers de autosave (por data). */
-const timersAutosave = new Map<string, ReturnType<typeof setTimeout>>()
+/** Autosave timers (per date). */
+const autosaveTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
-export function montarDiario(raiz: HTMLElement, dados: AppData): void {
-  const hoje = hojeISO()
-  const entradas = [...(dados.diario ?? [])].sort((a, b) => b.data.localeCompare(a.data))
-  if (!aberta) aberta = entradas[0]?.data ?? hoje
-  const entrada = entradas.find((e) => e.data === aberta)
-  const entradaExiste = !!entrada
+export function mountDiary(root: HTMLElement, data: AppData): void {
+  const today = todayISO()
+  const entries = [...(data.diary ?? [])].sort((a, b) => b.date.localeCompare(a.date))
+  if (!active) active = entries[0]?.date ?? today
+  const entry = entries.find((e) => e.date === active)
+  const entryExists = !!entry
 
-  // ⚠️ Preserva a edição: se o usuário digitou no editor desde o último render
-  // (DOM difere do que RENDERIZAMOS) E não está trocando de entrada, NÃO
-  // substitui o editor inteiro (isso mataria caret e undo stack). MAS a LISTA
-  // LATERAL sempre atualiza, senão os botões '+' e '🗑' parecem mortos (no
-  // macOS/Safari o clique num botão não tira o foco do editor).
-  const editorAtual = raiz.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
-  let edicaoAtiva = false
-  if (editorAtual && ultimoRenderConteudo && aberta === abertaRenderizada) {
-    const textoAtual = editorAtual.value
-    const tituloAtual = (raiz.querySelector<HTMLInputElement>('[data-diario-titulo]')?.value ?? '')
-    edicaoAtiva = textoAtual !== ultimoRenderConteudo.texto || tituloAtual !== ultimoRenderConteudo.titulo
+  // ⚠️ Preserves the edit: if the user typed in the editor since the last render
+  // (DOM differs from what we RENDERED) AND is not switching entries, it does
+  // NOT replace the whole editor (that would kill caret and undo stack). BUT the
+  // SIDE LIST always updates, otherwise the '+' and '🗑' buttons look dead (on
+  // macOS/Safari clicking a button doesn't blur the editor).
+  const editorEl = root.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
+  let editActive = false
+  if (editorEl && lastRenderedContent && active === renderedDate) {
+    const textValue = editorEl.value
+    const titleValue = (root.querySelector<HTMLInputElement>('[data-diario-titulo]')?.value ?? '')
+    editActive = textValue !== lastRenderedContent.text || titleValue !== lastRenderedContent.title
   }
-  // Preserva caret/foco do textarea caso o re-render seja só do autosave
-  // (valor já salvo → edicaoAtiva false → render completo).
-  const selAntes = editorAtual ? { start: editorAtual.selectionStart, end: editorAtual.selectionEnd } : null
-  const focoAntes = !!editorAtual && document.activeElement === editorAtual
-  if (edicaoAtiva && entradaExiste) {
-    // atualiza só a lista lateral + status; o editor fica intacto
-    const listaEl = raiz.querySelector<HTMLElement>('.diario-arquivos')
-    if (listaEl) {
-      listaEl.innerHTML = entradas.length === 0
-        ? '<div class="diario-vazio">Nenhuma crônica ainda.<br>Clique em + pra começar hoje.</div>'
-        : entradas.map((e) => arquivoHtml(e, e.data === aberta)).join('')
+  // Preserves caret/focus of the textarea if the re-render is only the autosave
+  // (value already saved → editActive false → full render).
+  const selectionBefore = editorEl ? { start: editorEl.selectionStart, end: editorEl.selectionEnd } : null
+  const focusBefore = !!editorEl && document.activeElement === editorEl
+  if (editActive && entryExists) {
+    // updates only the side list + status; the editor stays intact
+    const listEl = root.querySelector<HTMLElement>('.diario-arquivos')
+    if (listEl) {
+      listEl.innerHTML = entries.length === 0
+        ? '<div class="diary-empty">Nenhuma crônica ainda.<br>Clique em + pra começar hoje.</div>'
+        : entries.map((e) => entryHtml(e, e.date === active)).join('')
     }
-    const statusEl = raiz.querySelector<HTMLElement>('[data-diario-status]')
+    const statusEl = root.querySelector<HTMLElement>('[data-diario-status]')
     if (statusEl) statusEl.textContent = 'Salvando…'
     return
   }
 
-  raiz.innerHTML = `
+  root.innerHTML = `
     <header class="view-header">
       <h1>Diário</h1>
     </header>
 
-    <div class="diario-layout">
-      <aside class="diario-lista" aria-label="Entradas do diário">
-        <div class="diario-lista-cabecalho">
-          <span class="diario-lista-titulo">Entradas</span>
-          <div class="diario-lista-botoes">
-            <button class="btn btn-icon diario-importar" data-diario-importar title="Importar crônicas (markdown)" aria-label="Importar crônicas (markdown)">
-              <i class="fa-solid fa-file-import" aria-hidden="true"></i>
+    <div class="diary-layout">
+      <aside class="diary-list" aria-label="Entradas do diário">
+        <div class="diary-list-header">
+          <span class="diary-list-title">Entradas</span>
+          <div class="diary-list-buttons">
+            <button class="btn" btn-icon diary-import data-diario-importar title="Importar crônicas (markdown)" aria-label="Importar crônicas (markdown)">
+              <i class="fa-solid" fa-file-import aria-hidden="true"></i>
             </button>
-            <button class="btn btn-icon diario-novo" data-diario-novo title="Nova entrada de hoje" aria-label="Nova entrada de hoje">
-              <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            <button class="btn" btn-icon diary-new data-diario-novo title="Nova entrada de hoje" aria-label="Nova entrada de hoje">
+              <i class="fa-solid" fa-plus aria-hidden="true"></i>
             </button>
           </div>
         </div>
-        <div class="diario-arquivos">
-          ${entradas.length === 0
-            ? '<div class="diario-vazio">Nenhuma crônica ainda.<br>Clique em + pra começar hoje.</div>'
-            : entradas.map((e) => arquivoHtml(e, e.data === aberta)).join('')}
+        <div class="diary-files">
+          ${entries.length === 0
+            ? '<div class="diary-empty">Nenhuma crônica ainda.<br>Clique em + pra começar hoje.</div>'
+            : entries.map((e) => entryHtml(e, e.date === active)).join('')}
         </div>
       </aside>
 
-      <section class="diario-editor" aria-label="Editor da entrada">
-        <div class="diario-editor-cabecalho">
-          <div class="diario-editor-data">
-            ${entrada?.data === hoje ? '<span class="badge badge--hoje">Hoje</span>' : ''}
-            <input type="date" class="diario-data-input" data-diario-data value="${entrada?.data ?? hoje}"
+      <section class="diary-editor" aria-label="Editor da entrada">
+        <div class="diary-editor-header">
+          <div class="diary-editor-data">
+            ${entry?.date === today ? '<span class="badge" badge--hoje>Hoje</span>' : ''}
+            <input type="date" class="diary-data-input" data-diario-data value="${entry?.date ?? today}"
               max="${new Date().toISOString().slice(0, 10)}" title="Data da crônica" aria-label="Data da crônica" />
           </div>
-          <div class="diario-editor-acoes">
-            <span class="diario-status" data-diario-status>${entrada ? '' : 'Sem conteúdo ainda'}</span>
-            ${entrada ? `
-              <button class="btn btn-icon" data-diario-excluir="${escapar(entrada.id)}" title="Excluir crônica" aria-label="Excluir crônica">
-                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+          <div class="diary-editor-actions">
+            <span class="diary-status" data-diario-status>${entry ? '' : 'Sem conteúdo ainda'}</span>
+            ${entry ? `
+              <button class="btn" btn-icon data-diario-excluir="${escapeHtml(entry.id)}" title="Excluir crônica" aria-label="Excluir crônica">
+                <i class="fa-solid" fa-trash aria-hidden="true"></i>
               </button>` : ''}
           </div>
         </div>
 
-        <input class="diario-titulo" data-diario-titulo type="text" placeholder="Título" maxlength="120"
-          value="${escapar(entrada?.titulo ?? '')}" autocomplete="off" />
+        <input class="diary-title" data-diario-titulo type="text" placeholder="Título" maxlength="120"
+          value="${escapeHtml(entry?.title ?? '')}" autocomplete="off" />
 
-        <div class="diario-ferramentas">
-          <button class="btn btn-pequeno" data-diario-toggle title="Alternar entre editar e visualizar">Ver</button>
+        <div class="diary-tools">
+          <button class="btn" btn-pequeno data-diario-toggle title="Alternar entre editar e visualizar">Ver</button>
         </div>
 
-        <div class="diario-editor-area">
-          <textarea class="diario-textarea" data-diario-editor placeholder="Escreva sua crônica em markdown…"
-            spellcheck="true" aria-label="Crônica em markdown">${escapar(entrada?.texto ?? '')}</textarea>
-          <div class="diario-preview" data-diario-preview hidden></div>
+        <div class="diary-editor-area">
+          <textarea class="diary-textarea" data-diario-editor placeholder="Escreva sua crônica em markdown…"
+            spellcheck="true" aria-label="Crônica em markdown">${escapeHtml(entry?.text ?? '')}</textarea>
+          <div class="diary-preview" data-diario-preview hidden></div>
         </div>
-        <p class="config-dica diario-dica">Markdown: <code>## título</code> · <code>- lista</code> · <code>1.</code> · <code>&gt; citação</code> · <code>**negrito**</code> · <code>*itálico*</code> · <code>[link](url)</code> · <code>| tabela |</code></p>
+        <p class="settings-hint" diary-hint>Markdown: <code>## título</code> · <code>- lista</code> · <code>1.</code> · <code>&gt; citação</code> · <code>**negrito**</code> · <code>*itálico*</code> · <code>[link](url)</code> · <code>| tabela |</code></p>
       </section>
     </div>
   `
 
-  instalarNovaEntrada(raiz)
-  instalarImportar(raiz)
-  instalarLista(raiz)
-  instalarEditor(raiz, hoje)
-  instalarMudancaData(raiz)
-  aplicarModo(raiz)
+  installNewEntry(root)
+  installImport(root)
+  installList(root)
+  installEditor(root, today)
+  installDateChange(root)
+  applyMode(root)
 
-  // o DOM do editor agora representa esta data e este conteúdo
-  abertaRenderizada = aberta
-  ultimoRenderConteudo = { texto: entrada?.texto ?? '', titulo: entrada?.titulo ?? '' }
+  // the editor DOM now represents this date and this content
+  renderedDate = active
+  lastRenderedContent = { text: entry?.text ?? '', title: entry?.title ?? '' }
 
-  // Restaura caret/foco se o re-render pegou o usuário no meio do editor.
-  if (focoAntes && selAntes) {
-    const novo = raiz.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
-    if (novo) {
-      novo.focus()
-      novo.setSelectionRange(Math.min(selAntes.start, novo.value.length), Math.min(selAntes.end, novo.value.length))
+  // Restores caret/focus if the re-render caught the user mid-editor.
+  if (focusBefore && selectionBefore) {
+    const fresh = root.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
+    if (fresh) {
+      fresh.focus()
+      fresh.setSelectionRange(Math.min(selectionBefore.start, fresh.value.length), Math.min(selectionBefore.end, fresh.value.length))
     }
   }
 }
 
-/** Aplica o modo atual (edição/visualização) depois de um re-render. */
-function aplicarModo(raiz: HTMLElement): void {
-  const area = raiz.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
-  const preview = raiz.querySelector<HTMLElement>('[data-diario-preview]')
-  const btn = raiz.querySelector<HTMLButtonElement>('[data-diario-toggle]')
+/** Applies the current mode (edit/preview) after a re-render. */
+function applyMode(root: HTMLElement): void {
+  const area = root.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
+  const preview = root.querySelector<HTMLElement>('[data-diario-preview]')
+  const btn = root.querySelector<HTMLButtonElement>('[data-diario-toggle]')
   if (!area || !preview || !btn) return
-  if (modoVisualizacao) {
-    preview.innerHTML = renderizarMarkdown(area.value)
+  if (isPreview) {
+    preview.innerHTML = renderMarkdown(area.value)
     preview.hidden = false
     area.hidden = true
     btn.textContent = 'Editar'
@@ -162,217 +162,218 @@ function aplicarModo(raiz: HTMLElement): void {
   }
 }
 
-/** Troca a data da entrada aberta (moverEntrada respeita 1/dia). */
-function instalarMudancaData(raiz: HTMLElement): void {
-  const input = raiz.querySelector<HTMLInputElement>('[data-diario-data]')
+/** Changes the date of the open entry (moveEntry respects 1/day). */
+function installDateChange(root: HTMLElement): void {
+  const input = root.querySelector<HTMLInputElement>('[data-diario-data]')
   if (!input) return
   input.addEventListener('change', () => {
-    const nova = input.value
-    const id = raiz.querySelector('[data-diario-excluir]')?.getAttribute('data-diario-excluir')
+    const newDate = input.value
+    const id = root.querySelector('[data-diario-excluir]')?.getAttribute('data-diario-excluir')
     if (!id) return
-    const resultado = moverEntrada(id, nova)
-    if (!resultado.ok) {
-      notificar(resultado.motivo ?? 'Não deu para mudar a data.', 'erro')
-      // reverte o input pra data atual
-      const entrada = appStore.get().diario?.find((e) => e.id === id)
-      input.value = entrada?.data ?? hojeISO()
+    const result = moveEntry(id, newDate)
+    if (!result.ok) {
+      notify(result.reason ?? 'Não deu para mudar a data.', 'erro')
+      // reverts the input to the current date
+      const entry = appStore.get().diary?.find((e) => e.id === id)
+      input.value = entry?.date ?? todayISO()
       return
     }
-    aberta = nova
-    notificar('Crônica movida para ' + dataPorExtenso(nova) + '.')
+    active = newDate
+    notify('Crônica movida para ' + formatLongDate(newDate) + '.')
     appStore.set({ ...appStore.get() })
   })
 }
 
-function arquivoHtml(e: EntradaDiario, ativo: boolean): string {
-  const titulo = e.titulo.trim() || 'Sem título'
+function entryHtml(e: DiaryEntry, activeEntry: boolean): string {
+  const title = e.title.trim() || 'Sem título'
   return `
-    <button class="diario-arquivo${ativo ? ' diario-arquivo--ativo' : ''}" data-diario-abrir="${escapar(e.data)}" title="${escapar(dataPorExtenso(e.data))}">
-      <span class="diario-arquivo-data">${e.data.slice(8, 10)}/${e.data.slice(5, 7)}/${e.data.slice(0, 4)}</span>
-      <span class="diario-arquivo-titulo">${escapar(titulo)}</span>
+    <button class="diary-file${activeEntry ? ' diary-file--active' : ''}" data-diario-abrir="${escapeHtml(e.date)}" title="${escapeHtml(formatLongDate(e.date))}">
+      <span class="diary-file-data">${e.date.slice(8, 10)}/${e.date.slice(5, 7)}/${e.date.slice(0, 4)}</span>
+      <span class="diary-file-title">${escapeHtml(title)}</span>
     </button>
   `
 }
 
-function instalarNovaEntrada(raiz: HTMLElement): void {
-  raiz.querySelector('[data-diario-novo]')?.addEventListener('click', () => {
-    const hoje = hojeISO()
-    aberta = hoje
-    const dados = appStore.get()
-    const jaExiste = (dados.diario ?? []).some((e) => e.data === hoje)
-    if (!jaExiste) {
-      // cria a entrada AGORA (vazia) — o editor nasce com estrutura .md-linha,
-      // senão o Enter na primeira digitação é engolido (sem linha pra dividir)
-      salvarEntrada(hoje, { texto: '' })
+function installNewEntry(root: HTMLElement): void {
+  root.querySelector('[data-diario-novo]')?.addEventListener('click', () => {
+    const today = todayISO()
+    active = today
+    const data = appStore.get()
+    const alreadyExists = (data.diary ?? []).some((e) => e.date === today)
+    if (!alreadyExists) {
+      // creates the entry NOW (empty) — the editor is born with .md-linha
+      // structure, otherwise the Enter on the first keystroke is swallowed
+      // (no line to split)
+      saveEntry(today, { text: '' })
     } else {
       appStore.set({ ...appStore.get() })
     }
-    setTimeout(() => raiz.querySelector<HTMLElement>('[data-diario-editor]')?.focus(), 50)
+    setTimeout(() => root.querySelector<HTMLElement>('[data-diario-editor]')?.focus(), 50)
   })
 }
 
-/** Importação em massa: arquivo .md ou texto colado com `## AAAA-MM-DD`. */
-function instalarImportar(raiz: HTMLElement): void {
-  raiz.querySelector('[data-diario-importar]')?.addEventListener('click', () => {
-    abrirModal(`
+/** Bulk import: .md file or pasted text with `## AAAA-MM-DD`. */
+function installImport(root: HTMLElement): void {
+  root.querySelector('[data-diario-importar]')?.addEventListener('click', () => {
+    openModal(`
       <h2>Importar crônicas</h2>
-      <p class="config-dica">Cole o markdown com uma crônica por dia, cada uma começando com a data: <code>## AAAA-MM-DD</code>. Título opcional na primeira linha em negrito (<code>**Título**</code>). Dias que já existem são pulados.</p>
-      <div class="form-grupo">
+      <p class="settings-hint">Cole o markdown com uma crônica por dia, cada uma começando com a data: <code>## AAAA-MM-DD</code>. Título opcional na primeira linha em negrito (<code>**Título**</code>). Dias que já existem são pulados.</p>
+      <div class="form-group">
         <label>Ou escolha um arquivo .md</label>
-        <input type="file" class="filtro-input" accept=".md,.markdown,.txt" data-import-arquivo />
+        <input type="file" class="filter-input" accept=".md,.markdown,.txt" data-import-arquivo />
       </div>
-      <div class="form-grupo">
-        <textarea class="filtro-textarea" data-import-texto rows="12" spellcheck="false"
+      <div class="form-group">
+        <textarea class="filter-textarea" data-import-texto rows="12" spellcheck="false"
           placeholder="## 2026-08-01&#10;**Título opcional**&#10;Corpo da crônica em markdown...&#10;&#10;## 2026-08-02&#10;..."></textarea>
       </div>
-      <p class="config-dica" data-import-status></p>
-      <div class="form-acoes">
+      <p class="settings-hint" data-import-status></p>
+      <div class="form-actions">
         <button class="btn" data-modal-cancelar>Cancelar</button>
-        <button class="btn btn-primary" data-import-executar>Importar</button>
+        <button class="btn" btn-primary data-import-executar>Importar</button>
       </div>
     `)
-    const arquivoEl = modalBody.querySelector<HTMLInputElement>('[data-import-arquivo]')
-    const textoEl = modalBody.querySelector<HTMLTextAreaElement>('[data-import-texto]')
+    const fileEl = modalBody.querySelector<HTMLInputElement>('[data-import-arquivo]')
+    const textEl = modalBody.querySelector<HTMLTextAreaElement>('[data-import-texto]')
     const statusEl = modalBody.querySelector<HTMLElement>('[data-import-status]')
-    arquivoEl?.addEventListener('change', () => {
-      const arquivo = arquivoEl.files?.[0]
-      if (!arquivo) return
-      const leitor = new FileReader()
-      leitor.onload = () => {
-        if (textoEl && typeof leitor.result === 'string') {
-          textoEl.value = leitor.result
-          if (statusEl) statusEl.textContent = `"${arquivo.name}" carregado — confira e clique em Importar.`
+    fileEl?.addEventListener('change', () => {
+      const file = fileEl.files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = () => {
+        if (textEl && typeof reader.result === 'string') {
+          textEl.value = reader.result
+          if (statusEl) statusEl.textContent = `"${file.name}" carregado — confira e clique em Importar.`
         }
       }
-      leitor.readAsText(arquivo, 'utf-8')
+      reader.readAsText(file, 'utf-8')
     })
     modalBody.querySelector('[data-import-executar]')?.addEventListener('click', () => {
-      const entradas = parsearMarkdownDiario(textoEl?.value ?? '')
-      if (entradas.length === 0) {
+      const entries = parseDiaryMarkdown(textEl?.value ?? '')
+      if (entries.length === 0) {
         if (statusEl) statusEl.textContent = 'Nenhuma crônica com data no formato ## AAAA-MM-DD foi encontrada.'
         return
       }
-      const res = importarDiario(entradas)
-      let msg = `${res.importadas} importada(s).`
-      if (res.puladas.length > 0) msg += ` ${res.puladas.length} pulada(s) — já existiam: ${res.puladas.join(', ')}.`
-      if (res.invalidas.length > 0) msg += ` ${res.invalidas.length} ignorada(s) — data inválida.`
-      if (res.importadas > 0) {
-        const maisRecente = entradas
-          .map((e) => e.data)
-          .filter((d) => !res.puladas.includes(d))
+      const res = importDiary(entries)
+      let msg = `${res.imported} importada(s).`
+      if (res.skipped.length > 0) msg += ` ${res.skipped.length} pulada(s) — já existiam: ${res.skipped.join(', ')}.`
+      if (res.invalid.length > 0) msg += ` ${res.invalid.length} ignorada(s) — data inválida.`
+      if (res.imported > 0) {
+        const mostRecent = entries
+          .map((e) => e.date)
+          .filter((d) => !res.skipped.includes(d))
           .sort()
           .pop()
-        if (maisRecente) aberta = maisRecente
-        // ⚠️ Sincroniza o editor com a entrada importada SEM tocar em
-        // rascunho: o guard de "edição ativa" (montarDiario) compara o DOM
-        // velho (vazio) com o storage novo (texto) e acharia que há texto
-        // não salvo, preservando um editor vazio pra sempre.
-        const editor = raiz.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
-        const tituloInput = raiz.querySelector<HTMLInputElement>('[data-diario-titulo]')
-        if (editor && tituloInput && !(editor.value || tituloInput.value)) {
-          const nova = (appStore.get().diario ?? []).find((e) => e.data === aberta)
-          if (nova) {
-            editor.value = nova.texto
-            tituloInput.value = nova.titulo ?? ''
+        if (mostRecent) active = mostRecent
+        // ⚠️ Syncs the editor with the imported entry WITHOUT touching the
+        // draft: the "active edit" guard (mountDiary) compares the old (empty)
+        // DOM with the new (text) storage and would think there's unsaved
+        // text, preserving an empty editor forever.
+        const editor = root.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
+        const titleInput = root.querySelector<HTMLInputElement>('[data-diario-titulo]')
+        if (editor && titleInput && !(editor.value || titleInput.value)) {
+          const fresh = (appStore.get().diary ?? []).find((e) => e.date === active)
+          if (fresh) {
+            editor.value = fresh.text
+            titleInput.value = fresh.title ?? ''
           }
         }
         appStore.set({ ...appStore.get() })
       }
-      // fecha o modal e mostra o resumo no toast (decisão do usuário)
-      fecharModal()
-      notificar(msg)
+      // closes the modal and shows the summary in the toast (user decision)
+      closeModal()
+      notify(msg)
     })
-    modalBody.querySelector('[data-modal-cancelar]')?.addEventListener('click', fecharModal)
+    modalBody.querySelector('[data-modal-cancelar]')?.addEventListener('click', closeModal)
   })
 }
 
-function instalarLista(raiz: HTMLElement): void {
-  raiz.querySelectorAll<HTMLButtonElement>('[data-diario-abrir]').forEach((btn) => {
+function installList(root: HTMLElement): void {
+  root.querySelectorAll<HTMLButtonElement>('[data-diario-abrir]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      aberta = btn.dataset.diarioAbrir ?? null
+      active = btn.dataset.diarioAbrir ?? null
       appStore.set({ ...appStore.get() })
     })
   })
 }
 
-function instalarEditor(raiz: HTMLElement, hoje: string): void {
-  const areaEl = raiz.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
-  const previewEl = raiz.querySelector<HTMLElement>('[data-diario-preview]')
-  const tituloEl = raiz.querySelector<HTMLInputElement>('[data-diario-titulo]')
-  const statusEl = raiz.querySelector<HTMLElement>('[data-diario-status]')
-  if (!areaEl || !tituloEl) return
+function installEditor(root: HTMLElement, today: string): void {
+  const areaEl = root.querySelector<HTMLTextAreaElement>('[data-diario-editor]')
+  const previewEl = root.querySelector<HTMLElement>('[data-diario-preview]')
+  const titleEl = root.querySelector<HTMLInputElement>('[data-diario-titulo]')
+  const statusEl = root.querySelector<HTMLElement>('[data-diario-status]')
+  if (!areaEl || !titleEl) return
 
-  const dataAlvo = aberta ?? hoje
-  const area = areaEl // não-nulo a partir daqui (guard acima)
-  const titulo = tituloEl
+  const targetDate = active ?? today
+  const area = areaEl // non-null from here (guard above)
+  const title = titleEl
 
-  /** Salva imediatamente (força o write, limpa timer). */
-  function salvarAgora(): void {
-    const texto = area.value
-    const tituloValor = titulo.value.trim()
-    // compara com o que está REALMENTE salvo (appStore, sempre atual) — não com
-    // um snapshot da closure: o blur de um textarea REMOVIDO pelo re-render do
-    // autosave rodaria com snapshot velho, salvaria de novo e causaria um 2º
-    // re-render em cadeia (que engolia cliques — o botão era substituído entre
-    // mousedown e mouseup).
-    const entradaAtual = (appStore.get().diario ?? []).find((e) => e.data === dataAlvo)
-    if (texto === (entradaAtual?.texto ?? '') && tituloValor === (entradaAtual?.titulo ?? '')) return
-    const timer = timersAutosave.get(dataAlvo)
+  /** Saves immediately (forces the write, clears timer). */
+  function saveNow(): void {
+    const text = area.value
+    const titleValue = title.value.trim()
+    // compares with what is REALLY saved (appStore, always current) — not with
+    // a closure snapshot: the blur of a textarea REMOVED by the autosave
+    // re-render would run with a stale snapshot, save again and cause a 2nd
+    // chained re-render (that swallowed clicks — the button was replaced
+    // between mousedown and mouseup).
+    const currentEntry = (appStore.get().diary ?? []).find((e) => e.date === targetDate)
+    if (text === (currentEntry?.text ?? '') && titleValue === (currentEntry?.title ?? '')) return
+    const timer = autosaveTimers.get(targetDate)
     if (timer) clearTimeout(timer)
-    timersAutosave.delete(dataAlvo)
-    if (texto.trim() || tituloValor) {
-      salvarEntrada(dataAlvo, { titulo: tituloValor, texto })
+    autosaveTimers.delete(targetDate)
+    if (text.trim() || titleValue) {
+      saveEntry(targetDate, { title: titleValue, text })
       if (statusEl) statusEl.textContent = `Salvo ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
     }
   }
 
-  /** Autosave com debounce. */
-  function agendarSalvar(): void {
-    const timer = timersAutosave.get(dataAlvo)
+  /** Autosave with debounce. */
+  function scheduleSave(): void {
+    const timer = autosaveTimers.get(targetDate)
     if (timer) clearTimeout(timer)
     if (statusEl) statusEl.textContent = 'Salvando…'
-    timersAutosave.set(
-      dataAlvo,
-      setTimeout(() => salvarAgora(), 800),
+    autosaveTimers.set(
+      targetDate,
+      setTimeout(() => saveNow(), 800),
     )
   }
 
-  // Toggle Editar/Ver
-  raiz.querySelector<HTMLButtonElement>('[data-diario-toggle]')?.addEventListener('click', () => {
-    modoVisualizacao = !modoVisualizacao
-    aplicarModo(raiz)
-    if (!modoVisualizacao) area.focus()
+  // Editar/Ver toggle
+  root.querySelector<HTMLButtonElement>('[data-diario-toggle]')?.addEventListener('click', () => {
+    isPreview = !isPreview
+    applyMode(root)
+    if (!isPreview) area.focus()
   })
 
-  // Digitação: agenda salvar e, no modo Ver, atualiza o preview ao vivo.
+  // Typing: schedules save and, in preview mode, updates the preview live.
   area.addEventListener('input', () => {
-    agendarSalvar()
-    if (modoVisualizacao && previewEl) {
-      previewEl.innerHTML = renderizarMarkdown(area.value)
+    scheduleSave()
+    if (isPreview && previewEl) {
+      previewEl.innerHTML = renderMarkdown(area.value)
     }
   })
 
-  // Título também salva automático.
-  titulo.addEventListener('input', agendarSalvar)
+  // Title also auto-saves.
+  title.addEventListener('input', scheduleSave)
 
-  // Blur salva — MAS agendado (próxima macrotask): salvar SÍNCRONO no blur
-  // disparava appStore.set → re-render → o DOM era substituído entre o
-  // mousedown e o mouseup de um clique logo após digitar → clique engolido
-  // (botões excluir/toggle pareciam mortos). Com o agendamento, o clique
-  // completa primeiro; o save/re-render roda depois, sem clique em andamento.
-  area.addEventListener('blur', () => setTimeout(() => salvarAgora(), 0))
-  titulo.addEventListener('blur', () => setTimeout(() => salvarAgora(), 0))
+  // Blur saves — BUT scheduled (next macrotask): saving SYNCHRONOUSLY on blur
+  // fired appStore.set → re-render → the DOM was replaced between the mousedown
+  // and mouseup of a click right after typing → click swallowed (delete/toggle
+  // buttons seemed dead). With scheduling, the click completes first; the
+  // save/re-render runs after, with no click in progress.
+  area.addEventListener('blur', () => setTimeout(() => saveNow(), 0))
+  title.addEventListener('blur', () => setTimeout(() => saveNow(), 0))
 
-  // Excluir
-  raiz.querySelector<HTMLButtonElement>('[data-diario-excluir]')?.addEventListener('click', () => {
-    const id = raiz.querySelector('[data-diario-excluir]')?.getAttribute('data-diario-excluir') ?? ''
-    void confirmar('Apagar esta crônica? Isso não pode ser desfeito.', 'Apagar crônica').then((ok) => {
+  // Delete
+  root.querySelector<HTMLButtonElement>('[data-diario-excluir]')?.addEventListener('click', () => {
+    const id = root.querySelector('[data-diario-excluir]')?.getAttribute('data-diario-excluir') ?? ''
+    void confirm('Apagar esta crônica? Isso não pode ser desfeito.', 'Apagar crônica').then((ok) => {
       if (!ok) return
-      excluirEntrada(id)
-      aberta = null // reabre na mais recente
-      modoVisualizacao = false
+      deleteEntry(id)
+      active = null // reopens on the most recent
+      isPreview = false
       appStore.set({ ...appStore.get() })
-      notificar('Crônica apagada.')
+      notify('Crônica apagada.')
     })
   })
 }

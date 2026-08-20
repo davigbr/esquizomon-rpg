@@ -1,86 +1,86 @@
-/** Baralho Esquizomon — `src/data/deck.json` (65 cartas), fonte única importada
- *  estaticamente (galeria, contexto da IA, detecção de citações). */
+/** Esquizomon deck — `src/data/deck.json` (65 cards), single statically imported
+ *  source (gallery, IA context, citation detection). */
 
 import deck from '../data/deck.json'
 
-// Gancho de diagnóstico: expõe o deck para scripts de console (correção de
-// dados em produção — 2026-08-12). Inofensivo.
+// Diagnostic hook: exposes the deck to console scripts (data correction
+// in production — 2026-08-12). Harmless.
 if (typeof window !== 'undefined') {
-  ;(window as unknown as { esquizomonDeck?: Carta[] }).esquizomonDeck = deck as Carta[]
+  ;(window as unknown as { esquizomonDeck?: Card[] }).esquizomonDeck = deck as Card[]
 }
 
-export type TipoCarta = 'monstro' | 'captura' | 'alianca'
+export type CardType = 'monstro' | 'captura' | 'alianca'
 
-export interface Carta {
+export interface Card {
   id: string
   name: string
-  type: TipoCarta
+  type: CardType
 }
 
-/** O deck completo, já carregado (import estático). Mantém a assinatura async
- *  para não quebrar quem chama `await carregarDeck()`. */
-export async function carregarDeck(): Promise<Carta[]> {
-  return deck as Carta[]
+/** The full deck, already loaded (static import). Keeps the async signature
+ *  so whoever calls `await loadDeck()` doesn't break. */
+export async function loadDeck(): Promise<Card[]> {
+  return deck as Card[]
 }
 
-/** O deck completo, síncrono (mesmo import estático — usado pelo autocomplete). */
-export function todasAsCartas(): Carta[] {
-  return deck as Carta[]
+/** The full deck, synchronously (same static import — used by autocomplete). */
+export function allCards(): Card[] {
+  return deck as Card[]
 }
 
-/** Sorteia N ids distintos entre as cartas disponíveis (excluindo as já escolhidas). */
-export function sortearIds(cartas: Carta[], n: number, excluir: string[] = []): string[] {
-  const disponiveis = cartas.map((c) => c.id).filter((id) => !excluir.includes(id))
-  const embaralhado = [...disponiveis].sort(() => Math.random() - 0.5)
-  return embaralhado.slice(0, Math.min(n, embaralhado.length))
+/** Draws N distinct ids among the available cards (excluding already-chosen ones). */
+export function drawIds(cards: Card[], n: number, exclude: string[] = []): string[] {
+  const available = cards.map((c) => c.id).filter((id) => !exclude.includes(id))
+  const shuffled = [...available].sort(() => Math.random() - 0.5)
+  return shuffled.slice(0, Math.min(n, shuffled.length))
 }
 
-/** Peso de raridade por tipo: monstro é 6× mais comum que aliança; captura 2×
- *  (2026-08-17 — subido de 3× para 6× para sair mais monstros). */
-export function pesoDeRaridade(c: Carta): number {
+/** Rarity weight per type: monster is 6× more common than alliance; capture 2×
+ *  (2026-08-17 — raised from 3× to 6× to draw more monsters). */
+export function rarityWeight(c: Card): number {
   return c.type === 'monstro' ? 6 : c.type === 'captura' ? 2 : 1
 }
 
-/** Sorteia N ids com pesos de raridade, sem repetir as já escolhidas —
- *  usado nos desbloqueios por nível (2026-08-12). */
-export function sortearIdsPonderado(cartas: Carta[], n: number, excluir: string[] = []): string[] {
-  const disponiveis = cartas.filter((c) => !excluir.includes(c.id))
-  const escolhidos: string[] = []
-  const sorteiaUm = (): Carta | undefined => {
-    const total = disponiveis.reduce((s, c) => s + pesoDeRaridade(c), 0)
+/** Draws N ids weighted by rarity, without repeating already-chosen ones —
+ *  used in level unlocks (2026-08-12). */
+export function drawWeightedIds(cards: Card[], n: number, exclude: string[] = []): string[] {
+  const available = cards.filter((c) => !exclude.includes(c.id))
+  const chosen: string[] = []
+  const drawOne = (): Card | undefined => {
+    const total = available.reduce((s, c) => s + rarityWeight(c), 0)
     if (total <= 0) return undefined
     let r = Math.random() * total
-    for (const c of disponiveis) {
-      r -= pesoDeRaridade(c)
+    for (const c of available) {
+      r -= rarityWeight(c)
       if (r < 0) return c
     }
-    return disponiveis[disponiveis.length - 1]
+    return available[available.length - 1]
   }
-  while (escolhidos.length < Math.min(n, disponiveis.length)) {
-    const c = sorteiaUm()
+  while (chosen.length < Math.min(n, available.length)) {
+    const c = drawOne()
     if (!c) break
-    escolhidos.push(c.id)
-    disponiveis.splice(disponiveis.indexOf(c), 1)
+    chosen.push(c.id)
+    available.splice(available.indexOf(c), 1)
   }
-  return escolhidos
+  return chosen
 }
 
-/** Sorteia as cartas iniciais: exatamente 5 monstros + 1 captura + 1 aliança. */
-export function sortearIniciais(cartas: Carta[]): string[] {
-  const de = (tipo: TipoCarta) => cartas.filter((c) => c.type === tipo)
-  const monstros = sortearIds(de('monstro'), 5)
-  const capturas = sortearIds(de('captura'), 1)
-  const aliancas = sortearIds(de('alianca'), 1)
-  return [...monstros, ...capturas, ...aliancas]
+/** Draws the initial cards: exactly 5 monsters + 1 capture + 1 alliance. */
+export function drawInitialIds(cards: Card[]): string[] {
+  const of = (type: CardType) => cards.filter((c) => c.type === type)
+  const monsters = drawIds(of('monstro'), 5)
+  const captures = drawIds(of('captura'), 1)
+  const alliances = drawIds(of('alianca'), 1)
+  return [...monsters, ...captures, ...alliances]
 }
 
-export function tipoDe(carta: Carta | undefined): TipoCarta {
-  return carta?.type ?? 'monstro'
+export function kindOf(card: Card | undefined): CardType {
+  return card?.type ?? 'monstro'
 }
 
-/** Rótulo do tipo de carta. */
-export function rotuloTipo(tipo: TipoCarta): string {
-  switch (tipo) {
+/** Label of the card type. */
+export function typeLabel(type: CardType): string {
+  switch (type) {
     case 'monstro':
       return 'Monstro'
     case 'captura':
@@ -90,21 +90,19 @@ export function rotuloTipo(tipo: TipoCarta): string {
   }
 }
 
-/** Cartas desbloqueadas cujo NOME aparece no texto (detecção de citações no
- *  diário). Case-insensitive; retorna ids distintos, na ordem do deck. */
-/** Resolve o termo que a Fábula usou no marcador: id (slug) ou nome da carta. */
-export function resolverCartaId(termo: string): string | null {
-  const t = termo.trim().toLocaleLowerCase('pt-BR')
-  const carta = (deck as Carta[]).find((c) => c.id === t || c.name.toLocaleLowerCase('pt-BR') === t)
-  return carta?.id ?? null
+/** Resonates the term the Fable used in the marker: id (slug) or card name. */
+export function resolveCardId(term: string): string | null {
+  const t = term.trim().toLocaleLowerCase('pt-BR')
+  const card = (deck as Card[]).find((c) => c.id === t || c.name.toLocaleLowerCase('pt-BR') === t)
+  return card?.id ?? null
 }
 
-/** Nome da carta pelo id (para notas/toasts). */
-export function nomeDaCarta(id: string): string {
-  return (deck as Carta[]).find((c) => c.id === id)?.name ?? id
+/** Card name by id (for notes/toasts). */
+export function cardName(id: string): string {
+  return (deck as Card[]).find((c) => c.id === id)?.name ?? id
 }
 
-/** Tipo da carta pelo id (para calcular custo de invocação). */
-export function tipoDaCarta(id: string): TipoCarta {
-  return (deck as Carta[]).find((c) => c.id === id)?.type ?? 'monstro'
+/** Card kind by id (to compute invocation cost). */
+export function cardKindById(id: string): CardType {
+  return (deck as Card[]).find((c) => c.id === id)?.type ?? 'monstro'
 }

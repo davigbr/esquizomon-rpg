@@ -1,77 +1,78 @@
-/** Editor de corte de avatar (2026-08-12): janela QUADRADA com máscara de
- *  CÍRCULO (o recorte é sempre circular) + arrastar + zoom.
- *  O recorte visível é desenhado num canvas 128×128 e comprimido em JPEG —
- *  cabe folgado no localStorage e no blob da nuvem. */
+/** Avatar crop editor (2026-08-12): SQUARE window with a CIRCLE mask (the crop
+ *  is always circular) + drag + zoom.
+ *  The visible crop is drawn onto a 128×128 canvas and compressed to JPEG —
+ *  fits comfortably in localStorage and in the cloud blob. */
 
-import { abrirModal, fecharModal, modalBody } from './modal'
-import { definirAvatar } from '../stores/app'
-import { notificar } from './toast'
+import { closeModal, modalBody, openModal } from './modal'
+import { setAvatar } from '../stores/app'
+import { notify } from './toast'
 
-const JANELA = 240 // px — tamanho da janela de corte (CSS)
-/** Lado do quadrado inscrito no círculo de corte (o que é salvo). */
-const LADO = JANELA / Math.SQRT2
-const SAIDA = 128 // px — tamanho final do avatar
-const QUALIDADE = 0.78
+const WINDOW = 240 // px — size of the crop window (CSS)
+/** Side of the square inscribed in the crop circle (what gets saved). */
+const SIDE = WINDOW / Math.SQRT2
+const OUTPUT = 128 // px — final avatar size
+const QUALITY = 0.78
 
-/** Abre o editor de corte para o arquivo escolhido. */
-export function editarAvatar(arquivo: File): void {
-  const url = URL.createObjectURL(arquivo)
+/** Opens the crop editor for the chosen file. */
+export function editAvatar(file: File): void {
+  const url = URL.createObjectURL(file)
   const img = new Image()
-  img.onload = () => abrirCorte(img, url)
+  img.onload = () => openCrop(img, url)
   img.onerror = () => {
     URL.revokeObjectURL(url)
-    notificar('Imagem inválida — escolha outra.', 'erro')
+    notify('Imagem inválida — escolha outra.', 'erro')
   }
   img.src = url
 }
 
-function abrirCorte(img: HTMLImageElement, url: string): void {
+function openCrop(img: HTMLImageElement, url: string): void {
   const W0 = img.naturalWidth
   const H0 = img.naturalHeight
-  // object-fit: cover escala pelo MAIOR (box/source) → source→box = o MENOR.
-  // Usar max aqui descentralizava o recorte em fotos não-quadradas (bug real).
-  const cover = Math.min(W0 / JANELA, H0 / JANELA) // px de imagem por px de janela
-  const maxZoom = Math.min(4, Math.max(W0, H0) / JANELA)
-  // Zoom mínimo = COVER do círculo: o lado MENOR da imagem preenche o recorte
-  // (nunca mostra o fundo da janela; quadrada encosta nas bordas). Bug real 3
-  // (2026-08-12): era max(W0,H0) → imagem pequena no círculo + fundo vazando.
-  const sMin = Math.max(0.25, Math.min(1, (LADO * cover) / Math.min(W0, H0)))
+  // object-fit: cover scales by the LARGER (box/source) → source→box = the SMALLER.
+  // Using max here off-centered the crop in non-square photos (real bug).
+  const cover = Math.min(W0 / WINDOW, H0 / WINDOW) // px of image per px of window
+  const maxZoom = Math.min(4, Math.max(W0, H0) / WINDOW)
+  // Min zoom = COVER of the circle: the SMALLER side of the image fills the crop
+  // (never shows the window background; square touches the edges). Real bug 3
+  // (2026-08-12): it was max(W0,H0) → small image in circle + background leaking.
+  const sMin = Math.max(0.25, Math.min(1, (SIDE * cover) / Math.min(W0, H0)))
   const sMax = Math.max(sMin + 0.1, maxZoom)
   let s = sMin
   let dx = 0
   let dy = 0
 
-  abrirModal(`
+  openModal(`
     <h2>Recortar avatar</h2>
-    <p class="avatar-dica">Arraste para posicionar · use o zoom para ajustar. O corte é sempre circular.</p>
-    <div class="avatar-janela" data-avatar-janela>
+    <p class="avatar-hint">Arraste para posicionar · use o zoom para ajustar. O corte é sempre circular.</p>
+    <div class="avatar-window" data-avatar-janela>
       <img src="${url}" alt="Imagem a recortar" data-avatar-img />
-      <div class="avatar-mascara" aria-hidden="true"></div>
+      <div class="avatar-mask" aria-hidden="true"></div>
     </div>
     <div class="avatar-zoom">
-      <i class="fa-solid fa-minus" aria-hidden="true"></i>
+      <i class="fa-solid" fa-minus aria-hidden="true"></i>
       <input type="range" min="${sMin.toFixed(2)}" max="${sMax.toFixed(2)}" step="0.01" value="${sMin.toFixed(2)}" data-avatar-zoom aria-label="Zoom do corte" />
-      <i class="fa-solid fa-plus" aria-hidden="true"></i>
+      <i class="fa-solid" fa-plus aria-hidden="true"></i>
     </div>
-    <div class="form-acoes">
+    <div class="form-actions">
       <button class="btn" data-avatar-cancelar>Cancelar</button>
-      <button class="btn btn-primary" data-avatar-salvar>Salvar avatar</button>
+      <button class="btn" btn-primary data-avatar-salvar>Salvar avatar</button>
     </div>
   `)
 
-  const janela = modalBody.querySelector<HTMLElement>('[data-avatar-janela]')!
-  const imgel = modalBody.querySelector<HTMLImageElement>('[data-avatar-img]')!
+  const windowEl = modalBody.querySelector<HTMLElement>('[data-avatar-janela]')!
+  const imgEl = modalBody.querySelector<HTMLImageElement>('[data-avatar-img]')!
   const zoom = modalBody.querySelector<HTMLInputElement>('[data-avatar-zoom]')!
 
   /**
-   * Recorte visível na imagem ORIGINAL (px): o quadrado inscrito no círculo.
-   * O conteúdo é CENTRALIZADO no elemento (object-fit: cover), então o centro
-   * visível é cx = W0/2 − (dx/s)·cover — NÃO depende de JANELA. (Bug real 4,
-   * 2026-08-12: a fórmula antiga tinha um termo espúrio (JANELA/(2s) − JANELA/2)
-   * que, no zoom mínimo, empurrava o elemento ~34px e vazava o fundo no círculo.)
+   * Visible crop in the ORIGINAL image (px): the square inscribed in the circle.
+   * The content is CENTERED on the element (object-fit: cover), so the visible
+   * center is cx = W0/2 − (dx/s)·cover — does NOT depend on WINDOW. (Real bug 4,
+   * 2026-08-12: the old formula had a spurious term (WINDOW/(2s) − WINDOW/2)
+   * that, at min zoom, pushed the element ~34px and leaked the background into
+   * the circle.)
    */
-  const recorte = (): { sx: number; sy: number; sw: number; sh: number } => {
-    const sw = Math.min((LADO / s) * cover, W0, H0)
+  const crop = (): { sx: number; sy: number; sw: number; sh: number } => {
+    const sw = Math.min((SIDE / s) * cover, W0, H0)
     const sh = sw
     const cx = W0 / 2 - (dx / s) * cover
     const cy = H0 / 2 - (dy / s) * cover
@@ -80,72 +81,72 @@ function abrirCorte(img: HTMLImageElement, url: string): void {
     return { sx, sy, sw, sh }
   }
 
-  const aplicar = (): void => {
-    imgel.style.transform = `translate(${dx}px, ${dy}px) scale(${s})`
+  const apply = (): void => {
+    imgEl.style.transform = `translate(${dx}px, ${dy}px) scale(${s})`
   }
-  aplicar()
+  apply()
 
-  // limites do arrasto (simétricos em 0): o recorte não pode sair da imagem
-  const limitar = (): void => {
-    const { sw, sh } = recorte()
-    const passo = s / cover
-    dx = Math.min(Math.max(dx, ((sw - W0) / 2) * passo), ((W0 - sw) / 2) * passo)
-    dy = Math.min(Math.max(dy, ((sh - H0) / 2) * passo), ((H0 - sh) / 2) * passo)
+  // drag limits (symmetric around 0): the crop cannot leave the image
+  const clamp = (): void => {
+    const { sw, sh } = crop()
+    const step = s / cover
+    dx = Math.min(Math.max(dx, ((sw - W0) / 2) * step), ((W0 - sw) / 2) * step)
+    dy = Math.min(Math.max(dy, ((sh - H0) / 2) * step), ((H0 - sh) / 2) * step)
   }
 
-  let arrastando = false
+  let dragging = false
   let px0 = 0
   let py0 = 0
-  janela.addEventListener('pointerdown', (e: PointerEvent) => {
-    arrastando = true
+  windowEl.addEventListener('pointerdown', (e: PointerEvent) => {
+    dragging = true
     px0 = e.clientX
     py0 = e.clientY
-    janela.setPointerCapture(e.pointerId)
+    windowEl.setPointerCapture(e.pointerId)
   })
-  janela.addEventListener('pointermove', (e: PointerEvent) => {
-    if (!arrastando) return
+  windowEl.addEventListener('pointermove', (e: PointerEvent) => {
+    if (!dragging) return
     dx += e.clientX - px0
     dy += e.clientY - py0
     px0 = e.clientX
     py0 = e.clientY
-    limitar()
-    aplicar()
+    clamp()
+    apply()
   })
-  janela.addEventListener('pointerup', () => {
-    arrastando = false
+  windowEl.addEventListener('pointerup', () => {
+    dragging = false
   })
 
   zoom.addEventListener('input', () => {
     s = Number(zoom.value)
-    limitar()
-    aplicar()
+    clamp()
+    apply()
   })
 
-  const limpar = (): void => {
+  const cleanup = (): void => {
     URL.revokeObjectURL(url)
   }
 
   modalBody.querySelector('[data-avatar-cancelar]')!.addEventListener('click', () => {
-    limpar()
-    fecharModal()
+    cleanup()
+    closeModal()
   })
   modalBody.querySelector('[data-avatar-salvar]')!.addEventListener('click', () => {
-    const { sx, sy, sw, sh } = recorte()
+    const { sx, sy, sw, sh } = crop()
     const c = document.createElement('canvas')
-    c.width = SAIDA
-    c.height = SAIDA
+    c.width = OUTPUT
+    c.height = OUTPUT
     const g = c.getContext('2d')
     if (!g) {
-      limpar()
-      fecharModal()
-      notificar('Não consegui processar a imagem.', 'erro')
+      cleanup()
+      closeModal()
+      notify('Não consegui processar a imagem.', 'erro')
       return
     }
-    g.drawImage(img, sx, sy, sw, sh, 0, 0, SAIDA, SAIDA)
-    const dataUrl = c.toDataURL('image/jpeg', QUALIDADE)
-    limpar()
-    fecharModal()
-    definirAvatar(dataUrl)
-    notificar('Avatar salvo!')
+    g.drawImage(img, sx, sy, sw, sh, 0, 0, OUTPUT, OUTPUT)
+    const dataUrl = c.toDataURL('image/jpeg', QUALITY)
+    cleanup()
+    closeModal()
+    setAvatar(dataUrl)
+    notify('Avatar salvo!')
   })
 }

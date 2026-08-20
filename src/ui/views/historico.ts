@@ -1,82 +1,82 @@
-/** Visão Histórico — log extensivo de todas as ações do jogo. */
+/** Historico view — extensive log of all game actions. */
 
-import type { AppData, LogEvento, TipoLog } from '../../core/tipos'
+import type { AppData, LogEvent, LogType } from '../../core/tipos'
 import { appStore } from '../../stores/app'
-import { escapar } from '../util'
+import { escapeHtml } from '../util'
 
-/** Ícone FA e rótulo por tipo de evento. */
-const TIPOS: Record<TipoLog, { icone: string; rotulo: string }> = {
-  tarefa: { icone: 'fa-list-check', rotulo: 'Tarefas' },
-  habito: { icone: 'fa-repeat', rotulo: 'Hábitos' },
-  invocacao: { icone: 'fa-wand-magic-sparkles', rotulo: 'Invocações' },
-  carta: { icone: 'fa-layer-group', rotulo: 'Cartas' },
-  nivel: { icone: 'fa-arrow-trend-up', rotulo: 'Nível' },
-  dano: { icone: 'fa-heart-crack', rotulo: 'Dano' },
-  sistema: { icone: 'fa-gear', rotulo: 'Sistema' },
+/** FA icon and label per event type. */
+const TYPES: Record<LogType, { icon: string; label: string }> = {
+  tarefa: { icon: 'fa-list-check', label: 'Tarefas' },
+  habito: { icon: 'fa-repeat', label: 'Hábitos' },
+  invocacao: { icon: 'fa-wand-magic-sparkles', label: 'Invocações' },
+  carta: { icon: 'fa-layer-group', label: 'Cartas' },
+  nivel: { icon: 'fa-arrow-trend-up', label: 'Nível' },
+  dano: { icon: 'fa-heart-crack', label: 'Dano' },
+  sistema: { icon: 'fa-gear', label: 'Sistema' },
 }
 
-let filtroTipo: TipoLog | '' = ''
+let filterType: LogType | '' = ''
 
-/** Formata a hora de um evento (HH:MM). */
-function horaDe(ts: string): string {
+/** Formats the time of an event (HH:MM). */
+function timeOf(ts: string): string {
   const d = new Date(ts)
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-/** Data curta do dia (dd/mm) para o agrupamento. */
-function diaDe(ts: string): string {
+/** Short day date (dd/mm/yyyy) for grouping. */
+function dateOf(ts: string): string {
   const d = new Date(ts)
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
 }
 
-export function montarHistorico(raiz: HTMLElement, dados: AppData): void {
-  const log = filtroTipo ? dados.log.filter((e) => e.tipo === filtroTipo) : dados.log
+export function mountHistory(root: HTMLElement, data: AppData): void {
+  const logs = filterType ? data.log.filter((e) => e.type === filterType) : data.log
 
-  // agrupa por dia (mais recente primeiro)
-  const grupos = new Map<string, LogEvento[]>()
-  for (const e of log) {
-    const dia = diaDe(e.ts)
-    const lista = grupos.get(dia) ?? []
-    lista.push(e)
-    grupos.set(dia, lista)
+  // groups by day (most recent first)
+  const groups = new Map<string, LogEvent[]>()
+  for (const e of logs) {
+    const day = dateOf(e.ts)
+    const list = groups.get(day) ?? []
+    list.push(e)
+    groups.set(day, list)
   }
-  const dias = [...grupos.entries()]
+  const days = [...groups.entries()]
 
-  // contadores por tipo
-  const contagem = dados.log.reduce(
+  // counters per type
+  const counts = data.log.reduce(
     (acc, e) => {
-      acc[e.tipo] = (acc[e.tipo] ?? 0) + 1
+      acc[e.type] = (acc[e.type] ?? 0) + 1
       return acc
     },
-    {} as Partial<Record<TipoLog, number>>,
+    {} as Partial<Record<LogType, number>>,
   )
 
-  raiz.innerHTML = `
+  root.innerHTML = `
     <header class="view-header">
       <h1>Histórico</h1>
-      <p class="view-sub">${dados.log.length} evento${dados.log.length === 1 ? '' : 's'} registrados · as últimas ações do seu território</p>
+      <p class="view-sub">${data.log.length} evento${data.log.length === 1 ? '' : 's'} registrados · as últimas ações do seu território</p>
     </header>
 
-    <div class="filtros historico-filtros">
-      <button class="filtro-chip${filtroTipo === '' ? ' ativo' : ''}" data-filtro-tipo="">Tudo (${dados.log.length})</button>
-      ${(Object.keys(TIPOS) as TipoLog[]).map((t) => `<button class="filtro-chip${filtroTipo === t ? ' ativo' : ''}" data-filtro-tipo="${t}">${TIPOS[t].rotulo} (${contagem[t] ?? 0})</button>`).join('')}
+    <div class="filters" history-filters>
+      <button class="filter-chip${filterType === '' ? ' active' : ''}" data-filtro-tipo="">Tudo (${data.log.length})</button>
+      ${(Object.keys(TYPES) as LogType[]).map((t) => `<button class="filter-chip${filterType === t ? ' active' : ''}" data-filtro-tipo="${t}">${TYPES[t].label} (${counts[t] ?? 0})</button>`).join('')}
     </div>
 
-    ${dias.length === 0 ? '<div class="vazio"><strong>Nenhum evento ainda.</strong><p>Conclua tarefas, invoque cartas e suba de nível — tudo fica registrado aqui.</p></div>' : ''}
+    ${days.length === 0 ? '<div class="empty"><strong>Nenhum evento ainda.</strong><p>Conclua tarefas, invoque cartas e suba de nível — tudo fica registrado aqui.</p></div>' : ''}
 
-    ${dias
+    ${days
       .map(
-        ([dia, eventos]) => `
-      <div class="historico-dia">
-        <h3 class="historico-dia-titulo">${escapar(dia)}</h3>
-        <ul class="historico-lista">
-          ${eventos
+        ([day, events]) => `
+      <div class="history-day">
+        <h3 class="history-day-title">${escapeHtml(day)}</h3>
+        <ul class="history-list">
+          ${events
             .map(
               (e) => `
-            <li class="historico-item">
-              <span class="historico-icone historico-icone--${e.tipo}" title="${TIPOS[e.tipo].rotulo}"><i class="fa-solid ${TIPOS[e.tipo].icone}" aria-hidden="true"></i></span>
-              <span class="historico-texto">${escapar(e.texto)}</span>
-              <time class="historico-hora" datetime="${escapar(e.ts)}">${horaDe(e.ts)}</time>
+            <li class="history-item">
+              <span class="history-icon" historico-icone--${e.type} title="${TYPES[e.type].label}"><i class="fa-solid" ${TYPES[e.type].icon} aria-hidden="true"></i></span>
+              <span class="history-text">${escapeHtml(e.text)}</span>
+              <time class="history-time" datetime="${escapeHtml(e.ts)}">${timeOf(e.ts)}</time>
             </li>`,
             )
             .join('')}
@@ -86,10 +86,10 @@ export function montarHistorico(raiz: HTMLElement, dados: AppData): void {
       .join('')}
   `
 
-  raiz.querySelectorAll('[data-filtro-tipo]').forEach((chip) => {
+  root.querySelectorAll('[data-filtro-tipo]').forEach((chip) => {
     chip.addEventListener('click', () => {
-      filtroTipo = (chip.getAttribute('data-filtro-tipo') ?? '') as TipoLog | ''
-      montarHistorico(raiz, appStore.get())
+      filterType = (chip.getAttribute('data-filtro-tipo') ?? '') as LogType | ''
+      mountHistory(root, appStore.get())
     })
   })
 }

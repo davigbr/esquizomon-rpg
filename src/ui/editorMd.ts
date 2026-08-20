@@ -1,25 +1,25 @@
-/** Renderização de markdown-lite para LEITURA (preview do diário).
- *  Blocos: títulos, listas, citações, code fences, parágrafos.
+/** Markdown-lite rendering for READING (diary preview).
+ *  Blocks: headings, lists, quotes, code fences, paragraphs.
  *  Inline: strong/em/links/code.
- *  (O antigo editor "linhas vivas" contenteditable foi substituído por
- *  textarea + este preview — as funções de compilação/caret foram removidas.) */
+ *  (The old "live lines" contenteditable editor was replaced by
+ *  textarea + this preview — the compile/caret functions were removed.) */
 
-import { escapar } from './util'
+import { escapeHtml } from './util'
 
-/** Formata inline: links → strong → em → code. Recebe texto JÁ escapado. */
-export function formatarInline(esc: string): string {
-  // links markdown [texto](url) E URLs cruas numa ÚNICA passada — se
-  // processássemos separado, o 2º regex re-escaneava o HTML já gerado
-  // (casa a URL dentro do href e aninha tags).
+/** Formats inline: links → strong → em → code. Receives already-escaped text. */
+export function formatInline(esc: string): string {
+  // markdown links [text](url) AND raw URLs in a SINGLE pass — if we processed
+  // them separately, the 2nd regex would re-scan the already-generated HTML
+  // (matching the URL inside the href and nesting tags).
   let s = esc.replace(
     /\[([^\]]+)\]\(([^)\s]+)\)|(https?:\/\/[^\s<>"']+)/g,
-    (_m, texto: string | undefined, url: string | undefined, crua: string | undefined) => {
-      const href = (url ?? crua ?? '').replace(/"/g, '&quot;')
+    (_m, text: string | undefined, url: string | undefined, raw: string | undefined) => {
+      const href = (url ?? raw ?? '').replace(/"/g, '&quot;')
       if (url) {
-        // link markdown [texto](url)
-        return `<a href="${href}" target="_blank" rel="noopener noreferrer">${texto ?? ''}</a>`
+        // markdown link [text](url)
+        return `<a href="${href}" target="_blank" rel="noopener noreferrer">${text ?? ''}</a>`
       }
-      // URL crua
+      // raw URL
       return `<a href="${href}" target="_blank" rel="noopener noreferrer">${href}</a>`
     },
   )
@@ -29,110 +29,111 @@ export function formatarInline(esc: string): string {
   return s
 }
 
-/** Renderiza markdown cru em HTML de leitura (preview do diário + chat da
- *  Fábula). Blocos: títulos, listas, citações, TABELAS (pipe), code fences,
- *  parágrafos. Inline: links/strong/em/code.
- *  Cada linha é escapada+formatada ANTES do join — o <br> é HTML legítimo,
- *  escapá-lo depois faria o usuário ver "<br>" literal no lugar do Enter. */
-export function renderizarMarkdown(texto: string): string {
-  const linhas = texto.split('\n')
-  const blocos: string[] = []
+/** Renders raw markdown into reading HTML (diary preview + Fable chat).
+ *  Blocks: headings, lists, quotes, TABLES (pipe), code fences, paragraphs.
+ *  Inline: links/strong/em/code.
+ *  Each line is escaped+formatted BEFORE the join — the <br> is valid HTML;
+ *  escaping it afterwards would make the user see a literal "<br>" instead
+ *  of the newline. */
+export function renderMarkdown(text: string): string {
+  const lines = text.split('\n')
+  const blocks: string[] = []
   let i = 0
 
-  const ehListaUl = (l: string): boolean => /^[-*]\s+/.test(l)
-  const ehListaOl = (l: string): boolean => /^\d+\.\s+/.test(l)
-  const ehTitulo = (l: string): boolean => /^#{1,3}\s+/.test(l)
-  const ehCitacao = (l: string): boolean => /^>\s?/.test(l)
-  const ehFence = (l: string): boolean => /^```/.test(l)
-  const ehTabela = (l: string): boolean => /^\s*\|/.test(l) && l.includes('|')
-  const inline = (l: string): string => formatarInline(escapar(l))
+  const isUl = (l: string): boolean => /^[-*]\s+/.test(l)
+  const isOl = (l: string): boolean => /^\d+\.\s+/.test(l)
+  const isHeading = (l: string): boolean => /^#{1,3}\s+/.test(l)
+  const isQuote = (l: string): boolean => /^>\s?/.test(l)
+  const isFence = (l: string): boolean => /^```/.test(l)
+  const isTable = (l: string): boolean => /^\s*\|/.test(l) && l.includes('|')
+  const inline = (l: string): string => formatInline(escapeHtml(l))
 
-  /** Tabela pipe: 1ª linha = cabeçalho quando a 2ª é o separador |---|---|. */
-  const renderTabela = (linhasT: string[]): string => {
-    const limpa = (l: string): string => l.trim().replace(/^\|/, '').replace(/\|$/, '')
-    const celulas = (l: string): string[] => limpa(l).split('|').map((c) => c.trim())
-    const ehSep = (l: string): boolean => /^[\s|:|-]+$/.test(l) && l.includes('-')
-    const filas = linhasT.map((l) => ({ cru: l, cel: celulas(l), sep: ehSep(l) }))
-    const temCabecalho = filas.length > 1 && filas[1].sep
-    const ths = temCabecalho ? filas[0] : null
-    const corpo = (temCabecalho ? filas.slice(2) : filas).filter((f) => !f.sep)
+  /** Pipe table: 1st line is the header when the 2nd is the |---|---| separator. */
+  const renderTable = (rows: string[]): string => {
+    const clean = (l: string): string => l.trim().replace(/^\|/, '').replace(/\|$/, '')
+    const cells = (l: string): string[] => clean(l).split('|').map((c) => c.trim())
+    const isSep = (l: string): boolean => /^[\s|:|-]+$/.test(l) && l.includes('-')
+    const rowsParsed = rows.map((l) => ({ raw: l, cells: cells(l), isSep: isSep(l) }))
+    const hasHeader = rowsParsed.length > 1 && rowsParsed[1].isSep
+    const headerCells = hasHeader ? rowsParsed[0] : null
+    const body = (hasHeader ? rowsParsed.slice(2) : rowsParsed).filter((f) => !f.isSep)
     let html = ''
-    if (ths) {
-      html += `<thead><tr>${ths.cel.map((c) => `<th>${inline(c)}</th>`).join('')}</tr></thead>`
+    if (headerCells) {
+      html += `<thead><tr>${headerCells.cells.map((c) => `<th>${inline(c)}</th>`).join('')}</tr></thead>`
     }
-    html += `<tbody>${corpo
-      .map((f) => `<tr>${f.cel.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`)
+    html += `<tbody>${body
+      .map((f) => `<tr>${f.cells.map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`)
       .join('')}</tbody>`
     return `<table>${html}</table>`
   }
 
-  while (i < linhas.length) {
-    const linha = linhas[i]
+  while (i < lines.length) {
+    const line = lines[i]
 
-    if (ehFence(linha)) {
+    if (isFence(line)) {
       const buf: string[] = []
       i++
-      while (i < linhas.length && !ehFence(linhas[i])) {
-        buf.push(linhas[i])
+      while (i < lines.length && !isFence(lines[i])) {
+        buf.push(lines[i])
         i++
       }
-      i++ // fecha ```
-      blocos.push(`<pre><code>${escapar(buf.join('\n'))}</code></pre>`)
-    } else if (ehTitulo(linha)) {
-      const m = /^(#{1,3})\s+(.*)$/.exec(linha)!
-      blocos.push(`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`)
+      i++ // closes ```
+      blocks.push(`<pre><code>${escapeHtml(buf.join('\n'))}</code></pre>`)
+    } else if (isHeading(line)) {
+      const m = /^(#{1,3})\s+(.*)$/.exec(line)!
+      blocks.push(`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`)
       i++
-    } else if (ehCitacao(linha)) {
+    } else if (isQuote(line)) {
       const buf: string[] = []
-      while (i < linhas.length && ehCitacao(linhas[i])) {
-        buf.push(inline(linhas[i].replace(/^>\s?/, '')))
+      while (i < lines.length && isQuote(lines[i])) {
+        buf.push(inline(lines[i].replace(/^>\s?/, '')))
         i++
       }
-      blocos.push(`<blockquote>${buf.join('<br>')}</blockquote>`)
-    } else if (ehListaUl(linha)) {
-      const itens: string[] = []
-      while (i < linhas.length && ehListaUl(linhas[i])) {
-        itens.push(`<li>${inline(linhas[i].replace(/^[-*]\s+/, ''))}</li>`)
+      blocks.push(`<blockquote>${buf.join('<br>')}</blockquote>`)
+    } else if (isUl(line)) {
+      const items: string[] = []
+      while (i < lines.length && isUl(lines[i])) {
+        items.push(`<li>${inline(lines[i].replace(/^[-*]\s+/, ''))}</li>`)
         i++
       }
-      blocos.push(`<ul>${itens.join('')}</ul>`)
-    } else if (ehListaOl(linha)) {
-      const itens: string[] = []
-      while (i < linhas.length && ehListaOl(linhas[i])) {
-        itens.push(`<li>${inline(linhas[i].replace(/^\d+\.\s+/, ''))}</li>`)
+      blocks.push(`<ul>${items.join('')}</ul>`)
+    } else if (isOl(line)) {
+      const items: string[] = []
+      while (i < lines.length && isOl(lines[i])) {
+        items.push(`<li>${inline(lines[i].replace(/^\d+\.\s+/, ''))}</li>`)
         i++
       }
-      blocos.push(`<ol>${itens.join('')}</ol>`)
-    } else if (ehTabela(linha)) {
-      const bufT: string[] = [linha]
+      blocks.push(`<ol>${items.join('')}</ol>`)
+    } else if (isTable(line)) {
+      const bufT: string[] = [line]
       i++
-      while (i < linhas.length && ehTabela(linhas[i])) {
-        bufT.push(linhas[i])
+      while (i < lines.length && isTable(lines[i])) {
+        bufT.push(lines[i])
         i++
       }
-      blocos.push(renderTabela(bufT))
-    } else if (linha.trim() === '') {
+      blocks.push(renderTable(bufT))
+    } else if (line.trim() === '') {
       i++
     } else {
-      // parágrafo: junta linhas consecutivas que não iniciam outro bloco
-      const buf = [linha]
+      // paragraph: joins consecutive lines that don't start another block
+      const buf = [line]
       i++
       while (
-        i < linhas.length &&
-        linhas[i].trim() !== '' &&
-        !ehTitulo(linhas[i]) &&
-        !ehCitacao(linhas[i]) &&
-        !ehListaUl(linhas[i]) &&
-        !ehListaOl(linhas[i]) &&
-        !ehFence(linhas[i])
+        i < lines.length &&
+        lines[i].trim() !== '' &&
+        !isHeading(lines[i]) &&
+        !isQuote(lines[i]) &&
+        !isUl(lines[i]) &&
+        !isOl(lines[i]) &&
+        !isFence(lines[i])
       ) {
-        buf.push(linhas[i])
+        buf.push(lines[i])
         i++
       }
-      blocos.push(`<p>${buf.map(inline).join('<br>')}</p>`)
+      blocks.push(`<p>${buf.map(inline).join('<br>')}</p>`)
     }
   }
 
-  if (blocos.length === 0) return '<p class="diario-preview-vazio">Sem conteúdo ainda.</p>'
-  return blocos.join('\n')
+  if (blocks.length === 0) return '<p class="diary-preview-empty">Sem conteúdo ainda.</p>'
+  return blocks.join('\n')
 }

@@ -1,120 +1,120 @@
-/** Modal de login (Netlify Identity) — tema do app, sem o widget oficial.
- *  Abas: Entrar / Criar conta / Esqueci a senha. Após autenticar, dispara a
- *  sincronização inicial (aposMudancaSessao). */
+/** Login modal (Netlify Identity) — app-themed, without the official widget.
+ *  Tabs: Entrar / Criar conta / Esqueci a senha. After authenticating, triggers
+ *  the initial sync (onSessionChange). */
 
-import { abrirModal, fecharModal, modalBody } from './modal'
-import { notificar } from './toast'
-import { consumirAvisoConfirmacao, criarConta, login, recuperarSenha, sair, sessaoAtual } from '../sync/auth'
-import { aposMudancaSessao } from '../sync/sync'
-import { escapar } from './util'
+import { closeModal, modalBody, openModal } from './modal'
+import { notify } from './toast'
+import { consumeConfirmationNotice, createAccount, currentSession, login, logout, recoverPassword } from '../sync/auth'
+import { onSessionChange } from '../sync/sync'
+import { escapeHtml } from './util'
 import { appStore } from '../stores/base'
 
-type Modo = 'entrar' | 'criar' | 'recuperar'
+type Mode = 'entrar' | 'criar' | 'recuperar'
 
-/** Tem dados de uso real salvos neste dispositivo? (para a pergunta de sync) */
-function temDadosLocais(): boolean {
+/** Has real usage data saved on this device? (for the sync question) */
+function hasLocalData(): boolean {
   const d = appStore.get()
   return (
-    d.tarefas.length > 0 ||
-    (d.diario?.length ?? 0) > 0 ||
+    d.tasks.length > 0 ||
+    (d.diary?.length ?? 0) > 0 ||
     d.log.length > 0 ||
-    (d.conversas?.length ?? 0) > 0 ||
-    d.personagem.xp > 0
+    (d.conversations?.length ?? 0) > 0 ||
+    d.character.xp > 0
   )
 }
 
-/** Pergunta qual direção da sincronização persistir (2026-08-12): o login
- *  encontrou dados locais E a conta pode ter outros. Recomenda exportar. */
-function abrirEscolhaSync(): void {
-  abrirModal(`
-    <h2 class="login-titulo">Sincronizar com a conta</h2>
+/** Asks which sync direction to persist (2026-08-12): the login found local
+ *  data AND the account may have others. Recommends exporting. */
+function openSyncChoice(): void {
+  openModal(`
+    <h2 class="login-title">Sincronizar com a conta</h2>
     <p class="login-sub">Este dispositivo tem dados salvos — e a conta pode ter outros. Qual versão deve ficar?</p>
-    <p class="login-dica login-dica--aviso">⚠️ Recomendamos <strong>exportar um backup antes</strong> (Config → Exportar). Assim você não perde nada, aconteça o que acontecer.</p>
-    <div class="form-acoes form-acoes--coluna">
-      <button class="btn btn-primary" data-sync-local>Manter os dados deste dispositivo</button>
+    <p class="login-hint" login-hint--notice>⚠️ Recomendamos <strong>exportar um backup antes</strong> (Config → Exportar). Assim você não perde nada, aconteça o que acontecer.</p>
+    <div class="form-actions" form-actions--column>
+      <button class="btn" btn-primary data-sync-local>Manter os dados deste dispositivo</button>
       <button class="btn" data-sync-nuvem>Usar os dados da conta</button>
-      <button class="btn btn--texto" data-sync-cancelar>Cancelar — quero exportar antes</button>
+      <button class="btn" btn--text data-sync-cancelar>Cancelar — quero exportar antes</button>
     </div>
   `)
   const body = document.getElementById('modal-body')!
   body.querySelector('[data-sync-local]')?.addEventListener('click', () => {
-    aposMudancaSessao('local')
-    notificar('Seus dados deste dispositivo foram enviados para a conta.')
-    fecharModal()
+    onSessionChange('local')
+    notify('Seus dados deste dispositivo foram enviados para a conta.')
+    closeModal()
   })
   body.querySelector('[data-sync-nuvem]')?.addEventListener('click', () => {
-    aposMudancaSessao('nuvem')
-    notificar('Os dados da conta foram aplicados neste dispositivo.')
-    fecharModal()
+    onSessionChange('nuvem')
+    notify('Os dados da conta foram aplicados neste dispositivo.')
+    closeModal()
   })
   body.querySelector('[data-sync-cancelar]')?.addEventListener('click', () => {
-    fecharModal()
-    notificar('Sem sincronizar por ora. Exporte um backup na Config quando puder.')
+    closeModal()
+    notify('Sem sincronizar por ora. Exporte um backup na Config quando puder.')
   })
 }
 
-function campo(label: string, tipo: string, nome: string, autocomplete: string): string {
+function field(label: string, type: string, name: string, autocomplete: string): string {
   return `
-    <label class="login-campo">
+    <label class="login-field">
       <span>${label}</span>
-      <input type="${tipo}" name="${nome}" autocomplete="${autocomplete}" required />
+      <input type="${type}" name="${name}" autocomplete="${autocomplete}" required />
     </label>`
 }
 
-export function abrirLoginModal(): void {
-  const jaLogado = sessaoAtual()
+export function openLoginModal(): void {
+  const logged = currentSession()
 
-  abrirModal(`
-    <h2 class="login-titulo">${jaLogado ? 'Sua conta' : 'Entrar na sua conta'}</h2>
+  openModal(`
+    <h2 class="login-title">${logged ? 'Sua conta' : 'Entrar na sua conta'}</h2>
     <p class="login-sub">A conta é opcional: guarda uma cópia dos seus dados na nuvem (sincronização). Sem ela, tudo fica só neste navegador.</p>
 
-    ${jaLogado ? '' : `
-    <div class="login-abas" role="tablist">
-      <button type="button" class="login-aba ativa" data-modo="entrar">Entrar</button>
-      <button type="button" class="login-aba" data-modo="criar">Criar conta</button>
+    ${logged ? '' : `
+    <div class="login-tabs" role="tablist">
+      <button type="button" class="login-tab" active data-modo="entrar">Entrar</button>
+      <button type="button" class="login-tab" data-modo="criar">Criar conta</button>
     </div>
 
     <form class="login-form" data-form="entrar">
-      ${campo('E-mail', 'email', 'email', 'email')}
-      ${campo('Senha', 'password', 'senha', 'current-password')}
-      <button type="button" class="btn btn--texto login-recuperar" data-modo="recuperar">Esqueci a senha</button>
-      <button type="submit" class="btn btn-primary" data-enviar>Entrar</button>
+      ${field('E-mail', 'email', 'email', 'email')}
+      ${field('Senha', 'password', 'senha', 'current-password')}
+      <button type="button" class="btn" btn--text login-recover data-modo="recuperar">Esqueci a senha</button>
+      <button type="submit" class="btn" btn-primary data-enviar>Entrar</button>
     </form>
 
     <form class="login-form" data-form="criar" hidden>
-      ${campo('E-mail', 'email', 'email', 'email')}
-      ${campo('Senha', 'password', 'senha', 'new-password')}
-      <small class="login-dica">Use uma senha que você não usa em outros lugares.</small>
-      <small class="login-dica login-dica--aviso">📧 Ao criar a conta, enviaremos um <strong>link de confirmação</strong> para o seu e-mail — clique nele para ativar a conta antes de entrar (confira também o spam).</small>
-      <button type="submit" class="btn btn-primary" data-enviar>Criar conta</button>
+      ${field('E-mail', 'email', 'email', 'email')}
+      ${field('Senha', 'password', 'senha', 'new-password')}
+      <small class="login-hint">Use uma senha que você não usa em outros lugares.</small>
+      <small class="login-hint" login-hint--notice>📧 Ao criar a conta, enviaremos um <strong>link de confirmação</strong> para o seu e-mail — clique nele para ativar a conta antes de entrar (confira também o spam).</small>
+      <button type="submit" class="btn" btn-primary data-enviar>Criar conta</button>
     </form>
 
     <form class="login-form" data-form="recuperar" hidden>
-      ${campo('E-mail da conta', 'email', 'email', 'email')}
-      <button type="submit" class="btn btn-primary" data-enviar>Enviar link de recuperação</button>
+      ${field('E-mail da conta', 'email', 'email', 'email')}
+      <button type="submit" class="btn" btn-primary data-enviar>Enviar link de recuperação</button>
     </form>
 
     <p class="login-status" data-status></p>
     `}
 
-    ${jaLogado ? `
-    <p class="login-conta">Você está logado como <strong>${escapar(jaLogado.usuario.email)}</strong>.</p>
-    <div class="form-acoes">
-      <button class="btn btn--perigo" data-sair>Encerrar sessão</button>
-      <button class="btn btn-primary" data-fechar>Fechar</button>
+    ${logged ? `
+    <p class="login-account">Você está logado como <strong>${escapeHtml(logged.user.email)}</strong>.</p>
+    <div class="form-actions">
+      <button class="btn" btn--perigo data-sair>Encerrar sessão</button>
+      <button class="btn" btn-primary data-fechar>Fechar</button>
     </div>` : ''}
   `)
 
   const body = document.getElementById('modal-body')!
 
-  if (jaLogado) {
+  if (logged) {
     body.querySelector<HTMLButtonElement>('[data-sair]')?.addEventListener('click', async () => {
-      await sair()
-      aposMudancaSessao()
-      notificar('Sessão encerrada — seus dados seguem salvos neste dispositivo.')
-      fecharModal()
+      await logout()
+      onSessionChange()
+      notify('Sessão encerrada — seus dados seguem salvos neste dispositivo.')
+      closeModal()
     })
-    body.querySelector<HTMLButtonElement>('[data-fechar]')?.addEventListener('click', () => fecharModal())
+    body.querySelector<HTMLButtonElement>('[data-fechar]')?.addEventListener('click', () => closeModal())
     return
   }
 
@@ -125,96 +125,96 @@ export function abrirLoginModal(): void {
   }
   const status = body.querySelector<HTMLElement>('[data-status]')!
 
-  const avisar = (texto: string, erro = false): void => {
-    status.textContent = texto
-    status.classList.toggle('login-status--erro', erro)
+  const setStatus = (text: string, error = false): void => {
+    status.textContent = text
+    status.classList.toggle('login-status--error', error)
   }
 
-  function mostrarFormulario(m: Modo): void {
-    for (const [nome, form] of Object.entries(forms)) form.hidden = nome !== m
-    body.querySelectorAll<HTMLButtonElement>('.login-aba').forEach((b) => b.classList.toggle('ativa', b.dataset.modo === m))
+  function showForm(m: Mode): void {
+    for (const [name, form] of Object.entries(forms)) form.hidden = name !== m
+    body.querySelectorAll<HTMLButtonElement>('.login-aba').forEach((b) => b.classList.toggle('active', b.dataset.modo === m))
     status.textContent = ''
   }
 
   body.querySelectorAll<HTMLButtonElement>('[data-modo]').forEach((b) => {
-    b.addEventListener('click', () => mostrarFormulario(b.dataset.modo as Modo))
+    b.addEventListener('click', () => showForm(b.dataset.modo as Mode))
   })
 
-  // aviso pós-confirmação de email (link do correio)
-  const avisoConfirmacao = consumirAvisoConfirmacao()
-  if (avisoConfirmacao === 'ok') avisar('E-mail confirmado! Agora é só entrar.')
-  else if (avisoConfirmacao === 'falhou')
-    avisar('Não foi possível confirmar seu e-mail pelo link — ele pode ter expirado ou já foi usado. Use "Esqueci a senha" para receber um novo.', true)
+  // post-email-confirmation notice (link from the mail)
+  const notice = consumeConfirmationNotice()
+  if (notice === 'ok') setStatus('E-mail confirmado! Agora é só entrar.')
+  else if (notice === 'falhou')
+    setStatus('Não foi possível confirmar seu e-mail pelo link — ele pode ter expirado ou já foi usado. Use "Esqueci a senha" para receber um novo.', true)
 
-  const ocupar = (b: HTMLButtonElement, texto: string): void => {
+  const disable = (b: HTMLButtonElement, text: string): void => {
     b.disabled = true
-    b.textContent = texto
+    b.textContent = text
   }
-  const liberar = (b: HTMLButtonElement, texto: string): void => {
+  const enable = (b: HTMLButtonElement, text: string): void => {
     b.disabled = false
-    b.textContent = texto
+    b.textContent = text
   }
 
   forms.entrar.addEventListener('submit', async (ev) => {
     ev.preventDefault()
     const email = (forms.entrar.elements.namedItem('email') as HTMLInputElement).value.trim()
-    const senha = (forms.entrar.elements.namedItem('senha') as HTMLInputElement).value
-    const botao = forms.entrar.querySelector<HTMLButtonElement>('[data-enviar]')!
-    ocupar(botao, 'Entrando…')
-    const r = await login(email, senha)
-    liberar(botao, 'Entrar')
-    if (!r.ok) return avisar(r.motivo ?? 'Falha ao entrar.', true)
-    fecharModal()
-    if (temDadosLocais()) {
-      // conta já tinha dados possíveis + este dispositivo tem dados → perguntar
-      abrirEscolhaSync()
+    const password = (forms.entrar.elements.namedItem('senha') as HTMLInputElement).value
+    const button = forms.entrar.querySelector<HTMLButtonElement>('[data-enviar]')!
+    disable(button, 'Entrando…')
+    const r = await login(email, password)
+    enable(button, 'Entrar')
+    if (!r.ok) return setStatus(r.reason ?? 'Falha ao entrar.', true)
+    closeModal()
+    if (hasLocalData()) {
+      // account may already have data + this device has data → ask
+      openSyncChoice()
     } else {
-      aposMudancaSessao()
-      notificar('Sincronização ativada — seus dados ganharam uma cópia na nuvem.')
+      onSessionChange()
+      notify('Sincronização ativada — seus dados ganharam uma cópia na nuvem.')
     }
   })
 
   forms.criar.addEventListener('submit', async (ev) => {
     ev.preventDefault()
     const email = (forms.criar.elements.namedItem('email') as HTMLInputElement).value.trim()
-    const senha = (forms.criar.elements.namedItem('senha') as HTMLInputElement).value
-    const botao = forms.criar.querySelector<HTMLButtonElement>('[data-enviar]')!
-    ocupar(botao, 'Criando…')
-    const r = await criarConta(email, senha)
-    liberar(botao, 'Criar conta')
-    if (!r.ok) return avisar(r.motivo ?? 'Falha ao criar a conta.', true)
-    if (r.precisaConfirmar) {
-      mostrarSucessoCriacao(email)
+    const password = (forms.criar.elements.namedItem('senha') as HTMLInputElement).value
+    const button = forms.criar.querySelector<HTMLButtonElement>('[data-enviar]')!
+    disable(button, 'Criando…')
+    const r = await createAccount(email, password)
+    enable(button, 'Criar conta')
+    if (!r.ok) return setStatus(r.reason ?? 'Falha ao criar a conta.', true)
+    if (r.needsConfirm) {
+      showCreationSuccess(email)
       return
     }
-    aposMudancaSessao()
-    notificar('Conta criada e sincronização ativada!')
-    fecharModal()
+    onSessionChange()
+    notify('Conta criada e sincronização ativada!')
+    closeModal()
   })
 
   forms.recuperar.addEventListener('submit', async (ev) => {
     ev.preventDefault()
     const email = (forms.recuperar.elements.namedItem('email') as HTMLInputElement).value.trim()
-    const botao = forms.recuperar.querySelector<HTMLButtonElement>('[data-enviar]')!
-    ocupar(botao, 'Enviando…')
-    const r = await recuperarSenha(email)
-    liberar(botao, 'Enviar link de recuperação')
-    if (!r.ok) return avisar(r.motivo ?? 'Falha ao enviar.', true)
-    avisar('Link de recuperação enviado! Confira seu e-mail.')
-    mostrarFormulario('entrar')
+    const button = forms.recuperar.querySelector<HTMLButtonElement>('[data-enviar]')!
+    disable(button, 'Enviando…')
+    const r = await recoverPassword(email)
+    enable(button, 'Enviar link de recuperação')
+    if (!r.ok) return setStatus(r.reason ?? 'Falha ao enviar.', true)
+    setStatus('Link de recuperação enviado! Confira seu e-mail.')
+    showForm('entrar')
   })
 }
 
-/** Tela de sucesso pós-criação: a mensagem e SÓ a opção de fechar — não
- *  redireciona para o login (o usuário ainda precisa confirmar o e-mail). */
-function mostrarSucessoCriacao(email: string): void {
-  abrirModal(`
+/** Success screen after creation: the message and ONLY the close option — does
+ *  NOT redirect to login (the user still needs to confirm the email). */
+function showCreationSuccess(email: string): void {
+  openModal(`
     <h2>Conta criada! 🎉</h2>
-    <p class="login-dica">Enviamos um link de confirmação para <strong>${escapar(email)}</strong>.</p>
-    <p class="login-dica login-dica--aviso">Clique no link do e-mail para ativar a conta antes de entrar — ele pode levar alguns minutos para chegar (confira também o spam).</p>
-    <div class="form-acoes form-acoes--coluna">
-      <button type="button" class="btn btn-primary" data-fechar-criacao>Fechar</button>
+    <p class="login-hint">Enviamos um link de confirmação para <strong>${escapeHtml(email)}</strong>.</p>
+    <p class="login-hint" login-hint--notice>Clique no link do e-mail para ativar a conta antes de entrar — ele pode levar alguns minutos para chegar (confira também o spam).</p>
+    <div class="form-actions" form-actions--column>
+      <button type="button" class="btn" btn-primary data-fechar-criacao>Fechar</button>
     </div>
   `)
-  modalBody.querySelector<HTMLButtonElement>('[data-fechar-criacao]')?.addEventListener('click', () => fecharModal())
+  modalBody.querySelector<HTMLButtonElement>('[data-fechar-criacao]')?.addEventListener('click', () => closeModal())
 }

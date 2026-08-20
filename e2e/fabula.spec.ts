@@ -118,7 +118,7 @@ test('config: nome monstruoso salva e aparece em negrito ao lado do avatar', asy
     localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
   })
   await page.reload()
-  const nome = page.locator('.status-nome')
+  const nome = page.locator('.status-name')
   await expect(nome).toHaveText('Devorador de Segundas')
   await expect(nome).toHaveCSS('font-weight', '700')
   const boxNome = await nome.boundingBox()
@@ -134,17 +134,17 @@ test('config: nome monstruoso salva e aparece em negrito ao lado do avatar', asy
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-input]').fill('Fala comigo')
   await page.locator('[data-fabula-input]').press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toContainText('Fala, monstro.')
+  await expect(page.locator('.fable-bubble--assistant')).toContainText('Fala, monstro.')
   const corpo = JSON.parse(corpos[corpos.length - 1]) as { messages: { role: string; content: string }[] }
   expect(corpo.messages[0].content).toContain('NOME MONSTRUOSO: Devorador de Segundas')
 })
 
 test('config: "Sobre você" salva o resumo e persiste no reload', async ({ page }) => {
   await page.goto('/#/config')
-  const campo = page.locator('[data-resumo]')
-  await expect(campo).toBeVisible()
-  await campo.fill('Mestrando em psicologia, atendo, escrevo, treino calistenia.')
-  await campo.blur()
+  const field = page.locator('[data-resumo]')
+  await expect(field).toBeVisible()
+  await field.fill('Mestrando em psicologia, atendo, escrevo, treino calistenia.')
+  await field.blur()
 
   await expect
     .poll(() =>
@@ -298,11 +298,11 @@ test('fabula: o histórico completo vai pra IA (mensagens anteriores + a atual)'
   const input = page.locator('[data-fabula-input]')
   await input.fill('primeira mensagem')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   await input.fill('segunda mensagem')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(2)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(2)
 
   // o segundo request traz TUDO: user1, resposta1 E a mensagem atual no fim
   const corpo = JSON.parse(corpos[corpos.length - 1])
@@ -325,11 +325,11 @@ test('fabula: "invoca a carta X" executa no app, desconta mana e mostra a miniat
   await page.locator('[data-fabula-nova]').click() // cria a conversa
   await page.locator('[data-fabula-input]').fill('invoca a carta Ninho Enclausurado')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   // mana descontou (20 → 12, captura custa 8) e a bolha exibe a miniatura da carta
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 12/20')
-  const img = page.locator('.fabula-bolha--assistente img.fabula-carta')
+  const img = page.locator('.fable-bubble--assistant img.fable-card')
   await expect(img).toBeVisible()
   await expect(img).toHaveAttribute('src', '/images/cards/ninho-enclausurado.png')
 
@@ -344,7 +344,7 @@ test('fabula: "invoca a carta X" executa no app, desconta mana e mostra a miniat
   // carta BLOQUEADA → mana intacta e nota de bloqueio
   await page.locator('[data-fabula-input]').fill('invoca a carta Internato de Ferro')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(2)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(2)
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 12/20')
   const corpo2 = JSON.parse(corpos[corpos.length - 1])
   const sistema2 = corpo2.messages
@@ -353,13 +353,13 @@ test('fabula: "invoca a carta X" executa no app, desconta mana e mostra a miniat
     .join('\n')
   expect(sistema2).toContain('BLOQUEADA')
   // sem miniatura na segunda bolha (carta não foi invocada)
-  await expect(page.locator('.fabula-bolha--assistente img.fabula-carta')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant img.fable-card')).toHaveCount(1)
 })
 
 test('fabula: cada mensagem tem botão copiar (markdown; carta vira nome)', async ({ page, context }) => {
   await semear(page)
   await page.addInitScript(() => {
-    localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ aberto: false, conversaAtivaId: 'conv-copia' }))
+    localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ open: false, conversaAtivaId: 'conv-copia' }))
   })
   await page.addInitScript(() => {
     const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
@@ -396,19 +396,19 @@ test('fabula: cada mensagem tem botão copiar (markdown; carta vira nome)', asyn
 
   await page.goto('/#/hoje')
   await page.click('#fabula-toggle')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   // o botão de copiar é POR MENSAGEM (cabeçalho não tem mais)
   await expect(page.locator('[data-fabula-copiar]')).toHaveCount(0)
   await expect(page.locator('[data-fabula-copiar-msg]')).toHaveCount(2)
 
   // copia a mensagem da Fábula: o marcador vira o nome da carta em itálico
-  await page.locator('.fabula-bolha--assistente [data-fabula-copiar-msg]').click()
+  await page.locator('.fable-bubble--assistant [data-fabula-copiar-msg]').click()
   const fabula = await page.evaluate(() => (window as unknown as { __ultimoCopiado?: string }).__ultimoCopiado ?? '')
   expect(fabula).toBe('A carta chega como um alívio.\n*Ninho Enclausurado*')
 
   // copia a mensagem do usuário: texto cru
-  await page.locator('.fabula-bolha--usuario [data-fabula-copiar-msg]').click()
+  await page.locator('.fable-bubble--user [data-fabula-copiar-msg]').click()
   const voce = await page.evaluate(() => (window as unknown as { __ultimoCopiado?: string }).__ultimoCopiado ?? '')
   expect(voce).toBe('primeira mensagem')
 
@@ -420,7 +420,7 @@ test('fabula: cada mensagem tem botão copiar (markdown; carta vira nome)', asyn
 test('fabula: conversa pode ser renomeada (Enter salva e persiste)', async ({ page }) => {
   await semear(page)
   await page.addInitScript(() => {
-    localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ aberto: false, conversaAtivaId: 'conv-renome' }))
+    localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ open: false, conversaAtivaId: 'conv-renome' }))
   })
   await page.addInitScript(() => {
     const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
@@ -446,7 +446,7 @@ test('fabula: conversa pode ser renomeada (Enter salva e persiste)', async ({ pa
 
   // o input some, a lista lateral mostra o título novo e o storage persiste
   await expect(input).toHaveCount(0)
-  await expect(page.locator('.fabula-item--ativa .fabula-item-titulo')).toHaveText('Sobre os monstros de agosto')
+  await expect(page.locator('.fable-item--active .fable-item-title')).toHaveText('Sobre os monstros de agosto')
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -470,12 +470,12 @@ test('fabula: mencionar uma carta NÃO invoca (mana intacta; marcador do modelo 
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('essa carta Ninho Enclausurado me visitou no diário')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   // menção ≠ pedido: mana intacta, sem miniatura, marcador ignorado com aviso
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 20/20')
-  await expect(page.locator('.fabula-bolha--assistente img.fabula-carta')).toHaveCount(0)
-  await expect(page.locator('.fabula-bolha--assistente')).toContainText('só por pedido explícito')
+  await expect(page.locator('.fable-bubble--assistant img.fable-card')).toHaveCount(0)
+  await expect(page.locator('.fable-bubble--assistant')).toContainText('só por pedido explícito')
 })
 
 test('fabula: /invocar com autocomplete escolhe a carta e invoca (mana normal)', async ({ page }) => {
@@ -491,23 +491,23 @@ test('fabula: /invocar com autocomplete escolhe a carta e invoca (mana normal)',
 
   // "/" abre os comandos (invocar, analisar, capturas); Enter completa "/invocar "
   await input.fill('/')
-  await expect(page.locator('.fabula-sugestao')).toHaveCount(3)
+  await expect(page.locator('.fable-suggestion')).toHaveCount(3)
   await page.keyboard.press('Enter')
   await expect(input).toHaveValue('/invocar ')
 
   // "ninho" filtra as cartas desbloqueadas; Enter completa o nome
   await input.fill('/invocar ninho')
-  await expect(page.locator('.fabula-sugestao').first()).toBeVisible()
+  await expect(page.locator('.fable-suggestion').first()).toBeVisible()
   await page.keyboard.press('Enter')
   await expect(input).toHaveValue('/invocar Ninho Enclausurado')
 
   // Enter com dropdown fechado ENVIA
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   // captura custa 8 → 20−8 = 12; o texto CRU do comando fica no histórico
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 12/20')
-  await expect(page.locator('.fabula-bolha--assistente img.fabula-carta')).toBeVisible()
+  await expect(page.locator('.fable-bubble--assistant img.fable-card')).toBeVisible()
   const corpo = await page.evaluate(async () => {
     const { appStore } = await import('/src/stores/app')
     const c = appStore.get().conversas?.[0]
@@ -533,12 +533,12 @@ test('fabula: /invocar sem nome — a Fábula escolhe a carta (custo premium ×1
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('/invocar')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   // captura premium: 8 × 1,5 = 12 → 20−12 = 8; nota de escolha + miniatura
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 8/20')
-  await expect(page.locator('.fabula-bolha--assistente')).toContainText('escolhida pela Fábula')
-  await expect(page.locator('.fabula-bolha--assistente img.fabula-carta')).toBeVisible()
+  await expect(page.locator('.fable-bubble--assistant')).toContainText('escolhida pela Fábula')
+  await expect(page.locator('.fable-bubble--assistant img.fable-card')).toBeVisible()
   const corpo = JSON.parse(corpos[corpos.length - 1])
   const sistema = corpo.messages
     .filter((m: { role: string }) => m.role === 'system')
@@ -560,7 +560,7 @@ test('fabula: /analisar desconta 10 de mana e pede análise esquizoanalítica', 
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('/analisar')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 10/20')
   const corpo = JSON.parse(corpos[corpos.length - 1])
@@ -600,8 +600,8 @@ test('hábito: marcar no dia anterior (ontem) marca retroativo e dá XP', async 
   await expect(page.locator('.toast').last()).toContainText('Repetição registrada')
   const xp1 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
   expect(xp1).toBe(xp0 + 10) // hábito fácil = +10 XP
-  // streak do dia visível = 1 (marcado retroativa/ontem)
-  await expect(page.locator('.habito-card')).toContainText('seq 1')
+  // streak do dia visível = 1 (marked retroativa/ontem)
+  await expect(page.locator('.habit-card')).toContainText('seq 1')
   // clicar de novo (dedup em dia passado) NÃO dá XP de novo
   const xpAntesDedup = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
   await page.locator('[data-habito="positivo"]').click()
@@ -636,7 +636,7 @@ test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async 
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('oi')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
   const xp1 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
   expect(xp1).toBeGreaterThanOrEqual(10)
 
@@ -652,7 +652,7 @@ test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async 
   // 2ª interação: não dá XP de novo (record diarioXp)
   await page.locator('[data-fabula-input]').fill('oi de novo')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(2)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(2)
   const xp2 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
   expect(xp2).toBe(xp1)
 })
@@ -662,7 +662,7 @@ test('fabula: /capturas desconta 25 de mana e pede a varredura das capturas', as
   const corpos: string[] = []
   await page.route('**/api/ia', (rota) => {
     corpos.push(rota.request().postData() ?? '')
-    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('A Câmara dos Ecos está ativa...') })
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('A Câmara dos Ecos está active...') })
   })
 
   await page.goto('/#/hoje')
@@ -678,7 +678,7 @@ test('fabula: /capturas desconta 25 de mana e pede a varredura das capturas', as
   await page.locator('[data-fabula-input]').fill('/capturas')
   await page.locator('[data-fabula-form]').press('Enter')
   // o desconto acontece com a RESPOSTA (não antes) — bolha primeiro, toast depois
-  await expect(page.locator('.fabula-bolha--assistente')).toContainText('Câmara')
+  await expect(page.locator('.fable-bubble--assistant')).toContainText('Câmara')
   await expect(page.locator('.toast').last()).toContainText('25')
   const mana = await page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}') as { personagem: { mana: number } }).personagem.mana)
   expect(mana).toBe(15) // 40 − 25
@@ -711,7 +711,7 @@ test('fabula: /capturas sem mana — a Fábula explica no chat (mana intacta)', 
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('/capturas')
   await page.locator('[data-fabula-form]').press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toContainText('forças')
+  await expect(page.locator('.fable-bubble--assistant')).toContainText('forças')
   const mana = await page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}') as { personagem: { mana: number } }).personagem.mana)
   expect(mana).toBe(10) // intacta
 })
@@ -735,7 +735,7 @@ test('fabula: /analisar sem mana — a Fábula explica no chat (mana intacta)', 
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('/analisar')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   // mana NÃO descontou e a Fábula foi avisada pra recusar com delicadeza
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 5/20')
@@ -760,7 +760,7 @@ test('fabula: resposta vazia do modelo vira erro visível (sem bolha vazia)', as
   await page.keyboard.press('Enter')
 
   // nenhuma bolha do assistente é salva; toast de erro aparece
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(0)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(0)
   await expect(page.locator('.toast').last()).toContainText('não respondeu nada')
 })
 
@@ -777,9 +777,9 @@ test('fabula: resposta em markdown renderiza negrito, lista, tabela e itálico n
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('escreva markdown')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
-  const bolha = page.locator('.fabula-bolha--assistente')
+  const bolha = page.locator('.fable-bubble--assistant')
   await expect(bolha.locator('strong')).toHaveText('Negrito')
   await expect(bolha.locator('em')).toHaveText('itálico')
   await expect(bolha.locator('ul li')).toHaveCount(2)
@@ -787,7 +787,7 @@ test('fabula: resposta em markdown renderiza negrito, lista, tabela e itálico n
   await expect(bolha.locator('table td').first()).toHaveText('Ninho')
   // miniatura CLICÁVEL → abre o mesmo modal da galeria
   const mini = bolha.locator('[data-fabula-carta]')
-  await expect(mini.locator('img.fabula-carta')).toBeVisible()
+  await expect(mini.locator('img.fable-card')).toBeVisible()
   await mini.click()
   await expect(page.locator('#modal')).toBeVisible()
   await expect(page.locator('#modal')).toContainText('Ninho Enclausurado')
@@ -803,8 +803,8 @@ test('fabula: sem conversas — o chat inicia uma automaticamente ao abrir', asy
   await page.click('#fabula-toggle')
 
   // uma conversa foi criada, com o título padrão de DATA/HORA, e o input habilitado
-  await expect(page.locator('.fabula-item')).toHaveCount(1)
-  await expect(page.locator('.fabula-item--ativa .fabula-item-titulo')).toContainText(/^\d{2}\/\d{2}/)
+  await expect(page.locator('.fable-item')).toHaveCount(1)
+  await expect(page.locator('.fable-item--active .fable-item-title')).toContainText(/^\d{2}\/\d{2}/)
   await expect(page.locator('[data-fabula-input]')).toBeEnabled()
   await expect
     .poll(() =>

@@ -1,274 +1,274 @@
-/** Bootstrap — router por hash, tema, nav e registro do service worker. */
+/** Bootstrap — hash router, theme, nav and service worker registration. */
 
 import '@fortawesome/fontawesome-free/css/fontawesome.min.css'
 import './style.css'
 
-import { appStore, aplicarTemaEfetivo, consumirMorte, definirTema, registrarDeck, renovarDia } from './stores/app'
-import { montarHoje } from './ui/views/hoje'
-import { montarFicha } from './ui/views/ficha'
-import { montarCartas } from './ui/views/cartas'
-import { montarHistorico } from './ui/views/historico'
-import { montarConfig } from './ui/views/config'
-import { montarDiario } from './ui/views/diario'
-import { alternarChat, montarChat, reagirMudancaStore } from './ui/chat'
-import { verificarCheckin } from './ui/checkin'
-import { iniciarAuth } from './sync/auth'
-import { iniciarSync, inscreverSync, lerUltimaSync } from './sync/sync'
-import { montarBotaoConta } from './ui/headerConta'
-import { carregarDeck } from './core/baralho'
-import { aoFalharPersistencia, temaInicial } from './db/storage'
-import { notificar } from './ui/toast'
+import { appStore, applyEffectiveTheme, consumeDeath, setTheme, registerDeck, renewDay } from './stores/app'
+import { mountToday } from './ui/views/hoje'
+import { mountSheet } from './ui/views/ficha'
+import { mountCards } from './ui/views/cartas'
+import { mountHistory } from './ui/views/historico'
+import { mountSettings } from './ui/views/config'
+import { mountDiary } from './ui/views/diario'
+import { toggleChat, mountChat, reactToStoreChange } from './ui/chat'
+import { checkDaily } from './ui/checkin'
+import { initAuth } from './sync/auth'
+import { initSync, subscribeSync, getLastSync } from './sync/sync'
+import { mountAccountButton } from './ui/headerConta'
+import { loadDeck } from './core/baralho'
+import { onPersistFailure, initialTheme } from './db/storage'
+import { notify } from './ui/toast'
 
-const raiz = document.getElementById('app')!
+const root = document.getElementById('app')!
 const navLinks = document.querySelectorAll<HTMLAnchorElement>('[data-rota]')
 
-type Rota = 'hoje' | 'ficha' | 'cartas' | 'historico' | 'diario' | 'config'
+type Route = 'hoje' | 'ficha' | 'cartas' | 'historico' | 'diario' | 'config'
 
-function rotaAtual(): Rota {
+function currentRoute(): Route {
   const hash = location.hash.replace(/^#\/?/, '')
   if (hash === 'ficha' || hash === 'cartas' || hash === 'historico' || hash === 'diario' || hash === 'config') return hash
   return 'hoje'
 }
 
-function montarRota(rota: Rota): void {
-  const dados = appStore.get()
-  switch (rota) {
+function mountRoute(route: Route): void {
+  const data = appStore.get()
+  switch (route) {
     case 'hoje':
-      montarHoje(raiz, dados)
+      mountToday(root, data)
       break
     case 'ficha':
-      montarFicha(raiz, dados)
+      mountSheet(root, data)
       break
     case 'cartas':
-      montarCartas(raiz, dados)
+      mountCards(root, data)
       break
     case 'historico':
-      montarHistorico(raiz, dados)
+      mountHistory(root, data)
       break
     case 'diario':
-      montarDiario(raiz, dados)
+      mountDiary(root, data)
       break
     case 'config':
-      montarConfig(raiz, dados)
+      mountSettings(root, data)
       break
   }
-  navLinks.forEach((a) => a.classList.toggle('ativo', a.dataset.rota === rota))
+  navLinks.forEach((a) => a.classList.toggle('active', a.dataset.rota === route))
 }
 
-/* ---------- tema ---------- */
+/* ---------- theme ---------- */
 
-function aplicarTemaInicial(): void {
-  const tema = temaInicial()
-  definirTema(tema)
+function applyInitialTheme(): void {
+  const theme = initialTheme()
+  setTheme(theme)
 }
 
-// Mudança do sistema (ex.: usuário trocou o modo escuro/claro do SO) → reaplica
-// quando o tema escolhido é "sistema".
+// System change (e.g. the user toggled the OS dark/light mode) → reapply
+// when the chosen theme is "sistema".
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-  if (appStore.get().configuracao.tema === 'sistema') aplicarTemaEfetivo('sistema')
+  if (appStore.get().settings.theme === 'sistema') applyEffectiveTheme('sistema')
 })
 
-/* ---------- barra de status (nível, HP, XP, mana — fixa em todas as telas) ---------- */
+/* ---------- status bar (level, HP, XP, mana — fixed on every screen) ---------- */
 
 const statusBar = document.getElementById('status-bar')!
 
-/* valores anteriores para detectar mudança e animar */
-let statusPrev = { hp: -1, xp: -1, mana: -1 }
+/* previous values to detect change and animate */
+let prevStatus = { hp: -1, xp: -1, mana: -1 }
 
-/* elementos da barra (criados uma vez; valores atualizados preservando o nó para animar transição) */
-let el: {
-  nivel: HTMLElement
+/* bar elements (created once; values updated preserving the node to animate transition) */
+let els: {
+  level: HTMLElement
   hp: HTMLElement
-  hpValor: HTMLElement
-  hpBarra: HTMLElement
+  hpValue: HTMLElement
+  hpBar: HTMLElement
   xp: HTMLElement
-  xpValor: HTMLElement
-  xpBarra: HTMLElement
+  xpValue: HTMLElement
+  xpBar: HTMLElement
   mana: HTMLElement
-  manaValor: HTMLElement
-  manaBarra: HTMLElement
-  esgotado: HTMLElement | null
+  manaValue: HTMLElement
+  manaBar: HTMLElement
+  exhausted: HTMLElement | null
 } | null = null
 
-/** Aplica brilho (classe de animação) a um item e remove ao terminar. */
-function brilhar(item: HTMLElement, classe: string): void {
-  item.classList.remove('status-brilho-ganho', 'status-brilho-perda', 'status-brilho-mana')
-  void item.offsetWidth // reinicia a animação
-  item.classList.add(classe)
-  item.addEventListener('animationend', () => item.classList.remove(classe), { once: true })
+/** Applies glow (animation class) to an item and removes it when done. */
+function glow(item: HTMLElement, cls: string): void {
+  item.classList.remove('status-glow-gain', 'status-brilho-perda', 'status-brilho-mana')
+  void item.offsetWidth // restarts the animation
+  item.classList.add(cls)
+  item.addEventListener('animationend', () => item.classList.remove(cls), { once: true })
 }
 
-function montarStatusBar(): void {
-  const p = appStore.get().personagem
+function mountStatusBar(): void {
+  const p = appStore.get().character
   const pctHp = Math.round((p.hp / p.hpMax) * 100)
-  const pctXp = Math.min(100, Math.round((p.xp / p.xpProximo) * 100))
+  const pctXp = Math.min(100, Math.round((p.xp / p.xpNext) * 100))
   const pctMana = Math.round((p.mana / p.manaMax) * 100)
 
-  // detecta mudanças para animar (primeira renderização não anima)
-  const hpAntes = statusPrev.hp
-  const xpAntes = statusPrev.xp
-  const manaAntes = statusPrev.mana
-  const hpMudou = hpAntes >= 0 && p.hp !== hpAntes
-  const xpMudou = xpAntes >= 0 && p.xp !== xpAntes
-  const manaMudou = manaAntes >= 0 && p.mana !== manaAntes
-  statusPrev = { hp: p.hp, xp: p.xp, mana: p.mana }
+  // detects changes to animate (first render doesn't animate)
+  const hpBefore = prevStatus.hp
+  const xpBefore = prevStatus.xp
+  const manaBefore = prevStatus.mana
+  const hpChanged = hpBefore >= 0 && p.hp !== hpBefore
+  const xpChanged = xpBefore >= 0 && p.xp !== xpBefore
+  const manaChanged = manaBefore >= 0 && p.mana !== manaBefore
+  prevStatus = { hp: p.hp, xp: p.xp, mana: p.mana }
 
-  // 1ª vez: cria a estrutura (a partir daí só atualiza valores, para a transição animar)
-  if (!el) {
+  // 1st time: builds the structure (from then on only updates values, so the transition animates)
+  if (!els) {
     statusBar.innerHTML = `
-      <div class="status-identidade">
-        <div class="status-identidade-info">
-          <span class="status-nome"></span>
-          <div class="status-item status-item--nivel" title="Nível"><i class="fa-solid fa-arrow-trend-up" aria-hidden="true"></i><span data-s-nivel></span></div>
+      <div class="status-identity">
+        <div class="status-identity-info">
+          <span class="status-name"></span>
+          <div class="status-item" status-item--nivel title="Nível"><i class="fa-solid" fa-arrow-trend-up aria-hidden="true"></i><span data-s-nivel></span></div>
         </div>
       </div>
       <div class="status-barras">
-        <div class="status-item status-item--hp" title="Vida"><i class="fa-solid fa-heart" aria-hidden="true"></i><span data-s-hp></span><div class="status-trilho"><div class="status-preenchimento status-preenchimento--hp" data-b-hp></div></div></div>
-        <div class="status-item status-item--xp" title="Experiência"><i class="fa-solid fa-star" aria-hidden="true"></i><span data-s-xp></span><div class="status-trilho"><div class="status-preenchimento status-preenchimento--xp" data-b-xp></div></div></div>
-        <div class="status-item status-item--mana" title="Mana"><i class="fa-solid fa-droplet" aria-hidden="true"></i><span data-s-mana></span><div class="status-trilho"><div class="status-preenchimento status-preenchimento--mana" data-b-mana></div></div></div>
+        <div class="status-item" status-item--hp title="Vida"><i class="fa-solid" fa-heart aria-hidden="true"></i><span data-s-hp></span><div class="status-track"><div class="status-fill" status-fill--hp data-b-hp></div></div></div>
+        <div class="status-item" status-item--xp title="Experiência"><i class="fa-solid" fa-star aria-hidden="true"></i><span data-s-xp></span><div class="status-track"><div class="status-fill" status-fill--xp data-b-xp></div></div></div>
+        <div class="status-item" status-item--mana title="Mana"><i class="fa-solid" fa-droplet aria-hidden="true"></i><span data-s-mana></span><div class="status-track"><div class="status-fill" status-fill--mana data-b-mana></div></div></div>
       </div>
-      <div class="status-item status-item--esgotado" title="Esgotado" data-s-esgotado style="display:none"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>Esgotado</span></div>
-      <div class="status-item status-item--sync" data-s-sync title="Última sincronização"></div>
+      <div class="status-item" status-item--depleted title="Esgotado" data-s-esgotado style="display:none"><i class="fa-solid" fa-triangle-exclamation aria-hidden="true"></i><span>Esgotado</span></div>
+      <div class="status-item" status-item--sync data-s-sync title="Última sincronização"></div>
     `
     const q = (s: string) => statusBar.querySelector<HTMLElement>(s)!
-    el = {
-      nivel: q('[data-s-nivel]'),
+    els = {
+      level: q('[data-s-nivel]'),
       hp: statusBar.querySelector('.status-item--hp')!,
-      hpValor: q('[data-s-hp]'),
-      hpBarra: q('[data-b-hp]'),
+      hpValue: q('[data-s-hp]'),
+      hpBar: q('[data-b-hp]'),
       xp: statusBar.querySelector('.status-item--xp')!,
-      xpValor: q('[data-s-xp]'),
-      xpBarra: q('[data-b-xp]'),
+      xpValue: q('[data-s-xp]'),
+      xpBar: q('[data-b-xp]'),
       mana: statusBar.querySelector('.status-item--mana')!,
-      manaValor: q('[data-s-mana]'),
-      manaBarra: q('[data-b-mana]'),
-      esgotado: statusBar.querySelector('[data-s-esgotado]'),
+      manaValue: q('[data-s-mana]'),
+      manaBar: q('[data-b-mana]'),
+      exhausted: statusBar.querySelector('[data-s-esgotado]'),
     }
   }
 
-  // 2. atualiza valores (transição CSS anima a largura)
-  el.nivel.textContent = `Nv ${p.nivel}`
-  el.hpValor.textContent = `${p.hp}/${p.hpMax}`
-  el.hpBarra.style.width = `${pctHp}%`
-  el.xpValor.textContent = `XP ${p.xp}/${p.xpProximo}`
-  el.xpBarra.style.width = `${pctXp}%`
-  el.manaValor.textContent = `Mana ${p.mana}/${p.manaMax}`
-  el.manaBarra.style.width = `${pctMana}%`
-  if (el.esgotado) el.esgotado.style.display = p.esgotado ? 'inline-flex' : 'none'
+  // 2. updates values (CSS transition animates the width)
+  els.level.textContent = `Nv ${p.level}`
+  els.hpValue.textContent = `${p.hp}/${p.hpMax}`
+  els.hpBar.style.width = `${pctHp}%`
+  els.xpValue.textContent = `XP ${p.xp}/${p.xpNext}`
+  els.xpBar.style.width = `${pctXp}%`
+  els.manaValue.textContent = `Mana ${p.mana}/${p.manaMax}`
+  els.manaBar.style.width = `${pctMana}%`
+  if (els.exhausted) els.exhausted.style.display = p.exhausted ? 'inline-flex' : 'none'
 
-  // avatar: criado/removido dinamicamente (o upload acontece após o 1º render)
+  // avatar: created/removed dynamically (upload happens after the 1st render)
   const avatarEl = statusBar.querySelector<HTMLImageElement>('.status-avatar')
-  const avatarAtual = p.avatar
-  // nome monstruoso: preenche o span FIXO do markup (display none se vazio)
-  const nomeSpan = statusBar.querySelector<HTMLElement>('.status-nome')
-  if (nomeSpan) {
-    const nome = p.nomeMonstruoso?.trim() ?? ''
-    nomeSpan.textContent = nome
-    nomeSpan.style.display = nome ? '' : 'none'
+  const currentAvatar = p.avatar
+  // monster name: fills the FIXED span of the markup (display none if empty)
+  const nameSpan = statusBar.querySelector<HTMLElement>('.status-nome')
+  if (nameSpan) {
+    const name = p.monsterName?.trim() ?? ''
+    nameSpan.textContent = name
+    nameSpan.style.display = name ? '' : 'none'
   }
-  const identidade = statusBar.querySelector<HTMLElement>('.status-identidade')
+  const identity = statusBar.querySelector<HTMLElement>('.status-identidade')
   const infoEl = statusBar.querySelector<HTMLElement>('.status-identidade-info')
-  if (avatarAtual && !avatarEl) {
+  if (currentAvatar && !avatarEl) {
     const img = document.createElement('img')
     img.className = 'status-avatar'
     img.alt = 'Avatar'
-    img.src = avatarAtual
-    // insere ANTES do topo (nível) — na linha, à esquerda; ordem via flex `order`
-    identidade?.insertBefore(img, infoEl)
-  } else if (!avatarAtual && avatarEl) {
+    img.src = currentAvatar
+    // inserts BEFORE the top (level) — inline, to the left; order via flex `order`
+    identity?.insertBefore(img, infoEl)
+  } else if (!currentAvatar && avatarEl) {
     avatarEl.remove()
-  } else if (avatarAtual && avatarEl && avatarEl.getAttribute('src') !== avatarAtual) {
-    avatarEl.setAttribute('src', avatarAtual)
+  } else if (currentAvatar && avatarEl && avatarEl.getAttribute('src') !== currentAvatar) {
+    avatarEl.setAttribute('src', currentAvatar)
   }
 
-  // 3. brilho nas mudanças
-  if (hpMudou) brilhar(el.hp, p.hp > hpAntes ? 'status-brilho-ganho' : 'status-brilho-perda')
-  if (xpMudou) brilhar(el.xp, 'status-brilho-ganho')
-  if (manaMudou) brilhar(el.mana, 'status-brilho-mana')
+  // 3. glow on changes
+  if (hpChanged) glow(els.hp, p.hp > hpBefore ? 'status-brilho-ganho' : 'status-brilho-perda')
+  if (xpChanged) glow(els.xp, 'status-brilho-ganho')
+  if (manaChanged) glow(els.mana, 'status-brilho-mana')
 }
 
-/* ---------- tela de morte (esgotado completo) ---------- */
+/* ---------- death screen (fully depleted) ---------- */
 
-const morteOverlay = document.getElementById('morte-overlay')!
-const morteCarta = document.getElementById('morte-carta')!
-const morteContinuar = document.getElementById('morte-continuar')!
+const deathOverlay = document.getElementById('morte-overlay')!
+const deathCard = document.getElementById('morte-carta')!
+const deathContinue = document.getElementById('morte-continuar')!
 
-function mostrarMorte(cartaId: string, cartaNome: string): void {
-  morteCarta.innerHTML = cartaId
-    ? `<img src="/images/cards/${cartaId}.png" alt="${cartaNome}" /><span>${cartaNome}</span>`
+function showDeath(cardId: string, cardName: string): void {
+  deathCard.innerHTML = cardId
+    ? `<img src="/images/cards/${cardId}.png" alt="${cardName}" /><span>${cardName}</span>`
     : '<span>Carta perdida</span>'
-  morteOverlay.hidden = false
-  morteContinuar.focus()
+  deathOverlay.hidden = false
+  deathContinue.focus()
 }
 
-morteContinuar.addEventListener('click', () => {
-  morteOverlay.hidden = true
+deathContinue.addEventListener('click', () => {
+  deathOverlay.hidden = true
 })
 
 /* ---------- router ---------- */
 
-window.addEventListener('hashchange', () => montarRota(rotaAtual()))
+window.addEventListener('hashchange', () => mountRoute(currentRoute()))
 
-/* re-render na troca de estado, mantendo a rota atual */
+/* re-render on state change, keeping the current route */
 appStore.subscribe(() => {
-  montarStatusBar()
-  montarRota(rotaAtual())
-  // morte: mostra a tela de esgotado com a carta perdida (uma vez)
-  const morte = consumirMorte()
-  if (morte && morteOverlay.hidden) mostrarMorte(morte.cartaId, morte.cartaNome)
-  // o chat lê do appStore — re-renderiza pra refletir mudanças externas
-  reagirMudancaStore()
+  mountStatusBar()
+  mountRoute(currentRoute())
+  // death: shows the depleted screen with the lost card (once)
+  const death = consumeDeath()
+  if (death && deathOverlay.hidden) showDeath(death.cardId, death.cardName)
+  // the chat reads from appStore — re-renders to reflect external changes
+  reactToStoreChange()
 })
 
-/* ---------- chat da Fábula (painel lateral) ---------- */
+/* ---------- Fable chat (side panel) ---------- */
 
 document.getElementById('fabula-toggle')!.addEventListener('click', () => {
-  montarChat()
-  alternarChat()
+  mountChat()
+  toggleChat()
 })
 
-/* ---------- conta no header (login/sincronização) ---------- */
+/* ---------- account in the header (login/sync) ---------- */
 
-montarBotaoConta()
+mountAccountButton()
 
-/* ---------- dia novo ---------- */
+/* ---------- new day ---------- */
 
-renovarDia()
-verificarCheckin()
+renewDay()
+checkDaily()
 
-/* ---------- conta & sincronização (opcional — o app roda offline) ---------- */
+/* ---------- account & sync (optional — the app runs offline) ---------- */
 
-/** Item "última sincronização" na status bar (desktop, à direita). */
-function atualizarSyncStatus(): void {
+/** "Last sync" item in the status bar (desktop, to the right). */
+function updateSyncStatus(): void {
   const el = document.querySelector<HTMLElement>('[data-s-sync]')
   if (!el) return
-  const t = lerUltimaSync()
+  const t = getLastSync()
   if (t) {
     const d = new Date(t)
-    const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    el.innerHTML = `<i class="fa-solid fa-cloud" aria-hidden="true"></i><span>${hora}</span>`
+    const hour = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    el.innerHTML = `<i class="fa-solid" fa-cloud aria-hidden="true"></i><span>${hour}</span>`
     el.title = `Última sincronização em ${d.toLocaleString('pt-BR')}`
   } else {
-    el.innerHTML = '<i class="fa-solid fa-cloud" aria-hidden="true"></i><span>—</span>'
+    el.innerHTML = '<i class="fa-solid" fa-cloud aria-hidden="true"></i><span>—</span>'
     el.title = 'Ainda não sincronizado'
   }
 }
 
-void iniciarAuth().then(() => iniciarSync())
+void initAuth().then(() => initSync())
 
-/* ---------- aviso de falha de persistência (quota cheia / storage bloqueado) ---------- */
+/* ---------- persistence failure warning (quota full / storage blocked) ---------- */
 
-aoFalharPersistencia((motivo) => notificar(motivo, 'erro'))
+onPersistFailure((reason) => notify(reason, 'erro'))
 
-/* ---------- baralho (carrega o deck e sorteia as cartas iniciais) ---------- */
+/* ---------- deck (loads the deck and draws the initial cards) ---------- */
 
-void carregarDeck()
-  .then((cartas) => registrarDeck(cartas))
+void loadDeck()
+  .then((cards) => registerDeck(cards))
   .catch(() => {
-    /* deck indisponível — a galeria avisa */
+    /* deck unavailable — the gallery warns */
   })
 
-/* ---------- service worker (produção) ---------- */
+/* ---------- service worker (production) ---------- */
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
@@ -276,8 +276,8 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   })
 }
 
-aplicarTemaInicial()
-montarStatusBar()
-inscreverSync(atualizarSyncStatus)
-atualizarSyncStatus()
-montarRota(rotaAtual())
+applyInitialTheme()
+mountStatusBar()
+subscribeSync(updateSyncStatus)
+updateSyncStatus()
+mountRoute(currentRoute())

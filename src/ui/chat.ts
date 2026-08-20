@@ -1,312 +1,312 @@
-/** Painel do chat da Fábula — conversas múltiplas, streaming, raciocínio colapsável.
- *  Persistência: cada conversa vive em `AppData.conversas` (via appStore). */
+/** Fable chat panel — multiple conversations, streaming, collapsible reasoning.
+ *  Persistence: each conversation lives in `AppData.conversations` (via appStore). */
 
-import type { AppData, Conversa, MensagemIA } from '../core/tipos'
+import type { AppData, Conversation, AiMessage } from '../core/tipos'
 import {
-  adicionarMensagem,
+  addMessage,
   appStore,
-  atualizarConversa,
-  conversaPorId,
-  criarConversa,
-  excluirConversa,
+  updateConversation,
+  conversationById,
+  createConversation,
+  deleteConversation,
 } from '../stores/app'
-import { enviarParaIA, ErroIA, type MsgChat } from '../ia/cliente'
-import { montarSystemPrompt, montarSystemPromptEsquizoanalista } from '../ia/prompt'
-import { extrairAcoes, detectarPedidoInvocacao, type AcaoIA } from '../ia/acoes'
-import { coletarNotasDeComando } from '../ia/notasDeComando'
-import { nomeDaCarta, resolverCartaId, tipoDaCarta, rotuloTipo, todasAsCartas } from '../core/baralho'
-import { invocarCarta } from '../stores/app'
-import { custoInvocacao, custoInvocacaoFabula } from '../core/jogo'
-import { tocarSom } from './sons'
-import { notificar } from './toast'
-import { escapar } from './util'
-import { bolha, mensagemParaMarkdown } from './chatRender'
-import { abrirModalCarta } from './views/cartas'
-import { confirmar } from './modal'
+import { sendToAI, AiError, type ChatMessage } from '../ia/cliente'
+import { buildSystemPrompt, buildSchizoanalystSystemPrompt } from '../ia/prompt'
+import { extractActions, detectInvocationRequest, type AiAction } from '../ia/acoes'
+import { collectCommandNotes } from '../ia/notasDeComando'
+import { cardName, resolveCardId, cardKindById, typeLabel, allCards } from '../core/baralho'
+import { invokeCard } from '../stores/app'
+import { invocationCost, fableInvocationCost } from '../core/jogo'
+import { playSound } from './sons'
+import { notify } from './toast'
+import { escapeHtml as escape } from './util'
+import { bubble, messageToMarkdown } from './chatRender'
+import { openCardModal } from './views/cartas'
+import { confirm } from './modal'
 
-const PAINEL_CHAVE = 'esquizomon-rpg:chat-painel'
-const LARGURA_CHAVE = 'esquizomon-rpg:chat-largura'
-const LARGURA_MIN = 320
-const LARGURA_MAX = 900
-const LARGURA_PADRAO = 480
+const PANEL_KEY = 'esquizomon-rpg:chat-painel'
+const WIDTH_KEY = 'esquizomon-rpg:chat-largura'
+const MIN_WIDTH = 320
+const MAX_WIDTH = 900
+const DEFAULT_WIDTH = 480
 
-/** Estado da UI do painel (aberto/fechado, conversa ativa). Persistido separado das conversas. */
-interface EstadoPainel {
-  aberto: boolean
-  conversaAtivaId: string | null
+/** Panel UI state (open/closed, active conversation). Persisted separately from conversations. */
+interface PanelState {
+  open: boolean
+  activeConversationId: string | null
 }
 
-function carregarEstadoPainel(): EstadoPainel {
+function loadPanelState(): PanelState {
   try {
-    const bruto = localStorage.getItem(PAINEL_CHAVE)
-    if (!bruto) return { aberto: false, conversaAtivaId: null }
-    const obj = JSON.parse(bruto) as Partial<EstadoPainel>
+    const raw = localStorage.getItem(PANEL_KEY)
+    if (!raw) return { open: false, activeConversationId: null }
+    const obj = JSON.parse(raw) as Partial<PanelState>
     return {
-      aberto: obj.aberto === true,
-      conversaAtivaId: typeof obj.conversaAtivaId === 'string' ? obj.conversaAtivaId : null,
+      open: obj.open === true,
+      activeConversationId: typeof obj.activeConversationId === 'string' ? obj.activeConversationId : null,
     }
   } catch {
-    return { aberto: false, conversaAtivaId: null }
+    return { open: false, activeConversationId: null }
   }
 }
 
-function salvarEstadoPainel(estado: EstadoPainel): void {
+function savePanelState(state: PanelState): void {
   try {
-    localStorage.setItem(PAINEL_CHAVE, JSON.stringify(estado))
+    localStorage.setItem(PANEL_KEY, JSON.stringify(state))
   } catch {
-    /* storage bloqueado — sem persistência do painel */
+    /* storage blocked — no panel persistence */
   }
 }
 
-function carregarLargura(): number {
+function loadWidth(): number {
   try {
-    const v = Number(localStorage.getItem(LARGURA_CHAVE))
-    if (Number.isFinite(v) && v >= LARGURA_MIN && v <= LARGURA_MAX) return v
+    const v = Number(localStorage.getItem(WIDTH_KEY))
+    if (Number.isFinite(v) && v >= MIN_WIDTH && v <= MAX_WIDTH) return v
   } catch {
-    /* storage bloqueado */
+    /* storage blocked */
   }
-  return LARGURA_PADRAO
+  return DEFAULT_WIDTH
 }
 
-function salvarLargura(largura: number): void {
+function saveWidth(width: number): void {
   try {
-    localStorage.setItem(LARGURA_CHAVE, String(Math.round(largura)))
+    localStorage.setItem(WIDTH_KEY, String(Math.round(width)))
   } catch {
-    /* sem persistência */
+    /* no persistence */
   }
 }
 
-function aplicarLargura(largura: number): void {
-  if (painel) painel.style.width = `${Math.round(largura)}px`
+function applyWidth(width: number): void {
+  if (panel) panel.style.width = `${Math.round(width)}px`
 }
 
-let painel: HTMLElement | null = null
-let listaEl: HTMLElement | null = null
-let msgsEl: HTMLElement | null = null
+let panel: HTMLElement | null = null
+let listEl: HTMLElement | null = null
+let messagesEl: HTMLElement | null = null
 let inputEl: HTMLTextAreaElement | null = null
 let formEl: HTMLFormElement | null = null
-let estado: EstadoPainel = carregarEstadoPainel()
-let ocupado = false
-/** Renomeação de conversa: input no lugar do título do cabeçalho. */
-let renomeando = false
-let tituloNaEdicao = ''
+let state: PanelState = loadPanelState()
+let busy = false
+/** Conversation renaming: input in place of the header title. */
+let renaming = false
+let editingTitle = ''
 
-/** Autocomplete de comandos (/invocar, /analisar) e de cartas desbloqueadas. */
-interface Sugestao {
-  rotulo: string
-  detalhe: string
-  inserir: () => void
+/** Autocomplete of commands (/invocar, /analisar) and unlocked cards. */
+interface Suggestion {
+  label: string
+  detail: string
+  insert: () => void
 }
-const COMANDOS = [
-  { nome: 'invocar', descricao: 'invoca uma carta (custa mana; sem nome = Fábula escolhe, custa mais)' },
-  { nome: 'analisar', descricao: 'análise esquizoanalítica técnica (10 mana)' },
-  { nome: 'capturas', descricao: 'varredura das cartas de captura desbloqueadas (25 mana)' },
+const COMMANDS = [
+  { name: 'invocar', desc: 'invoca uma carta (custa mana; sem nome = Fábula escolhe, custa mais)' },
+  { name: 'analisar', desc: 'análise esquizoanalítica técnica (10 mana)' },
+  { name: 'capturas', desc: 'varredura das cartas de captura desbloqueadas (25 mana)' },
 ] as const
-let sugestoes: Sugestao[] = []
-let sugestaoIdx = 0
+let suggestions: Suggestion[] = []
+let suggestionIdx = 0
 
-/** Monta a casca do painel (uma vez) e injeta no body. Idempotente. */
-export function montarChat(): void {
-  if (painel) return
-  painel = document.createElement('aside')
-  painel.id = 'fabula-panel'
-  painel.setAttribute('aria-label', 'Chat com a Fábula')
-  painel.style.width = `${carregarLargura()}px`
-  document.body.appendChild(painel)
-  renderizar()
+/** Builds the panel shell (once) and injects into the body. Idempotent. */
+export function mountChat(): void {
+  if (panel) return
+  panel = document.createElement('aside')
+  panel.id = 'fabula-panel'
+  panel.setAttribute('aria-label', 'Chat com a Fábula')
+  panel.style.width = `${loadWidth()}px`
+  document.body.appendChild(panel)
+  render()
 }
 
-function renderizar(): void {
-  if (!painel) return
-  // O innerHTML abaixo destrói o dropdown de sugestões — zera o estado.
-  sugestoes = []
-  sugestaoIdx = 0
-  const dados: AppData = appStore.get()
-  const conversas = dados.conversas ?? []
-  // Auto-recuperação (bug real 2026-08-12): se o id da conversa ativa é ÓRFÃO
-  // (ex.: import/export substituiu as conversas, ou painel antigo), seleciona a
-  // conversa mais recente em vez de deixar o chat morto (input desabilitado).
-  if (estado.conversaAtivaId && !conversas.some((c) => c.id === estado.conversaAtivaId)) {
-    estado.conversaAtivaId = conversas[0]?.id ?? null
-    salvarEstadoPainel(estado)
+function render(): void {
+  if (!panel) return
+  // The innerHTML below destroys the suggestion dropdown — reset the state.
+  suggestions = []
+  suggestionIdx = 0
+  const data: AppData = appStore.get()
+  const conversations = data.conversations ?? []
+  // Auto-recovery (real bug 2026-08-12): if the active conversation id is ORPHAN
+  // (e.g. import/export replaced the conversations, or old panel), selects the
+  // most recent conversation instead of leaving the chat dead (input disabled).
+  if (state.activeConversationId && !conversations.some((c) => c.id === state.activeConversationId)) {
+    state.activeConversationId = conversations[0]?.id ?? null
+    savePanelState(state)
   }
-  // Auto-início (usabilidade 2026-08-12, pedido do usuário): com o painel
-  // ABERTO e nenhuma conversa (ex.: import substituiu os dados), cria uma nova
-  // na hora — o chat nunca fica morto esperando o usuário achar o botão ✏.
-  if (estado.aberto && conversas.length === 0) {
-    const nova = criarConversa()
-    if (nova) {
-      estado.conversaAtivaId = nova.id
-      salvarEstadoPainel(estado)
-      notificar('Sem conversas — comecei uma nova pra você.')
+  // Auto-start (usability 2026-08-12, user request): with the panel OPEN and
+  // no conversation (e.g. import replaced the data), creates a new one on the
+  // spot — the chat never stays dead waiting for the user to find the ✏ button.
+  if (state.open && conversations.length === 0) {
+    const created = createConversation()
+    if (created) {
+      state.activeConversationId = created.id
+      savePanelState(state)
+      notify('Sem conversas — comecei uma nova pra você.')
     }
   }
-  // Relê do store: o auto-início acima pode ter acabado de criar uma conversa
-  // (a array `conversas` do topo é o snapshot ANTES da criação).
-  const conversasAtuais = appStore.get().conversas ?? []
-  const conversa = estado.conversaAtivaId
-    ? conversasAtuais.find((c) => c.id === estado.conversaAtivaId) ?? undefined
+  // Re-reads from the store: the auto-start above may have just created a
+  // conversation (the `conversations` array at the top is the snapshot BEFORE creation).
+  const currentConversations = appStore.get().conversations ?? []
+  const conversation = state.activeConversationId
+    ? currentConversations.find((c) => c.id === state.activeConversationId) ?? undefined
     : undefined
-  const ultima = conversa?.mensagens[conversa.mensagens.length - 1]
-  const esperando = ocupado && ultima?.role === 'user'
+  const last = conversation?.messages[conversation.messages.length - 1]
+  const waiting = busy && last?.role === 'user'
 
-  painel.classList.toggle('aberto', estado.aberto)
-  document.body.classList.toggle('fabula-aberto', estado.aberto)
+  panel.classList.toggle('open', state.open)
+  document.body.classList.toggle('fable-open', state.open)
 
-  painel.innerHTML = `
-    <div class="fabula-resize" data-fabula-resize title="Arraste pra redimensionar" aria-label="Redimensionar painel"></div>
-    <div class="fabula-lateral">
-      <button class="btn btn-icon fabula-nova" data-fabula-nova title="Nova conversa" aria-label="Nova conversa">
-        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+  panel.innerHTML = `
+    <div class="fable-resize" data-fabula-resize title="Arraste pra redimensionar" aria-label="Redimensionar painel"></div>
+    <div class="fable-side">
+      <button class="btn" btn-icon fable-new data-fabula-nova title="Nova conversa" aria-label="Nova conversa">
+        <i class="fa-solid" fa-pen-to-square aria-hidden="true"></i>
       </button>
-      <div class="fabula-lista" data-fabula-lista role="list" aria-label="Conversas">
-        ${conversasAtuais.length === 0
-          ? '<div class="fabula-vazio-lista">Sem conversas</div>'
-          : conversasAtuais.map(itemConversa).join('')}
+      <div class="fable-list" data-fabula-lista role="list" aria-label="Conversas">
+        ${currentConversations.length === 0
+          ? '<div class="fable-empty-list">Sem conversas</div>'
+          : currentConversations.map(conversationItem).join('')}
       </div>
     </div>
 
-    <div class="fabula-conversa">
-      <header class="fabula-cabecalho">
-        ${renomeando && conversa
-          ? `<input class="fabula-titulo-input" data-fabula-titulo-input value="${escapar(conversa.titulo ?? '')}" maxlength="60" aria-label="Título da conversa" title="Digite o novo título e Enter para salvar" />`
-          : `<div class="fabula-titulo">
-          <i class="fa-solid fa-feather" aria-hidden="true"></i>
+    <div class="fable-conversation">
+      <header class="fable-header">
+        ${renaming && conversation
+          ? `<input class="fable-title-input" data-fabula-titulo-input value="${escape(conversation.title ?? '')}" maxlength="60" aria-label="Título da conversa" title="Digite o novo título e Enter para salvar" />`
+          : `<div class="fable-title">
+          <i class="fa-solid" fa-feather aria-hidden="true"></i>
           <div>
             <strong>Fábula</strong>
-            <span class="fabula-sub">a Rizomante</span>
+            <span class="fable-sub">a Rizomante</span>
           </div>
         </div>`}
-        <div class="fabula-cabecalho-acoes">
-          <button class="btn btn-icon" data-fabula-renomear title="Renomear conversa" aria-label="Renomear conversa" ${conversa ? '' : 'disabled'}>
-            <i class="fa-solid fa-pen" aria-hidden="true"></i>
+        <div class="fable-header-actions">
+          <button class="btn" btn-icon data-fabula-renomear title="Renomear conversa" aria-label="Renomear conversa" ${conversation ? '' : 'disabled'}>
+            <i class="fa-solid" fa-pen aria-hidden="true"></i>
           </button>
-          <button class="btn btn-icon" data-fabula-excluir title="Apagar conversa" aria-label="Apagar conversa" ${conversa ? '' : 'disabled'}>
-            <i class="fa-solid fa-trash" aria-hidden="true"></i>
+          <button class="btn" btn-icon data-fabula-excluir title="Apagar conversa" aria-label="Apagar conversa" ${conversation ? '' : 'disabled'}>
+            <i class="fa-solid" fa-trash aria-hidden="true"></i>
           </button>
-          <button class="btn btn-icon" data-fabula-fechar aria-label="Fechar chat" title="Fechar">
-            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          <button class="btn" btn-icon data-fabula-fechar aria-label="Fechar chat" title="Fechar">
+            <i class="fa-solid" fa-xmark aria-hidden="true"></i>
           </button>
         </div>
       </header>
 
-      <div class="fabula-mensagens" data-fabula-mensagens>
-        ${!conversa
-          ? '<div class="fabula-vazio">Comece uma conversa com a Fábula. Ela tem acesso às suas tarefas, hábitos, cartas e personagem — e lembra do que foi dito antes.</div>'
-          : conversa.mensagens.length === 0
-            ? '<div class="fabula-vazio">Senta. Como você chega hoje? — e não vale responder "bem" sem me dizer o que "bem" quer dizer.</div>'
-            : conversa.mensagens.map((m, i) => bolha(m, i)).join('')}
-        ${esperando ? '<div class="fabula-bolha fabula-bolha--assistente fabula-digitando"><span></span><span></span><span></span></div>' : ''}
+      <div class="fable-messages" data-fabula-mensagens>
+        ${!conversation
+          ? '<div class="fable-empty">Comece uma conversa com a Fábula. Ela tem acesso às suas tarefas, hábitos, cartas e personagem — e lembra do que foi dito antes.</div>'
+          : conversation.messages.length === 0
+            ? '<div class="fable-empty">Senta. Como você chega hoje? — e não vale responder "bem" sem me dizer o que "bem" quer dizer.</div>'
+            : conversation.messages.map((m, i) => bubble(m, i)).join('')}
+        ${waiting ? '<div class="fable-bubble" fable-bubble--assistant fable-typing><span></span><span></span><span></span></div>' : ''}
       </div>
 
-      <form class="fabula-form" data-fabula-form>
-        <textarea class="fabula-input" data-fabula-input rows="1" placeholder="${conversa ? '' : 'Crie uma conversa para começar'}" autocomplete="off" ${!conversa || ocupado ? 'disabled' : ''}></textarea>
-        <button class="btn btn-icon" type="submit" aria-label="Enviar" ${!conversa || ocupado ? 'disabled' : ''}><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></button>
+      <form class="fable-form" data-fabula-form>
+        <textarea class="fable-input" data-fabula-input rows="1" placeholder="${conversation ? '' : 'Crie uma conversa para começar'}" autocomplete="off" ${!conversation || busy ? 'disabled' : ''}></textarea>
+        <button class="btn" btn-icon type="submit" aria-label="Enviar" ${!conversation || busy ? 'disabled' : ''}><i class="fa-solid" fa-paper-plane aria-hidden="true"></i></button>
       </form>
-      <p class="fabula-dica">Comandos: <b>/invocar &lt;carta&gt;</b> (custa mana) · <b>/invocar</b> sem nome (a Fábula escolhe, custa mais) · <b>/analisar</b> (10 mana, análise esquizoanalítica) · <b>/capturas</b> (25 mana, varredura das capturas desbloqueadas). Ou peça no texto: <b>invoca a carta &lt;nome&gt;</b>.</p>
+      <p class="fable-hint">Comandos: <b>/invocar &lt;carta&gt;</b> (custa mana) · <b>/invocar</b> sem nome (a Fábula escolhe, custa mais) · <b>/analisar</b> (10 mana, análise esquizoanalítica) · <b>/capturas</b> (25 mana, varredura das capturas desbloqueadas). Ou peça no texto: <b>invoca a carta &lt;nome&gt;</b>.</p>
     </div>
   `
 
-  cachearRefs()
-  instalarHandlers(conversa)
-  rolarParaFim()
+  cacheRefs()
+  installHandlers(conversation)
+  scrollToEnd()
 }
 
-function itemConversa(c: Conversa): string {
-  const ativa = c.id === estado.conversaAtivaId
-  const preview = c.mensagens[c.mensagens.length - 1]?.content ?? 'Nova conversa'
-  return `<button class="fabula-item ${ativa ? 'fabula-item--ativa' : ''}" data-conversa="${escapar(c.id)}" role="listitem" title="${escapar(c.titulo)}">
-    <span class="fabula-item-titulo">${escapar(c.titulo || 'Sem título')}</span>
-    <span class="fabula-item-preview">${escapar(preview.slice(0, 40))}</span>
+function conversationItem(c: Conversation): string {
+  const active = c.id === state.activeConversationId
+  const preview = c.messages[c.messages.length - 1]?.content ?? 'Nova conversa'
+  return `<button class="fable-item" ${active ? 'fable-item--active' : ''} data-conversa="${escape(c.id)}" role="listitem" title="${escape(c.title)}">
+    <span class="fable-item-title">${escape(c.title || 'Sem título')}</span>
+    <span class="fable-item-preview">${escape(preview.slice(0, 40))}</span>
   </button>`
 }
 
-function cachearRefs(): void {
-  if (!painel) return
-  listaEl = painel.querySelector('[data-fabula-lista]')
-  msgsEl = painel.querySelector('[data-fabula-mensagens]')
-  inputEl = painel.querySelector('[data-fabula-input]')
-  formEl = painel.querySelector('[data-fabula-form]')
+function cacheRefs(): void {
+  if (!panel) return
+  listEl = panel.querySelector('[data-fabula-lista]')
+  messagesEl = panel.querySelector('[data-fabula-mensagens]')
+  inputEl = panel.querySelector('[data-fabula-input]')
+  formEl = panel.querySelector('[data-fabula-form]')
 }
 
-function instalarHandlers(conversa: Conversa | undefined): void {
-  if (!painel) return
-  painel.querySelector('[data-fabula-fechar]')!.addEventListener('click', () => alternarChat(false))
-  painel.querySelector('[data-fabula-nova]')!.addEventListener('click', () => novaConversa())
-  const btnRenomear = painel.querySelector<HTMLButtonElement>('[data-fabula-renomear]')
-  if (btnRenomear && conversa) {
-    btnRenomear.addEventListener('click', () => iniciarRenomeacao(conversa.id))
+function installHandlers(conversation: Conversation | undefined): void {
+  if (!panel) return
+  panel.querySelector('[data-fabula-fechar]')!.addEventListener('click', () => toggleChat(false))
+  panel.querySelector('[data-fabula-nova]')!.addEventListener('click', () => newConversation())
+  const renameBtn = panel.querySelector<HTMLButtonElement>('[data-fabula-renomear]')
+  if (renameBtn && conversation) {
+    renameBtn.addEventListener('click', () => startRenaming(conversation.id))
   }
-  // Cópia por mensagem: delegação no container (cada bolha tem seu botão)
-  msgsEl?.addEventListener('click', (e) => {
-    const alvo = (e.target as HTMLElement).closest<HTMLElement>('[data-fabula-copiar-msg]')
-    if (alvo) {
-      const idx = Number(alvo.dataset.fabulaCopiarMsg)
-      const m = conversaAtual()?.mensagens[idx]
-      if (m) void copiarMensagem(m)
+  // Copy per message: delegation on the container (each bubble has its own button)
+  messagesEl?.addEventListener('click', (e) => {
+    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-fabula-copiar-msg]')
+    if (target) {
+      const idx = Number(target.dataset.fabulaCopiarMsg)
+      const m = currentConversation()?.messages[idx]
+      if (m) void copyMessage(m)
       return
     }
-    // miniatura da carta → mesmo modal da galeria
-    const carta = (e.target as HTMLElement).closest<HTMLElement>('[data-fabula-carta]')
-    if (carta) {
-      const id = carta.dataset.fabulaCarta ?? ''
+    // card thumbnail → same gallery modal
+    const card = (e.target as HTMLElement).closest<HTMLElement>('[data-fabula-carta]')
+    if (card) {
+      const id = card.dataset.fabulaCarta ?? ''
       if (!id) return
-      if (appStore.get().personagem.cartas.includes(id)) {
-        abrirModalCarta(id)
+      if (appStore.get().character.cards.includes(id)) {
+        openCardModal(id)
       } else {
-        notificar('Carta bloqueada — suba de nível para desbloquear.')
+        notify('Carta bloqueada — suba de nível para desbloquear.')
       }
     }
   })
-  // Input de renomeação: Enter salva, Escape cancela, blur salva (com guarda).
-  const tituloInput = painel.querySelector<HTMLInputElement>('[data-fabula-titulo-input]')
-  if (tituloInput) {
-    const finalizarRenomeacao = () => {
-      const novo = tituloInput.value.trim()
-      const c = conversaAtual()
-      renomeando = false
-      if (c && novo && novo !== tituloNaEdicao) atualizarConversa(c.id, { titulo: novo })
-      tituloNaEdicao = ''
-      renderizar()
+  // Rename input: Enter saves, Escape cancels, blur saves (with guard).
+  const titleInput = panel.querySelector<HTMLInputElement>('[data-fabula-titulo-input]')
+  if (titleInput) {
+    const finishRenaming = () => {
+      const fresh = titleInput.value.trim()
+      const c = currentConversation()
+      renaming = false
+      if (c && fresh && fresh !== editingTitle) updateConversation(c.id, { title: fresh })
+      editingTitle = ''
+      render()
     }
-    tituloInput.addEventListener('keydown', (e) => {
+    titleInput.addEventListener('keydown', (e) => {
       const ev = e as KeyboardEvent
       if (ev.key === 'Enter') {
         ev.preventDefault()
-        finalizarRenomeacao()
+        finishRenaming()
       } else if (ev.key === 'Escape') {
-        tituloInput.value = tituloNaEdicao // cancela: volta ao título original
-        finalizarRenomeacao()
+        titleInput.value = editingTitle // cancels: back to the original title
+        finishRenaming()
       }
     })
-    tituloInput.addEventListener('blur', finalizarRenomeacao)
+    titleInput.addEventListener('blur', finishRenaming)
   }
-  const btnExcluir = painel.querySelector('[data-fabula-excluir]') as HTMLButtonElement | null
-  if (btnExcluir && conversa) {
-    btnExcluir.addEventListener('click', () => void apagarConversaAtual())
+  const deleteBtn = panel.querySelector('[data-fabula-excluir]') as HTMLButtonElement | null
+  if (deleteBtn && conversation) {
+    deleteBtn.addEventListener('click', () => void deleteCurrentConversation())
   }
-  listaEl?.querySelectorAll<HTMLButtonElement>('[data-conversa]').forEach((btn) => {
-    btn.addEventListener('click', () => selecionarConversa(btn.dataset.conversa ?? ''))
+  listEl?.querySelectorAll<HTMLButtonElement>('[data-conversa]').forEach((btn) => {
+    btn.addEventListener('click', () => selectConversation(btn.dataset.conversa ?? ''))
   })
-  instalarResize()
-  if (formEl && inputEl && conversa) {
-    // Enter envia / Shift+Enter quebra linha — mas com sugestões abertas,
-    // Enter/Tab/Setas navegam e completam o comando (autocomplete).
+  installResize()
+  if (formEl && inputEl && conversation) {
+    // Enter sends / Shift+Enter breaks line — but with suggestions open,
+    // Enter/Tab/Arrows navigate and complete the command (autocomplete).
     inputEl.addEventListener('keydown', (e) => {
       const ev = e as KeyboardEvent
-      if (sugestoes.length > 0) {
+      if (suggestions.length > 0) {
         if (ev.key === 'ArrowDown') {
           ev.preventDefault()
-          moverSugestao(1)
+          moveSuggestion(1)
         } else if (ev.key === 'ArrowUp') {
           ev.preventDefault()
-          moverSugestao(-1)
+          moveSuggestion(-1)
         } else if (ev.key === 'Enter' || ev.key === 'Tab') {
           ev.preventDefault()
-          aplicarSugestao()
+          applySuggestion()
         } else if (ev.key === 'Escape') {
           ev.preventDefault()
-          fecharSugestoes()
+          closeSuggestions()
         }
         return
       }
@@ -315,181 +315,181 @@ function instalarHandlers(conversa: Conversa | undefined): void {
         formEl?.requestSubmit()
       }
     })
-    // Auto-resize do textarea + autocomplete de comandos/cartas
+    // Textarea auto-resize + autocomplete of commands/cards
     inputEl.addEventListener('input', () => {
       inputEl!.style.height = 'auto'
       inputEl!.style.height = Math.min(inputEl!.scrollHeight, 200) + 'px'
-      atualizarSugestoes()
+      updateSuggestions()
     })
-    // Fecha as sugestões ao sair (atraso pequeno pra o clique no item completar)
+    // Closes the suggestions on blur (small delay so the item click completes)
     inputEl.addEventListener('blur', () => {
-      setTimeout(() => fecharSugestoes(), 150)
+      setTimeout(() => closeSuggestions(), 150)
     })
     formEl.addEventListener('submit', (e) => {
       e.preventDefault()
-      const texto = inputEl!.value.trim()
-      if (!texto || ocupado) return
+      const text = inputEl!.value.trim()
+      if (!text || busy) return
       inputEl!.value = ''
       inputEl!.style.height = 'auto'
-      fecharSugestoes()
-      void enviar(texto)
+      closeSuggestions()
+      void send(text)
     })
   }
 }
 
-/** Drag horizontal na borda esquerda do painel — redimensiona largura. */
-function instalarResize(): void {
-  if (!painel) return
-  const alca = painel.querySelector<HTMLElement>('[data-fabula-resize]')
-  if (!alca) return
+/** Horizontal drag on the panel's left edge — resizes the width. */
+function installResize(): void {
+  if (!panel) return
+  const handle = panel.querySelector<HTMLElement>('[data-fabula-resize]')
+  if (!handle) return
 
-  alca.addEventListener('pointerdown', (eDown) => {
-    if (!painel) return
+  handle.addEventListener('pointerdown', (eDown) => {
+    if (!panel) return
     eDown.preventDefault()
-    alca.setPointerCapture(eDown.pointerId)
-    const inicioX = eDown.clientX
-    const larguraInicial = painel.getBoundingClientRect().width
-    document.body.classList.add('fabula-resizing')
+    handle.setPointerCapture(eDown.pointerId)
+    const startX = eDown.clientX
+    const initialWidth = panel.getBoundingClientRect().width
+    document.body.classList.add('fable-resizing')
 
-    const mover = (eMove: PointerEvent) => {
-      if (!painel) return
-      // Arrastar pra ESQUERDA aumenta o painel (borda esquerda é a "frente" do resize)
-      const dx = inicioX - eMove.clientX
-      const nova = Math.min(LARGURA_MAX, Math.max(LARGURA_MIN, larguraInicial + dx))
-      aplicarLargura(nova)
+    const move = (eMove: PointerEvent) => {
+      if (!panel) return
+      // Dragging LEFT increases the panel (left edge is the "front" of the resize)
+      const dx = startX - eMove.clientX
+      const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, initialWidth + dx))
+      applyWidth(next)
     }
 
-    const fim = () => {
-      alca.removeEventListener('pointermove', mover)
-      alca.removeEventListener('pointerup', fim)
-      alca.removeEventListener('pointercancel', fim)
-      document.body.classList.remove('fabula-resizing')
-      if (painel) salvarLargura(painel.getBoundingClientRect().width)
+    const end = () => {
+      handle.removeEventListener('pointermove', move)
+      handle.removeEventListener('pointerup', end)
+      handle.removeEventListener('pointercancel', end)
+      document.body.classList.remove('fable-resizing')
+      if (panel) saveWidth(panel.getBoundingClientRect().width)
     }
 
-    alca.addEventListener('pointermove', mover)
-    alca.addEventListener('pointerup', fim)
-    alca.addEventListener('pointercancel', fim)
+    handle.addEventListener('pointermove', move)
+    handle.addEventListener('pointerup', end)
+    handle.addEventListener('pointercancel', end)
   })
 }
 
-/** Atualiza o dropdown de sugestões conforme o input (até o caret):
- *  "/" + começo de comando → lista os comandos; "/invocar " + texto → lista as
- *  cartas desbloqueadas. Fecha se não parecer um comando. */
-function atualizarSugestoes(): void {
-  if (!painel || !inputEl) return
-  const valor = inputEl.value
-  const caret = inputEl.selectionStart ?? valor.length
-  const prefixo = valor.slice(0, caret)
-  const mComando = prefixo.match(/^\/([a-z-]*)$/i)
-  const mCarta = prefixo.match(/^\/invocar\s+(.*)$/i)
-  const dados = appStore.get()
-  const desbloqueadas = new Set(dados.personagem.cartas)
-  let itens: Sugestao[] = []
-  if (mComando) {
-    const base = mComando[1].toLowerCase()
-    // Só sugere PREFIXOS — comando exato (/invocar, /analisar) não abre dropdown,
-    // senão Enter completaria em loop em vez de enviar.
-    itens = COMANDOS.filter((c) => c.nome.startsWith(base) && c.nome !== base).map((c) => ({
-      rotulo: `/${c.nome}`,
-      detalhe: c.descricao,
-      inserir: () => {
-        inputEl!.value = `/${c.nome} `
+/** Updates the suggestion dropdown per the input (up to the caret):
+ *  "/" + start of command → lists the commands; "/invocar " + text → lists the
+ *  unlocked cards. Closes if it doesn't look like a command. */
+function updateSuggestions(): void {
+  if (!panel || !inputEl) return
+  const value = inputEl.value
+  const caret = inputEl.selectionStart ?? value.length
+  const prefix = value.slice(0, caret)
+  const mCommand = prefix.match(/^\/([a-z-]*)$/i)
+  const mCard = prefix.match(/^\/invocar\s+(.*)$/i)
+  const data = appStore.get()
+  const unlocked = new Set(data.character.cards)
+  let items: Suggestion[] = []
+  if (mCommand) {
+    const base = mCommand[1].toLowerCase()
+    // Only suggests PREFIXES — the exact command (/invocar, /analisar) doesn't
+    // open the dropdown, or Enter would complete in a loop instead of sending.
+    items = COMMANDS.filter((c) => c.name.startsWith(base) && c.name !== base).map((c) => ({
+      label: `/${c.name}`,
+      detail: c.desc,
+      insert: () => {
+        inputEl!.value = `/${c.name} `
         inputEl!.focus()
-        atualizarSugestoes() // depois de "/invocar ", lista as cartas
+        updateSuggestions() // after "/invocar ", lists the cards
       },
     }))
-  } else if (mCarta) {
-    const q = mCarta[1].toLocaleLowerCase('pt-BR')
-    itens = todasAsCartas()
-      .filter((c) => desbloqueadas.has(c.id))
+  } else if (mCard) {
+    const q = mCard[1].toLocaleLowerCase('pt-BR')
+    items = allCards()
+      .filter((c) => unlocked.has(c.id))
       .filter((c) => c.name.toLocaleLowerCase('pt-BR').includes(q))
       .slice(0, 8)
       .map((c) => ({
-        rotulo: c.name,
-        detalhe: `${rotuloTipo(c.type)} · invocada ${dados.personagem.invocacoes[c.id] ?? 0}×`,
-        inserir: () => {
+        label: c.name,
+        detail: `${typeLabel(c.type)} · invocada ${data.character.invocations[c.id] ?? 0}×`,
+        insert: () => {
           inputEl!.value = `/invocar ${c.name}`
           inputEl!.focus()
-          fecharSugestoes()
+          closeSuggestions()
         },
       }))
   }
-  renderSugestoes(itens)
+  renderSuggestions(items)
 }
 
-function renderSugestoes(itens: Sugestao[]): void {
-  sugestoes = itens
-  sugestaoIdx = 0
-  const existente = painel?.querySelector<HTMLElement>('[data-fabula-sugestoes]')
-  if (itens.length === 0) {
-    existente?.remove()
+function renderSuggestions(items: Suggestion[]): void {
+  suggestions = items
+  suggestionIdx = 0
+  const existing = panel?.querySelector<HTMLElement>('[data-fabula-sugestoes]')
+  if (items.length === 0) {
+    existing?.remove()
     return
   }
-  let el = existente
+  let el = existing
   if (!el) {
     el = document.createElement('div')
-    el.className = 'fabula-sugestoes'
+    el.className = 'fable-suggestions'
     el.dataset.fabulaSugestoes = ''
     el.setAttribute('role', 'listbox')
     el.setAttribute('aria-label', 'Comandos e cartas')
-    painel!.appendChild(el)
+    panel!.appendChild(el)
   }
-  el.innerHTML = itens
+  el.innerHTML = items
     .map(
       (s, i) =>
-        `<button type="button" class="fabula-sugestao${i === sugestaoIdx ? ' fabula-sugestao--ativa' : ''}" data-fabula-sugestao="${i}" role="option" aria-selected="${i === sugestaoIdx}">
-          <span class="fabula-sugestao-rotulo">${escapar(s.rotulo)}</span>
-          <span class="fabula-sugestao-detalhe">${escapar(s.detalhe)}</span>
+        `<button type="button" class="fable-suggestion${i === suggestionIdx ? ' fable-suggestion--active' : ''}" data-fabula-sugestao="${i}" role="option" aria-selected="${i === suggestionIdx}">
+          <span class="fable-suggestion-label">${escape(s.label)}</span>
+          <span class="fable-suggestion-detail">${escape(s.detail)}</span>
         </button>`,
     )
     .join('')
   el.querySelectorAll<HTMLButtonElement>('[data-fabula-sugestao]').forEach((btn) => {
     btn.addEventListener('mousedown', (e) => {
-      e.preventDefault() // mantém o foco no input; o blur não fecha antes do clique
+      e.preventDefault() // keeps focus on the input; the blur doesn't close before the click
       const idx = Number(btn.dataset.fabulaSugestao)
-      sugestoes[idx]?.inserir()
+      suggestions[idx]?.insert()
     })
   })
 }
 
-function moverSugestao(delta: number): void {
-  if (sugestoes.length === 0) return
-  sugestaoIdx = (sugestaoIdx + delta + sugestoes.length) % sugestoes.length
-  painel?.querySelectorAll<HTMLButtonElement>('[data-fabula-sugestao]').forEach((btn, i) => {
-    btn.classList.toggle('fabula-sugestao--ativa', i === sugestaoIdx)
-    btn.setAttribute('aria-selected', String(i === sugestaoIdx))
+function moveSuggestion(delta: number): void {
+  if (suggestions.length === 0) return
+  suggestionIdx = (suggestionIdx + delta + suggestions.length) % suggestions.length
+  panel?.querySelectorAll<HTMLButtonElement>('[data-fabula-sugestao]').forEach((btn, i) => {
+    btn.classList.toggle('fable-suggestion--active', i === suggestionIdx)
+    btn.setAttribute('aria-selected', String(i === suggestionIdx))
   })
 }
 
-function aplicarSugestao(): void {
-  sugestoes[sugestaoIdx]?.inserir()
+function applySuggestion(): void {
+  suggestions[suggestionIdx]?.insert()
 }
 
-function fecharSugestoes(): void {
-  sugestoes = []
-  sugestaoIdx = 0
-  painel?.querySelector('[data-fabula-sugestoes]')?.remove()
+function closeSuggestions(): void {
+  suggestions = []
+  suggestionIdx = 0
+  panel?.querySelector('[data-fabula-sugestoes]')?.remove()
 }
 
-function rolarParaFim(): void {
-  if (msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight
+function scrollToEnd(): void {
+  if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight
 }
 
-async function copiarMensagem(m: MensagemIA): Promise<void> {
-  const ok = await copiarParaAreaDeTransferencia(mensagemParaMarkdown(m))
-  notificar(ok ? 'Mensagem copiada em markdown.' : 'Não consegui copiar a mensagem.', ok ? 'ok' : 'erro')
+async function copyMessage(m: AiMessage): Promise<void> {
+  const ok = await copyToClipboard(messageToMarkdown(m))
+  notify(ok ? 'Mensagem copiada em markdown.' : 'Não consegui copiar a mensagem.', ok ? 'ok' : 'erro')
 }
 
-/** Clipboard API com fallback (textarea + execCommand) pra contextos sem permissão. */
-async function copiarParaAreaDeTransferencia(texto: string): Promise<boolean> {
+/** Clipboard API with fallback (textarea + execCommand) for contexts without permission. */
+async function copyToClipboard(text: string): Promise<boolean> {
   try {
-    await navigator.clipboard.writeText(texto)
+    await navigator.clipboard.writeText(text)
     return true
   } catch {
     try {
       const ta = document.createElement('textarea')
-      ta.value = texto
+      ta.value = text
       ta.style.position = 'fixed'
       ta.style.opacity = '0'
       document.body.appendChild(ta)
@@ -503,301 +503,302 @@ async function copiarParaAreaDeTransferencia(texto: string): Promise<boolean> {
   }
 }
 
-/** Abre/fecha o painel. */
-export function alternarChat(abrir?: boolean): void {
-  if (!painel) montarChat()
-  if (!painel) return
-  const vaiAbrir = abrir ?? !estado.aberto
-  estado.aberto = vaiAbrir
-  salvarEstadoPainel(estado)
-  renderizar()
-  if (vaiAbrir) inputEl?.focus()
+/** Opens/closes the panel. */
+export function toggleChat(open?: boolean): void {
+  if (!panel) mountChat()
+  if (!panel) return
+  const willOpen = open ?? !state.open
+  state.open = willOpen
+  savePanelState(state)
+  render()
+  if (willOpen) inputEl?.focus()
 }
 
-function selecionarConversa(id: string): void {
+function selectConversation(id: string): void {
   if (!id) return
-  renomeando = false
-  estado.conversaAtivaId = id
-  salvarEstadoPainel(estado)
-  renderizar()
+  renaming = false
+  state.activeConversationId = id
+  savePanelState(state)
+  render()
 }
 
-function novaConversa(): void {
-  renomeando = false
-  const c = criarConversa()
-  estado.conversaAtivaId = c.id
-  estado.aberto = true
-  salvarEstadoPainel(estado)
-  renderizar()
+function newConversation(): void {
+  renaming = false
+  const c = createConversation()
+  state.activeConversationId = c.id
+  state.open = true
+  savePanelState(state)
+  render()
 }
 
-/** Abre o input de renomeação no cabeçalho, com o título atual selecionado. */
-function iniciarRenomeacao(id: string): void {
-  const c = conversaPorId(id)
+/** Opens the rename input in the header, with the current title selected. */
+function startRenaming(id: string): void {
+  const c = conversationById(id)
   if (!c) return
-  tituloNaEdicao = c.titulo ?? ''
-  renomeando = true
-  renderizar()
-  const input = painel?.querySelector<HTMLInputElement>('[data-fabula-titulo-input]')
+  editingTitle = c.title ?? ''
+  renaming = true
+  render()
+  const input = panel?.querySelector<HTMLInputElement>('[data-fabula-titulo-input]')
   input?.focus()
   input?.select()
 }
 
-async function apagarConversaAtual(): Promise<void> {
-  const id = estado.conversaAtivaId
+async function deleteCurrentConversation(): Promise<void> {
+  const id = state.activeConversationId
   if (!id) return
-  renomeando = false
-  const ok = await confirmar('Apagar esta conversa? Isso não pode ser desfeito.', 'Apagar conversa')
+  renaming = false
+  const ok = await confirm('Apagar esta conversa? Isso não pode ser desfeito.', 'Apagar conversa')
   if (!ok) return
-  excluirConversa(id)
-  // Seleciona a conversa mais recente restante (ou nenhuma).
-  const restantes = (appStore.get().conversas ?? []).filter((c) => c.id !== id)
-  estado.conversaAtivaId = restantes[0]?.id ?? null
-  salvarEstadoPainel(estado)
-  renderizar()
-  notificar('Conversa apagada.')
+  deleteConversation(id)
+  // Selects the most recent remaining conversation (or none).
+  const remaining = (appStore.get().conversations ?? []).filter((c) => c.id !== id)
+  state.activeConversationId = remaining[0]?.id ?? null
+  savePanelState(state)
+  render()
+  notify('Conversa apagada.')
 }
 
-function conversaAtual(): Conversa | undefined {
-  if (!estado.conversaAtivaId) return undefined
-  return conversaPorId(estado.conversaAtivaId)
+function currentConversation(): Conversation | undefined {
+  if (!state.activeConversationId) return undefined
+  return conversationById(state.activeConversationId)
 }
 
-/** Envia a mensagem do usuário. */
-async function enviar(texto: string): Promise<void> {
-  const conversa = conversaAtual()
-  if (!conversa) return
-  const dados: AppData = appStore.get()
-  const ia = dados.configuracao.ia
-  if (!ia || ia.provider === 'nenhum' || !ia.apiKey.trim()) {
-    notificar('Configure a IA em Config → Fábula antes de conversar.', 'erro')
+/** Sends the user message. */
+async function send(text: string): Promise<void> {
+  const conversation = currentConversation()
+  if (!conversation) return
+  const data: AppData = appStore.get()
+  const ai = data.settings.ai
+  if (!ai || ai.provider === 'nenhum' || !ai.apiKey.trim()) {
+    notify('Configure a IA em Config → Fábula antes de conversar.', 'erro')
     return
   }
 
-  // 0. comandos (/) — a lógica (flags, desconto agendado e notas de sistema)
-  // fica em `notasDeComando`; o texto CRU do comando vai pro histórico e pra
-  // Fábula, e o app orquestra a ação por cima (mana, invocação).
-  const notas = coletarNotasDeComando(texto, dados)
+  // 0. commands (/) — the logic (flags, scheduled discount and system notes)
+  // lives in `notasDeComando`; the CRUDE command text goes to the history and
+  // to the Fable, and the app orchestrates the action on top (mana, invocation).
+  const notes = collectCommandNotes(text, data)
 
-  // 1. push user (texto cru — o comando aparece como digitado)
-  const userMsg: MensagemIA = { role: 'user', content: texto, ts: new Date().toISOString() }
-  adicionarMensagem(conversa.id, userMsg)
-  // Garante que a conversa ativa é a que estamos editando (re-ordenada por atualizadaEm).
-  estado.conversaAtivaId = conversa.id
-  salvarEstadoPainel(estado)
-  renderizar()
+  // 1. push user (crude text — the command appears as typed)
+  const userMsg: AiMessage = { role: 'user', content: text, ts: new Date().toISOString() }
+  addMessage(conversation.id, userMsg)
+  // Ensures the active conversation is the one we're editing (re-ordered by updatedAt).
+  state.activeConversationId = conversation.id
+  savePanelState(state)
+  render()
 
-  // 2. prepara histórico pra IA — ⚠️ RELÊ a conversa DEPOIS do push: o snapshot
-  // capturado no início NÃO tem a mensagem atual (adicionarMensagem recria o
-  // objeto) — a IA respondia sem ver o que o usuário digitou (bug real:
-  // "cada mensagem começa a conversa do zero").
-  const atualizada = conversaAtual() ?? conversa
-  const systemPrompt = notas.analisePedida
-    ? montarSystemPromptEsquizoanalista(dados)
-    : montarSystemPrompt(dados)
-  const historico: MsgChat[] = [
+  // 2. prepares the history for the AI — ⚠️ RE-READS the conversation AFTER the
+  // push: the snapshot captured at the start does NOT have the current message
+  // (addMessage recreates the object) — the AI answered without seeing what the
+  // user typed (real bug: "each message starts the conversation from zero").
+  const updated = currentConversation() ?? conversation
+  const systemPrompt = notes.analysisRequested
+    ? buildSchizoanalystSystemPrompt(data)
+    : buildSystemPrompt(data)
+  const history: ChatMessage[] = [
     { role: 'system', content: systemPrompt },
-    ...atualizada.mensagens.map((m) => ({ role: m.role, content: m.content })),
+    ...updated.messages.map((m) => ({ role: m.role, content: m.content })),
   ]
 
-  // 3. pedido de invocação: executa NO APP (determinístico) e avisa a Fábula
-  // via mensagem de sistema — não depende do modelo emitir o marcador.
-  const pedidoInvocacao = detectarPedidoInvocacao(texto)
-  const notaInvocacao = pedidoInvocacao ? prepararInvocacao(pedidoInvocacao) : null
-  if (notaInvocacao) historico.push({ role: 'system', content: notaInvocacao.nota })
+  // 3. invocation request: executes in the APP (deterministic) and informs the
+  // Fable via a system message — doesn't depend on the model emitting the marker.
+  const invocationRequest = detectInvocationRequest(text)
+  const invocationNote = invocationRequest ? prepareInvocation(invocationRequest) : null
+  if (invocationNote) history.push({ role: 'system', content: invocationNote.note })
 
-  // 3b. notas dos comandos (/) + recompensa por menção no diário — vêm prontas
-  // do módulo notasDeComando (a Fábula lê o diário na interação e celebra).
-  if (notas.avisoMencoes) notificar(notas.avisoMencoes)
-  historico.push(...notas.sistema)
+  // 3b. notes of the (/) commands + diary mention reward — ready from the
+  // notasDeComando module (the Fable reads the diary on interaction and celebrates).
+  if (notes.mentionsNotice) notify(notes.mentionsNotice)
+  history.push(...notes.system)
 
   // 4. streaming
-  let resposta = ''
-  let raciocinio = ''
-  ocupado = true
-  renderizar()
+  let response = ''
+  let reasoning = ''
+  busy = true
+  render()
   try {
-    await enviarParaIA(ia, historico, {
+    await sendToAI(ai, history, {
       onContent: (delta) => {
-        resposta += delta
-        // Atualização in-place (sem re-render completo) pra evitar perder foco / lag
-        const area = msgsEl
+        response += delta
+        // In-place update (no full re-render) to avoid losing focus / lag
+        const area = messagesEl
         if (!area) return
-        let ultima = area.querySelector<HTMLElement>('.fabula-bolha--assistente[data-stream="1"]')
-        if (!ultima) {
-          ultima = document.createElement('div')
-          ultima.className = 'fabula-bolha fabula-bolha--assistente'
-          ultima.dataset.stream = '1'
-          area.appendChild(ultima)
+        let last = area.querySelector<HTMLElement>('.fabula-bolha--assistente[data-stream="1"]')
+        if (!last) {
+          last = document.createElement('div')
+          last.className = 'fable-bubble fable-bubble--assistant'
+          last.dataset.stream = '1'
+          area.appendChild(last)
         }
-        // Preserva o <details> de raciocínio se já existir; se não, monta depois.
-        const raciocinioEl = ultima.querySelector<HTMLElement>('.fabula-reasoning')
-        // Exibe sem os marcadores ([[acao:...]] e [[carta:...]]) — o streaming mostra o texto cru
-        ultima.textContent = resposta.replace(/\[\[(?:acao|carta):[\s\S]*?\]\]/g, '')
-        if (raciocinioEl) ultima.appendChild(raciocinioEl)
+        // Preserves the <details> of reasoning if it already exists; if not, builds later.
+        const reasoningEl = last.querySelector<HTMLElement>('.fabula-reasoning')
+        // Shows without the markers ([[acao:...]] and [[carta:...]]) — streaming shows the crude text
+        last.textContent = response.replace(/\[\[(?:acao|carta):[\s\S]*?\]\]/g, '')
+        if (reasoningEl) last.appendChild(reasoningEl)
         area.scrollTop = area.scrollHeight
       },
       onReasoning: (delta) => {
-        raciocinio += delta
-        // O raciocínio entra num <details> no fim da bolha; é inserido só quando
-        // o content começar (callback onContent acima).
-        const area = msgsEl
+        reasoning += delta
+        // The reasoning goes into a <details> at the end of the bubble; it's
+        // inserted only when the content starts (onContent callback above).
+        const area = messagesEl
         if (!area) return
-        const ultima = area.querySelector<HTMLElement>('.fabula-bolha--assistente[data-stream="1"]')
-        if (!ultima) return
-        let raciocinioEl = ultima.querySelector<HTMLElement>('.fabula-reasoning')
-        if (!raciocinioEl) {
+        const last = area.querySelector<HTMLElement>('.fabula-bolha--assistente[data-stream="1"]')
+        if (!last) return
+        let reasoningEl = last.querySelector<HTMLElement>('.fabula-reasoning')
+        if (!reasoningEl) {
           const det = document.createElement('details')
-          det.className = 'fabula-reasoning'
-          det.open = true // visível enquanto escreve
+          det.className = 'fable-reasoning'
+          det.open = true // visible while writing
           const sum = document.createElement('summary')
-          sum.innerHTML = '<i class="fa-solid fa-brain" aria-hidden="true"></i> Raciocínio'
+          sum.innerHTML = '<i class="fa-solid" fa-brain aria-hidden="true"></i> Raciocínio'
           const pre = document.createElement('pre')
           det.appendChild(sum)
           det.appendChild(pre)
-          ultima.appendChild(det)
-          raciocinioEl = det
+          last.appendChild(det)
+          reasoningEl = det
         }
-        const pre = raciocinioEl.querySelector('pre')
-        if (pre) pre.textContent = raciocinio
+        const pre = reasoningEl.querySelector('pre')
+        if (pre) pre.textContent = reasoning
         area.scrollTop = area.scrollHeight
       },
     })
-    // Resposta veio: cobra a mana dos comandos AGORA (falha no retorno não cobra)
-    if (notas.descontoPendente) {
-      const p = appStore.get().personagem
-      appStore.set({ ...appStore.get(), personagem: { ...p, mana: p.mana - notas.descontoPendente.custo } })
-      notificar(`${notas.descontoPendente.rotulo} (−${notas.descontoPendente.custo} mana)`)
-      tocarSom('analise')
-      notas.descontoPendente = null
+    // Response arrived: charges the commands' mana NOW (failure on return doesn't charge)
+    if (notes.pendingDiscount) {
+      const p = appStore.get().character
+      appStore.set({ ...appStore.get(), character: { ...p, mana: p.mana - notes.pendingDiscount.cost } })
+      notify(`${notes.pendingDiscount.label} (−${notes.pendingDiscount.cost} mana)`)
+      playSound('analise')
+      notes.pendingDiscount = null
     }
-    // Resposta vazia do modelo (ex.: só raciocínio, ou recusa silenciosa):
-    // mostra erro em vez de salvar uma bolha vazia (bug real 2026-08-12).
-    if (!resposta.trim()) {
-      notificar('A Fábula não respondeu nada. Tente de novo.', 'erro')
+    // Empty model response (e.g. only reasoning, or silent refusal): shows an
+    // error instead of saving an empty bubble (real bug 2026-08-12).
+    if (!response.trim()) {
+      notify('A Fábula não respondeu nada. Tente de novo.', 'erro')
       return
     }
-    // 4. executa as ações da Fábula (marcador [[acao:...]]) e salva a mensagem.
-    // Regra (2026-08-12): marcador SÓ executa quando o turno é a ESCOLHA da
-    // Fábula (/invocar sem nome); eco do marcador após invocação do app ou
-    // marcador emitido por conta própria é ignorado (mana intacta).
-    const { texto: textoLimpo, acoes } = extrairAcoes(resposta)
-    let conteudoFinal = textoLimpo
-    let cartaInvocadaNoTurno: string | null = notaInvocacao?.cartaId ?? null
-    for (const acao of acoes) {
-      const exec = executarAcao(acao, { appJaInvocou: notaInvocacao !== null, escolhaFabula: notas.escolhaFabula })
-      if (exec.nota) conteudoFinal += `\n\n${exec.nota}`
-      if (exec.cartaId) cartaInvocadaNoTurno = exec.cartaId
+    // 4. executes the Fable's actions (marker [[acao:...]]) and saves the message.
+    // Rule (2026-08-12): the marker ONLY executes when the turn is the Fable's
+    // CHOICE (/invocar without a name); echo of the marker after app invocation
+    // or a self-emitted marker is ignored (mana intact).
+    const { text: cleanText, actions } = extractActions(response)
+    let finalContent = cleanText
+    let cardInvokedThisTurn: string | null = invocationNote?.cardId ?? null
+    for (const action of actions) {
+      const exec = executeAction(action, { appAlreadyInvoked: invocationNote !== null, fableChoice: notes.fableChoice })
+      if (exec.note) finalContent += `\n\n${exec.note}`
+      if (exec.cardId) cardInvokedThisTurn = exec.cardId
     }
-    // Garante a miniatura da carta: se houve invocação no turno (pedido direto
-    // OU escolha da Fábula) e a resposta não trouxe o marcador, anexa no fim.
-    if (cartaInvocadaNoTurno && !conteudoFinal.includes(`[[carta:${cartaInvocadaNoTurno}]]`)) {
-      conteudoFinal += `\n\n[[carta:${cartaInvocadaNoTurno}]]`
+    // Ensures the card thumbnail: if there was an invocation this turn (direct
+    // request OR Fable's choice) and the response didn't bring the marker,
+    // appends it at the end.
+    if (cardInvokedThisTurn && !finalContent.includes(`[[carta:${cardInvokedThisTurn}]]`)) {
+      finalContent += `\n\n[[carta:${cardInvokedThisTurn}]]`
     }
-    const assistantMsg: MensagemIA = {
+    const assistantMsg: AiMessage = {
       role: 'assistant',
-      content: conteudoFinal,
-      reasoning: raciocinio || undefined,
+      content: finalContent,
+      reasoning: reasoning || undefined,
       ts: new Date().toISOString(),
     }
-    adicionarMensagem(conversa.id, assistantMsg)
+    addMessage(conversation.id, assistantMsg)
   } catch (err) {
-    // falha no retorno → NÃO cobra a mana dos comandos
-    notas.descontoPendente = null
-    const msg = err instanceof ErroIA ? err.message : 'Não consegui falar com a IA.'
-    notificar(msg, 'erro')
-    if (resposta) {
-      // Persiste o que chegou pra o usuário não perder.
-      const parcial: MensagemIA = {
+    // failure on return → does NOT charge the commands' mana
+    notes.pendingDiscount = null
+    const msg = err instanceof AiError ? err.message : 'Não consegui falar com a IA.'
+    notify(msg, 'erro')
+    if (response) {
+      // Persists what arrived so the user doesn't lose it.
+      const partial: AiMessage = {
         role: 'assistant',
-        content: resposta,
-        reasoning: raciocinio || undefined,
+        content: response,
+        reasoning: reasoning || undefined,
         ts: new Date().toISOString(),
       }
-      adicionarMensagem(conversa.id, parcial)
+      addMessage(conversation.id, partial)
     }
   } finally {
-    ocupado = false
-    renderizar()
+    busy = false
+    render()
   }
 }
 
-/** Executa uma ação proposta pela Fábula e devolve a nota a anexar + a carta
- *  invocada (para a miniatura). Regras (2026-08-12): o app é a única porta de
- *  invocação — o marcador SÓ executa quando o turno é a ESCOLHA da Fábula
- *  (/invocar sem nome, custo premium ×1,5); marcador ecoado após invocação do
- *  app, ou emitido por conta própria, é ignorado sem gastar mana. */
-function executarAcao(
-  acao: AcaoIA,
-  ctx: { appJaInvocou: boolean; escolhaFabula: boolean },
-): { nota: string; cartaId: string | null } {
-  if (acao.tipo !== 'invocar') return { nota: '', cartaId: null }
-  if (ctx.appJaInvocou) return { nota: '', cartaId: null } // eco do marcador — app já executou
-  // Marcador fora do turno de escolha da Fábula (menção, pedido mal entendido):
-  // NUNCA executa — mana intacta, aviso amigável.
-  if (!ctx.escolhaFabula) {
-    return { nota: '⚡ Invocação só por pedido explícito: use "invoca a carta <nome>" ou o comando /invocar.', cartaId: null }
+/** Executes an action proposed by the Fable and returns the note to append + the
+ *  invoked card (for the thumbnail). Rules (2026-08-12): the app is the only
+ *  invocation door — the marker ONLY executes when the turn is the Fable's
+ *  CHOICE (/invocar without a name, premium cost ×1.5); an echoed marker after
+ *  app invocation, or self-emitted, is ignored without spending mana. */
+function executeAction(
+  action: AiAction,
+  ctx: { appAlreadyInvoked: boolean; fableChoice: boolean },
+): { note: string; cardId: string | null } {
+  if (action.type !== 'invocar') return { note: '', cardId: null }
+  if (ctx.appAlreadyInvoked) return { note: '', cardId: null } // marker echo — app already executed
+  // Marker outside the Fable-choice turn (mention, misread request):
+  // NEVER executes — mana intact, friendly warning.
+  if (!ctx.fableChoice) {
+    return { note: '⚡ Invocação só por pedido explícito: use "invoca a carta <nome>" ou o comando /invocar.', cardId: null }
   }
-  const id = resolverCartaId(acao.carta)
-  if (!id) return { nota: '⚡ Invocação não realizada: carta não encontrada.', cartaId: null }
-  const p = appStore.get().personagem
-  const nome = nomeDaCarta(id)
-  if (!p.cartas.includes(id)) {
-    return { nota: `⚡ A carta ${nome} ainda está bloqueada — não invocada.`, cartaId: null }
+  const id = resolveCardId(action.card)
+  if (!id) return { note: '⚡ Invocação não realizada: carta não encontrada.', cardId: null }
+  const p = appStore.get().character
+  const name = cardName(id)
+  if (!p.cards.includes(id)) {
+    return { note: `⚡ A carta ${name} ainda está bloqueada — não invocada.`, cardId: null }
   }
-  const custo = ctx.escolhaFabula
-    ? custoInvocacaoFabula(tipoDaCarta(id), p.invocacoes[id] ?? 0)
-    : custoInvocacao(tipoDaCarta(id), p.invocacoes[id] ?? 0)
-  if (p.mana < custo) {
-    return { nota: `⚡ Invocação não realizada: mana insuficiente (precisa de ${custo}).`, cartaId: null }
+  const cost = ctx.fableChoice
+    ? fableInvocationCost(cardKindById(id), p.invocations[id] ?? 0)
+    : invocationCost(cardKindById(id), p.invocations[id] ?? 0)
+  if (p.mana < cost) {
+    return { note: `⚡ Invocação não realizada: mana insuficiente (precisa de ${cost}).`, cardId: null }
   }
-  const resultado = invocarCarta(id, custo)
-  if (!resultado.ok) {
-    return { nota: `⚡ Invocação não realizada: ${resultado.motivo ?? 'não foi possível.'}`, cartaId: null }
+  const result = invokeCard(id, cost)
+  if (!result.ok) {
+    return { note: `⚡ Invocação não realizada: ${result.reason ?? 'não foi possível.'}`, cardId: null }
   }
   return {
-    nota: `⚡ Invocação executada: ${nome} (−${custo} mana)${ctx.escolhaFabula ? ' — escolhida pela Fábula (custo premium)' : ''}.`,
-    cartaId: id,
+    note: `⚡ Invocação executada: ${name} (−${cost} mana)${ctx.fableChoice ? ' — escolhida pela Fábula (custo premium)' : ''}.`,
+    cardId: id,
   }
 }
 
-/** Prepara a invocação pedida pelo usuário: executa no app (mana, log, toast)
- *  e devolve a nota de sistema que a Fábula deve respeitar na resposta.
- *  cartaId = carta efetivamente invocada (para a miniatura); null se não houve
- *  invocação (bloqueada/sem mana/desconhecida). Retorna null se o termo não é
- *  uma carta conhecida (deixa a Fábula lidar). */
-function prepararInvocacao(termo: string): { nota: string; cartaId: string | null } | null {
-  // Tolerância a artigo: "invoca o Ninho Enclausurado" resolve igual ("invoca a carta X")
-  const id = resolverCartaId(termo) ?? resolverCartaId(termo.replace(/^(o|a|os|as)\s+/i, ''))
+/** Prepares the user-requested invocation: executes in the app (mana, log, toast)
+ *  and returns the system note the Fable must respect in the response.
+ *  cardId = effectively invoked card (for the thumbnail); null if there was no
+ *  invocation (blocked/no mana/unknown). Returns null if the term isn't a known
+ *  card (lets the Fable handle it). */
+function prepareInvocation(term: string): { note: string; cardId: string | null } | null {
+  // Article tolerance: "invoca o Ninho Enclausurado" resolves the same ("invoca a carta X")
+  const id = resolveCardId(term) ?? resolveCardId(term.replace(/^(o|a|os|as)\s+/i, ''))
   if (!id) return null
-  const nome = nomeDaCarta(id)
-  const p = appStore.get().personagem
-  if (!p.cartas.includes(id)) {
+  const name = cardName(id)
+  const p = appStore.get().character
+  if (!p.cards.includes(id)) {
     return {
-      nota: `O jogador pediu a carta "${nome}", que ainda está BLOQUEADA. Diga que ela não se revelou ainda e desperte a curiosidade. NÃO invoque.`,
-      cartaId: null,
+      note: `O jogador pediu a carta "${name}", que ainda está BLOQUEADA. Diga que ela não se revelou ainda e desperte a curiosidade. NÃO invoque.`,
+      cardId: null,
     }
   }
-  const custo = custoInvocacao(tipoDaCarta(id), p.invocacoes[id] ?? 0)
-  if (p.mana < custo) {
+  const cost = invocationCost(cardKindById(id), p.invocations[id] ?? 0)
+  if (p.mana < cost) {
     return {
-      nota: `O jogador pediu a carta "${nome}" mas a mana (${p.mana}/${p.manaMax}) não cobre o custo (${custo}). Recuse com delicadeza ("guarde suas forças — amanhã a mana volta"), SEM invocar.`,
-      cartaId: null,
+      note: `O jogador pediu a carta "${name}" mas a mana (${p.mana}/${p.manaMax}) não cobre o custo (${cost}). Recuse com delicadeza ("guarde suas forças — amanhã a mana volta"), SEM invocar.`,
+      cardId: null,
     }
   }
-  const resultado = invocarCarta(id)
-  if (!resultado.ok) {
-    return { nota: `Não foi possível invocar "${nome}": ${resultado.motivo ?? 'erro desconhecido'}.`, cartaId: null }
+  const result = invokeCard(id)
+  if (!result.ok) {
+    return { note: `Não foi possível invocar "${name}": ${result.reason ?? 'erro desconhecido'}.`, cardId: null }
   }
-  notificar(`Carta invocada: ${nome} (−${custo} mana)`)
+  notify(`Carta invocada: ${name} (−${cost} mana)`)
   return {
-    nota: `A carta "${nome}" FOI invocada agora (custou ${custo} mana; restam ${p.mana - custo}). Responda de forma EXTENSA e compreensiva sobre essa carta: elabore os possíveis efeitos dela na vida do jogador — o que ela torna visível, o que pode mudar na rotina dele, o que observar, como compor com ela como monstro/apoio. NÃO seja lacônico nem enigmático. Use a carta como apoio pra pergunta do jogador e devolva a pergunta a ele no fim. NÃO repita o marcador de ação; inclua sim o marcador [[carta:${id}]] (a interface mostra a miniatura).`,
-    cartaId: id,
+    note: `A carta "${name}" FOI invocada agora (custou ${cost} mana; restam ${p.mana - cost}). Responda de forma EXTENSA e compreensiva sobre essa carta: elabore os possíveis efeitos dela na vida do jogador — o que ela torna visível, o que pode mudar na rotina dele, o que observar, como compor com ela como monstro/apoio. NÃO seja lacônico nem enigmático. Use a carta como apoio pra pergunta do jogador e devolva a pergunta a ele no fim. NÃO repita o marcador de ação; inclua sim o marcador [[carta:${id}]] (a interface mostra a miniatura).`,
+    cardId: id,
   }
 }
 
-/** Chamado quando o appStore muda — re-renderiza pra refletir mudanças externas
- *  (ex.: o usuário configurou a IA em outra aba/janela). Não mexe em estado local. */
-export function reagirMudancaStore(): void {
-  if (painel) renderizar()
+/** Called when appStore changes — re-renders to reflect external changes
+ *  (e.g. the user configured the AI in another tab/window). Doesn't touch local state. */
+export function reactToStoreChange(): void {
+  if (panel) render()
 }

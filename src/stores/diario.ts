@@ -1,119 +1,119 @@
-/** Domínio do diário (1 entrada por dia). */
+/** Diary domain (1 entry per day). */
 
-import type { EntradaDiario } from '../core/tipos'
-import { novoId, XP_POR_REGISTRO_DIARIO } from '../core/jogo'
-import { appStore, registrarLog } from './base'
-import { ganharXP } from './personagem'
-import { notificar } from '../ui/toast'
-import type { Resultado } from './base'
+import type { DiaryEntry } from '../core/tipos'
+import { newId, XP_PER_DAILY_LOG } from '../core/jogo'
+import { appStore, addLog } from './base'
+import { gainXP } from './personagem'
+import { notify } from '../ui/toast'
+import type { Result } from './base'
 
-export function diarioAtual(): EntradaDiario[] {
-  return appStore.get().diario ?? []
+export function currentDiary(): DiaryEntry[] {
+  return appStore.get().diary ?? []
 }
 
-function salvarDiario(diario: EntradaDiario[]): void {
-  appStore.set({ ...appStore.get(), diario })
+function saveDiary(diary: DiaryEntry[]): void {
+  appStore.set({ ...appStore.get(), diary })
 }
 
-/** Busca a entrada de uma data específica (YYYY-MM-DD). Retorna undefined se não houver. */
-export function entradaDoDia(data: string): EntradaDiario | undefined {
-  return diarioAtual().find((e) => e.data === data)
+/** Finds the entry of a specific date (YYYY-MM-DD). Returns undefined if there's none. */
+export function entryOfDay(date: string): DiaryEntry | undefined {
+  return currentDiary().find((e) => e.date === date)
 }
 
-/** Cria ou atualiza a entrada de uma data (idempotente na data — 1/dia).
- *  Registrar o diário com texto real rende XP uma vez por dia. */
-export function salvarEntrada(data: string, campos: { titulo?: string; texto: string }): EntradaDiario {
-  const textoReal = (campos.texto ?? '').trim()
-  const atual = entradaDoDia(data)
-  if (atual) {
-    const patch: Partial<EntradaDiario> = {
-      texto: campos.texto,
-      editadaEm: new Date().toISOString(),
+/** Creates or updates the entry of a date (idempotent on date — 1/day).
+ *  Logging the diary with real text yields XP once per day. */
+export function saveEntry(date: string, fields: { title?: string; text: string }): DiaryEntry {
+  const realText = (fields.text ?? '').trim()
+  const current = entryOfDay(date)
+  if (current) {
+    const patch: Partial<DiaryEntry> = {
+      text: fields.text,
+      updatedAt: new Date().toISOString(),
     }
-    if (campos.titulo !== undefined) patch.titulo = campos.titulo
-    const atualizada: EntradaDiario = { ...atual, ...patch }
-    salvarDiario(diarioAtual().map((e) => (e.id === atual.id ? atualizada : e)))
-    recompensarRegistro(data, textoReal)
-    return atualizada
+    if (fields.title !== undefined) patch.title = fields.title
+    const updated: DiaryEntry = { ...current, ...patch }
+    saveDiary(currentDiary().map((e) => (e.id === current.id ? updated : e)))
+    rewardLog(date, realText)
+    return updated
   }
-  const nova: EntradaDiario = {
-    id: novoId(),
-    data,
-    titulo: campos.titulo ?? '',
-    texto: campos.texto,
-    criadaEm: new Date().toISOString(),
+  const created: DiaryEntry = {
+    id: newId(),
+    date,
+    title: fields.title ?? '',
+    text: fields.text,
+    createdAt: new Date().toISOString(),
   }
-  salvarDiario([nova, ...diarioAtual()])
-  recompensarRegistro(data, textoReal)
-  return nova
+  saveDiary([created, ...currentDiary()])
+  rewardLog(date, realText)
+  return created
 }
 
-/** XP por registrar o diário: 1×/dia, só quando ganha texto REAL (a criação
- *  vazia do editor ao abrir a página NÃO conta). Dedup via diarioRegistroXp. */
-function recompensarRegistro(data: string, textoReal: string): void {
-  if (!textoReal) return
+/** XP for logging the diary: 1×/day, only when it gains REAL text (the empty
+ *  creation of the editor when opening the page does NOT count). Dedup via diaryLogXp. */
+function rewardLog(date: string, realText: string): void {
+  if (!realText) return
   const d = appStore.get()
-  if (d.diarioRegistroXp?.[data]) return
-  appStore.set({ ...d, diarioRegistroXp: { ...(d.diarioRegistroXp ?? {}), [data]: true } })
-  ganharXP(XP_POR_REGISTRO_DIARIO)
-  registrarLog('sistema', `Registrou o diário (+${XP_POR_REGISTRO_DIARIO} XP)`)
-  notificar(`Diário registrado! +${XP_POR_REGISTRO_DIARIO} XP`)
+  if (d.diaryLogXp?.[date]) return
+  appStore.set({ ...d, diaryLogXp: { ...(d.diaryLogXp ?? {}), [date]: true } })
+  gainXP(XP_PER_DAILY_LOG)
+  addLog('sistema', `Registrou o diário (+${XP_PER_DAILY_LOG} XP)`)
+  notify(`Diário registrado! +${XP_PER_DAILY_LOG} XP`)
 }
 
-export function excluirEntrada(id: string): void {
-  salvarDiario(diarioAtual().filter((e) => e.id !== id))
+export function deleteEntry(id: string): void {
+  saveDiary(currentDiary().filter((e) => e.id !== id))
 }
 
-/** Move uma entrada para outra data (respeitando 1/dia). Retorna resultado. */
-export function moverEntrada(id: string, novaData: string): Resultado {
-  const entrada = diarioAtual().find((e) => e.id === id)
-  if (!entrada) return { ok: false, motivo: 'Entrada não encontrada.' }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(novaData)) return { ok: false, motivo: 'Data inválida.' }
-  if (entrada.data === novaData) return { ok: true }
-  const conflito = diarioAtual().find((e) => e.data === novaData && e.id !== id)
-  if (conflito) return { ok: false, motivo: `Já existe uma crônica em ${novaData}.` }
-  const movida: EntradaDiario = { ...entrada, data: novaData, editadaEm: new Date().toISOString() }
-  salvarDiario(diarioAtual().map((e) => (e.id === id ? movida : e)))
+/** Moves an entry to another date (respecting 1/day). Returns result. */
+export function moveEntry(id: string, newDate: string): Result {
+  const entry = currentDiary().find((e) => e.id === id)
+  if (!entry) return { ok: false, reason: 'Entrada não encontrada.' }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) return { ok: false, reason: 'Data inválida.' }
+  if (entry.date === newDate) return { ok: true }
+  const conflict = currentDiary().find((e) => e.date === newDate && e.id !== id)
+  if (conflict) return { ok: false, reason: `Já existe uma crônica em ${newDate}.` }
+  const moved: DiaryEntry = { ...entry, date: newDate, updatedAt: new Date().toISOString() }
+  saveDiary(currentDiary().map((e) => (e.id === id ? moved : e)))
   return { ok: true }
 }
 
-/** Importa entradas em lote (respeitando 1/dia). Dias já existentes ou datas
- *  inválidas são pulados. Retorna o resumo. */
-export function importarDiario(
-  entradas: Array<{ data: string; titulo?: string; texto: string }>,
-): { importadas: number; puladas: string[]; invalidas: string[] } {
-  const diario = diarioAtual()
-  const existentes = new Set(diario.map((e) => e.data))
-  const importadas: EntradaDiario[] = []
-  const puladas: string[] = []
-  const invalidas: string[] = []
-  for (const e of entradas) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(e.data)) {
-      invalidas.push(e.data)
+/** Imports entries in batch (respecting 1/day). Existing days or invalid dates
+ *  are skipped. Returns the summary. */
+export function importDiary(
+  entries: Array<{ date: string; title?: string; text: string }>,
+): { imported: number; skipped: string[]; invalid: string[] } {
+  const diary = currentDiary()
+  const existing = new Set(diary.map((e) => e.date))
+  const imported: DiaryEntry[] = []
+  const skipped: string[] = []
+  const invalid: string[] = []
+  for (const e of entries) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(e.date)) {
+      invalid.push(e.date)
       continue
     }
-    if (existentes.has(e.data)) {
-      puladas.push(e.data)
+    if (existing.has(e.date)) {
+      skipped.push(e.date)
       continue
     }
-    existentes.add(e.data)
-    importadas.push({
-      id: novoId(),
-      data: e.data,
-      titulo: e.titulo ?? '',
-      texto: e.texto,
-      criadaEm: new Date().toISOString(),
+    existing.add(e.date)
+    imported.push({
+      id: newId(),
+      date: e.date,
+      title: e.title ?? '',
+      text: e.text,
+      createdAt: new Date().toISOString(),
     })
   }
-  if (importadas.length > 0) salvarDiario([...importadas, ...diario])
-  return { importadas: importadas.length, puladas, invalidas }
+  if (imported.length > 0) saveDiary([...imported, ...diary])
+  return { imported: imported.length, skipped, invalid }
 }
 
-/** Lista entradas do diário em ordem decrescente. Usado pelo system prompt e pela tool. */
-export function listarDiario(opts?: { limite?: number; desde?: string; ate?: string }): EntradaDiario[] {
-  let lista = diarioAtual()
-  if (opts?.desde) lista = lista.filter((e) => e.data >= opts.desde!)
-  if (opts?.ate) lista = lista.filter((e) => e.data <= opts.ate!)
-  const limite = opts?.limite ?? lista.length
-  return lista.slice(0, limite)
+/** Lists diary entries in descending order. Used by the system prompt and the tool. */
+export function listDiary(opts?: { limit?: number; from?: string; to?: string }): DiaryEntry[] {
+  let list = currentDiary()
+  if (opts?.from) list = list.filter((e) => e.date >= opts.from!)
+  if (opts?.to) list = list.filter((e) => e.date <= opts.to!)
+  const limit = opts?.limit ?? list.length
+  return list.slice(0, limit)
 }

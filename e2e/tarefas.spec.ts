@@ -1,4 +1,4 @@
-/** E2E — núcleo de tarefas: criar, marcar/desmarcar com XP, hábito, filtros. */
+/** E2E — núcleo de tarefas: criar, marcar/desmarcar com XP, hábito, filters. */
 import { test, expect } from '@playwright/test'
 
 test('criar tarefa única, marcar (XP sobe) e desmarcar (XP reverte)', async ({ page }) => {
@@ -11,7 +11,7 @@ test('criar tarefa única, marcar (XP sobe) e desmarcar (XP reverte)', async ({ 
   await page.locator('select[name="dificuldade"]').selectOption('facil')
   await page.locator('button[type="submit"]').click()
 
-  const card = page.locator('.tarefa-card', { hasText: 'Tarefa E2E' })
+  const card = page.locator('.task-card', { hasText: 'Tarefa E2E' })
   await expect(card).toBeVisible()
 
   // marca → XP 10/80; card some da lista (vai para concluídas)
@@ -21,7 +21,7 @@ test('criar tarefa única, marcar (XP sobe) e desmarcar (XP reverte)', async ({ 
 
   // filtro Concluídas → card aparece; desmarca → XP reverte
   await page.locator('[data-filtro-concluidas]').click()
-  const cardFeita = page.locator('.tarefa-card', { hasText: 'Tarefa E2E' })
+  const cardFeita = page.locator('.task-card', { hasText: 'Tarefa E2E' })
   await expect(cardFeita).toBeVisible()
   await cardFeita.locator('[data-alternar-unica]').click()
   await expect(page.locator('[data-s-xp]')).toHaveText('XP 0/80')
@@ -36,7 +36,7 @@ test('hábito: repetição positiva dá XP e registra no histórico', async ({ p
   await page.locator('select[name="dificuldade"]').selectOption('facil')
   await page.locator('button[type="submit"]').click()
 
-  const card = page.locator('.habito-card', { hasText: 'Hábito E2E' })
+  const card = page.locator('.habit-card', { hasText: 'Hábito E2E' })
   await expect(card).toBeVisible()
 
   // + → XP sobe
@@ -52,18 +52,18 @@ test('recorrente: marca o dia no histórico e desmarca', async ({ page }) => {
   await page.locator('select[name="dificuldade"]').selectOption('facil')
   await page.locator('button[type="submit"]').click()
 
-  const card = page.locator('.tarefa-card', { hasText: 'Diária E2E' })
+  const card = page.locator('.task-card', { hasText: 'Diária E2E' })
   await expect(card).toBeVisible()
-  await expect(card.locator('.tarefa-check')).not.toHaveClass(/marcado/)
+  await expect(card.locator('.task-check')).not.toHaveClass(/marked/)
 
   // marca → check dourado + XP
   await card.locator('[data-alternar-rec]').click()
-  await expect(card.locator('.tarefa-check')).toHaveClass(/marcado/)
+  await expect(card.locator('.task-check')).toHaveClass(/marked/)
   await expect(page.locator('[data-s-xp]')).toHaveText('XP 10/80')
 
-  // desmarca → XP reverte e check volta vazio
+  // desmarca → XP reverte e check volta empty
   await card.locator('[data-alternar-rec]').click()
-  await expect(card.locator('.tarefa-check')).not.toHaveClass(/marcado/)
+  await expect(card.locator('.task-check')).not.toHaveClass(/marked/)
   await expect(page.locator('[data-s-xp]')).toHaveText('XP 0/80')
 })
 
@@ -78,7 +78,7 @@ test('hábito: repetição negativa EXTREMA tira 12 de vida (dano escala com a d
   await page.locator('select[name="sinal"]').selectOption('ambos')
   await page.locator('button[type="submit"]').click()
 
-  const card = page.locator('.habito-card', { hasText: 'Hábito extremo E2E' })
+  const card = page.locator('.habit-card', { hasText: 'Hábito extremo E2E' })
   await expect(card).toBeVisible()
 
   // − → 50 − 12 = 38, e o log registra o dano por dificuldade

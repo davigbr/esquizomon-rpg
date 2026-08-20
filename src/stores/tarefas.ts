@@ -1,50 +1,52 @@
-/** Domínio das tarefas: CRUD, alternância (XP/recompensas) e hábitos. */
+/** Task domain: CRUD, toggling (XP/rewards) and habits. */
 
-import type { AppData, Personagem, RecompensaConclusao, Tarefa, TipoTarefa } from '../core/tipos'
-import { danoDe, hojeISO, novoId, xpDe, xpProximoDe, hpMaxDe, manaMaxDe, VIDA_POR_HABITO_POSITIVO } from '../core/jogo'
-import { appStore, registrarLog, tarefaPorId } from './base'
-import type { DadosTarefa, Resultado } from './base'
-import { tocarSom } from '../ui/sons'
-import { notificar } from '../ui/toast'
-import { aplicarDano, curar, ganharXP } from './personagem'
+import type { AppData, Character, CompletionReward, Task, TaskType } from '../core/tipos'
+import { damageFor, todayISO, newId, xpFor } from '../core/jogo'
+import { HP_PER_POSITIVE_HABIT } from '../core/jogo'
+import { xpNextFor, hpMaxFor, manaMaxFor } from '../core/jogo'
+import { appStore, addLog, taskById } from './base'
+import type { TaskInput, Result } from './base'
+import { playSound } from '../ui/sons'
+import { notify } from '../ui/toast'
+import { applyDamage, heal, gainXP } from './personagem'
 
-export function tagsEmUso(dados: AppData): string[] {
+export function tagsInUse(data: AppData): string[] {
   const set = new Set<string>()
-  for (const t of dados.tarefas) for (const tag of t.tags) set.add(tag)
+  for (const t of data.tasks) for (const tag of t.tags) set.add(tag)
   return [...set].sort((a, b) => a.localeCompare(b, 'pt-BR'))
 }
 
-export function criarTarefa(dados: DadosTarefa): Resultado {
-  const titulo = dados.titulo.trim()
-  if (!titulo) return { ok: false, motivo: 'Dê um nome para a tarefa.' }
-  const tarefa: Tarefa = {
-    id: novoId(),
-    tipo: dados.tipo,
-    titulo,
-    dificuldade: dados.dificuldade,
-    tags: dados.tags,
-    notas: dados.notas?.trim() || undefined,
-    dueDate: dados.tipo === 'unica' ? dados.dueDate : undefined,
-    agenda: dados.tipo === 'recorrente' ? { dias: dados.agenda?.dias ?? [], diasDoMes: dados.agenda?.diasDoMes } : undefined,
-    sinal: dados.tipo === 'habito' ? dados.sinal ?? 'positivo' : undefined,
-    contador:
-      dados.tipo === 'habito'
-        ? { hoje: 0, hojeNeg: 0, totalPositivo: 0, totalNegativo: 0 }
+export function createTask(input: TaskInput): Result {
+  const title = input.title.trim()
+  if (!title) return { ok: false, reason: 'Dê um nome para a tarefa.' }
+  const task: Task = {
+    id: newId(),
+    type: input.type,
+    title,
+    difficulty: input.difficulty,
+    tags: input.tags,
+    notes: input.notes?.trim() || undefined,
+    dueDate: input.type === 'unica' ? input.dueDate : undefined,
+    agenda: input.type === 'recorrente' ? { days: input.agenda?.days ?? [], daysOfMonth: input.agenda?.daysOfMonth } : undefined,
+    sign: input.type === 'habito' ? input.sign ?? 'positivo' : undefined,
+    counter:
+      input.type === 'habito'
+        ? { today: 0, todayNeg: 0, totalPositive: 0, totalNegative: 0 }
         : undefined,
-    concluida: false,
-    historico: [],
-    criadaEm: new Date().toISOString(),
-    editadaEm: new Date().toISOString(),
+    done: false,
+    history: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   }
-  // nova tarefa entra no TOPO da lista (a mais recente acima) — 2026-08-17
-  appStore.set({ ...appStore.get(), tarefas: [tarefa, ...appStore.get().tarefas] })
-  registrarLog('tarefa', `Criou: ${titulo} (${rotuloTipoTarefa(dados.tipo)})`)
+  // new task enters at the TOP of the list (most recent above) — 2026-08-17
+  appStore.set({ ...appStore.get(), tasks: [task, ...appStore.get().tasks] })
+  addLog('tarefa', `Criou: ${title} (${taskTypeLabel(input.type)})`)
   return { ok: true }
 }
 
-/** Rótulo pt-BR do tipo de tarefa para o histórico. */
-function rotuloTipoTarefa(tipo: TipoTarefa): string {
-  switch (tipo) {
+/** pt-BR label of the task type for the history. */
+function taskTypeLabel(type: TaskType): string {
+  switch (type) {
     case 'recorrente':
       return 'recorrente'
     case 'unica':
@@ -54,242 +56,241 @@ function rotuloTipoTarefa(tipo: TipoTarefa): string {
   }
 }
 
-export function atualizarTarefa(id: string, dados: Partial<DadosTarefa>): Resultado {
-  const atual = tarefaPorId(id)
-  if (!atual) return { ok: false, motivo: 'Tarefa não encontrada.' }
-  const titulo = dados.titulo?.trim()
-  if (titulo !== undefined && !titulo) return { ok: false, motivo: 'Dê um nome para a tarefa.' }
+export function updateTask(id: string, input: Partial<TaskInput>): Result {
+  const current = taskById(id)
+  if (!current) return { ok: false, reason: 'Tarefa não encontrada.' }
+  const title = input.title?.trim()
+  if (title !== undefined && !title) return { ok: false, reason: 'Dê um nome para a tarefa.' }
 
-  const proxima: Tarefa = {
-    ...atual,
-    editadaEm: new Date().toISOString(),
-    titulo: titulo ?? atual.titulo,
-    dificuldade: dados.dificuldade ?? atual.dificuldade,
-    tags: dados.tags ?? atual.tags,
-    notas: dados.notas?.trim() || undefined,
-    dueDate: dados.dueDate !== undefined ? dados.dueDate : atual.dueDate,
+  const next: Task = {
+    ...current,
+    updatedAt: new Date().toISOString(),
+    title: title ?? current.title,
+    difficulty: input.difficulty ?? current.difficulty,
+    tags: input.tags ?? current.tags,
+    notes: input.notes?.trim() || undefined,
+    dueDate: input.dueDate !== undefined ? input.dueDate : current.dueDate,
   }
-  if (dados.tipo) {
-    proxima.tipo = dados.tipo
-    if (dados.tipo === 'recorrente') {
-      proxima.agenda = { dias: dados.agenda?.dias ?? [], diasDoMes: dados.agenda?.diasDoMes ?? atual.agenda?.diasDoMes }
+  if (input.type) {
+    next.type = input.type
+    if (input.type === 'recorrente') {
+      next.agenda = { days: input.agenda?.days ?? [], daysOfMonth: input.agenda?.daysOfMonth ?? current.agenda?.daysOfMonth }
     }
-    if (dados.tipo === 'habito') {
-      proxima.sinal = dados.sinal ?? atual.sinal ?? 'positivo'
-      proxima.contador = atual.contador ?? { hoje: 0, hojeNeg: 0, totalPositivo: 0, totalNegativo: 0 }
+    if (input.type === 'habito') {
+      next.sign = input.sign ?? current.sign ?? 'positivo'
+      next.counter = current.counter ?? { today: 0, todayNeg: 0, totalPositive: 0, totalNegative: 0 }
     }
-    if (dados.tipo !== 'unica') proxima.dueDate = undefined
+    if (input.type !== 'unica') next.dueDate = undefined
   }
-  const tarefas = appStore.get().tarefas.map((t) => (t.id === id ? proxima : t))
-  appStore.set({ ...appStore.get(), tarefas })
-  registrarLog('tarefa', `Editou: ${proxima.titulo}`)
+  const tasks = appStore.get().tasks.map((t) => (t.id === id ? next : t))
+  appStore.set({ ...appStore.get(), tasks })
+  addLog('tarefa', `Editou: ${next.title}`)
   return { ok: true }
 }
 
-export function excluirTarefa(id: string): void {
-  const tarefa = tarefaPorId(id)
+export function deleteTask(id: string): void {
+  const task = taskById(id)
   const d = appStore.get()
-  // tombstone: o merge não pode re-adicionar uma tarefa já excluída
+  // tombstone: the merge must not re-add an already-deleted task
   appStore.set({
     ...d,
-    tarefas: d.tarefas.filter((t) => t.id !== id),
-    tarefasExcluidas: { ...(d.tarefasExcluidas ?? {}), [id]: new Date().toISOString() },
+    tasks: d.tasks.filter((t) => t.id !== id),
+    deletedTasks: { ...(d.deletedTasks ?? {}), [id]: new Date().toISOString() },
   })
-  if (tarefa) registrarLog('tarefa', `Excluiu: ${tarefa.titulo}`)
+  if (task) addLog('tarefa', `Excluiu: ${task.title}`)
 }
 
-/** Reordena as tarefas (drag & drop): `ids` na nova ordem, dentro do mesmo tipo. */
-export function reordenarTarefas(ids: string[]): void {
-  const tarefas = appStore.get().tarefas
-  const mapa = new Map(tarefas.map((t) => [t.id, t]))
-  const conjunto = new Set(ids)
-  const reordenadas = ids.map((id) => mapa.get(id)).filter((t): t is Tarefa => t !== undefined)
-  if (reordenadas.length !== ids.length) return
-  const tipo = reordenadas[0]?.tipo
-  if (!tipo) return
-  const demais = tarefas.filter((t) => !conjunto.has(t.id) || t.tipo !== tipo)
-  const resultado = [...demais, ...reordenadas]
-  appStore.set({ ...appStore.get(), tarefas: resultado })
+/** Reorders the tasks (drag & drop): `ids` in the new order, within the same type. */
+export function reorderTasks(ids: string[]): void {
+  const tasks = appStore.get().tasks
+  const map = new Map(tasks.map((t) => [t.id, t]))
+  const set = new Set(ids)
+  const reordered = ids.map((id) => map.get(id)).filter((t): t is Task => t !== undefined)
+  if (reordered.length !== ids.length) return
+  const type = reordered[0]?.type
+  if (!type) return
+  const rest = tasks.filter((t) => !set.has(t.id) || t.type !== type)
+  const result = [...rest, ...reordered]
+  appStore.set({ ...appStore.get(), tasks: result })
 }
 
-/** Recorrente: marca/desmarca o dia no histórico (data = dia visível; default hoje). Retorna cartas novas. */
-export function alternarRecorrenteHoje(id: string, data: string = hojeISO()): string[] {
-  const tarefas = appStore.get().tarefas.map((t) => {
-    if (t.id !== id || t.tipo !== 'recorrente') return t
-    const tem = t.historico.includes(data)
-    if (tem) {
-      // desmarcando: reverte a recompensa daquele dia
-      reverterRecompensa(t, data)
-      return { ...t, historico: t.historico.filter((d) => d !== data), recompensas: semRecompensa(t.recompensas, data) }
+/** Recurring: marks/unmarks the day in the history (date = visible day; default today). Returns new cards. */
+export function toggleRecurringToday(id: string, date: string = todayISO()): string[] {
+  const tasks = appStore.get().tasks.map((t) => {
+    if (t.id !== id || t.type !== 'recorrente') return t
+    const has = t.history.includes(date)
+    if (has) {
+      // unmarking: reverts that day's reward
+      revertReward(t, date)
+      return { ...t, history: t.history.filter((d) => d !== date), rewards: withoutReward(t.rewards, date) }
     }
-    return { ...t, historico: [...t.historico, data] }
+    return { ...t, history: [...t.history, date] }
   })
-  appStore.set({ ...appStore.get(), tarefas })
-  const tarefa = tarefas.find((t) => t.id === id)
-  if (tarefa) {
-    const marcada = tarefa.historico.includes(data)
-    if (marcada) {
-      registrarLog('tarefa', `Concluiu recorrente: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP)`)
-      const antes = appStore.get().personagem
-      const novas = ganharXP(xpDe(tarefa.dificuldade)).novasCartas
-      tocarSom('tarefa')
-      registrarRecompensa(tarefa.id, data, antes, novas)
-      return novas
+  appStore.set({ ...appStore.get(), tasks })
+  const task = tasks.find((t) => t.id === id)
+  if (task) {
+    const marked = task.history.includes(date)
+    if (marked) {
+      addLog('tarefa', `Concluiu recorrente: ${task.title} (+${xpFor(task.difficulty)} XP)`)
+      const before = appStore.get().character
+      const added = gainXP(xpFor(task.difficulty)).newCards
+      playSound('tarefa')
+      storeReward(task.id, date, before, added)
+      return added
     }
-    registrarLog('tarefa', `Desfez recorrente: ${tarefa.titulo} (XP revertido)`)
+    addLog('tarefa', `Desfez recorrente: ${task.title} (XP revertido)`)
   }
   return []
 }
 
-/** Única: alterna concluída e registra a data (data = dia visível; default hoje). Retorna cartas novas. */
-export function alternarUnica(id: string, data: string = hojeISO()): string[] {
-  const tarefas = appStore.get().tarefas.map((t) => {
-    if (t.id !== id || t.tipo !== 'unica') return t
-    const concluida = !t.concluida
-    if (!concluida) {
-      // desmarcando: reverte a recompensa daquele dia
-      reverterRecompensa(t, data)
+/** One-off: toggles done and records the date (date = visible day; default today). Returns new cards. */
+export function toggleOneOff(id: string, date: string = todayISO()): string[] {
+  const tasks = appStore.get().tasks.map((t) => {
+    if (t.id !== id || t.type !== 'unica') return t
+    const done = !t.done
+    if (!done) {
+      // unmarking: reverts that day's reward
+      revertReward(t, date)
       return {
         ...t,
-        concluida,
-        historico: t.historico.filter((d) => d !== data),
-        recompensas: semRecompensa(t.recompensas, data),
+        done,
+        history: t.history.filter((d) => d !== date),
+        rewards: withoutReward(t.rewards, date),
       }
     }
     return {
       ...t,
-      concluida,
-      historico: [...new Set([...t.historico, data])],
+      done,
+      history: [...new Set([...t.history, date])],
     }
   })
-  appStore.set({ ...appStore.get(), tarefas })
-  const tarefa = tarefas.find((t) => t.id === id)
-  if (tarefa && tarefa.concluida) {
-    registrarLog('tarefa', `Concluiu: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP)`)
-    const antes = appStore.get().personagem
-    const novas = ganharXP(xpDe(tarefa.dificuldade)).novasCartas
-    tocarSom('tarefa')
-    registrarRecompensa(tarefa.id, data, antes, novas)
-    return novas
+  appStore.set({ ...appStore.get(), tasks })
+  const task = tasks.find((t) => t.id === id)
+  if (task && task.done) {
+    addLog('tarefa', `Concluiu: ${task.title} (+${xpFor(task.difficulty)} XP)`)
+    const before = appStore.get().character
+    const added = gainXP(xpFor(task.difficulty)).newCards
+    playSound('tarefa')
+    storeReward(task.id, date, before, added)
+    return added
   }
-  if (tarefa) registrarLog('tarefa', `Desfez conclusão: ${tarefa.titulo} (XP revertido)`)
+  if (task) addLog('tarefa', `Desfez conclusão: ${task.title} (XP revertido)`)
   return []
 }
 
-/* ---------- recompensas por conclusão (para reverter ao desmarcar) ---------- */
+/* ---------- rewards per completion (to revert when unmarking) ---------- */
 
-/** Remove a recompensa de uma data do mapa (retorna undefined se vazio). */
-function semRecompensa(rec: Record<string, RecompensaConclusao> | undefined, data: string): Record<string, RecompensaConclusao> | undefined {
-  if (!rec || !rec[data]) return rec
-  const { [data]: _removida, ...resto } = rec
-  return Object.keys(resto).length > 0 ? resto : undefined
+/** Removes a date's reward from the map (returns undefined if empty). */
+function withoutReward(rec: Record<string, CompletionReward> | undefined, date: string): Record<string, CompletionReward> | undefined {
+  if (!rec || !rec[date]) return rec
+  const { [date]: _removed, ...rest } = rec
+  return Object.keys(rest).length > 0 ? rest : undefined
 }
 
-/** Guarda na tarefa o snapshot da recompensa recém-concedida: estado ANTES do
- *  ganho (restaurado ao desmarcar) + nível PÓS-ganho (guarda de reversão).
- *  Exportado para o check-in (conclusão retroativa também registra recompensa). */
-export function registrarRecompensa(id: string, data: string, antes: Personagem, cartasNovas: string[]): void {
-  const p = appStore.get().personagem
-  const tarefas = appStore.get().tarefas.map((t) => {
+/** Stores on the task the snapshot of the just-granted reward: state BEFORE the
+ *  gain (restored when unmarking) + POST-gain level (reversal guard).
+ *  Exported for the check-in (retroactive completion also records reward). */
+export function storeReward(id: string, date: string, before: Character, newCards: string[]): void {
+  const p = appStore.get().character
+  const tasks = appStore.get().tasks.map((t) => {
     if (t.id !== id) return t
-    const xp = xpDe(t.dificuldade)
-    const recompensa: RecompensaConclusao = {
+    const xp = xpFor(t.difficulty)
+    const reward: CompletionReward = {
       xp,
-      subiu: p.nivel > antes.nivel,
-      nivel: p.nivel,
-      xpAntes: antes.xp,
-      nivelAntes: antes.nivel,
-      xpProximoAntes: antes.xpProximo,
-      hpMaxAntes: antes.hpMax,
-      manaMaxAntes: antes.manaMax,
-      cartas: cartasNovas.length > 0 ? cartasNovas : undefined,
+      leveledUp: p.level > before.level,
+      level: p.level,
+      xpBefore: before.xp,
+      levelBefore: before.level,
+      xpNextBefore: before.xpNext,
+      hpMaxBefore: before.hpMax,
+      manaMaxBefore: before.manaMax,
+      cards: newCards.length > 0 ? newCards : undefined,
     }
-    return { ...t, editadaEm: new Date().toISOString(), recompensas: { ...t.recompensas, [data]: recompensa } }
+    return { ...t, updatedAt: new Date().toISOString(), rewards: { ...t.rewards, [date]: reward } }
   })
-  appStore.set({ ...appStore.get(), tarefas })
+  appStore.set({ ...appStore.get(), tasks })
 }
 
-/** Reverte XP/nível/cartas de uma conclusão desmarcada. */
-function reverterRecompensa(t: Tarefa, data: string): void {
-  const r = t.recompensas?.[data]
+/** Reverts XP/level/cards of an unmarked completion. */
+function revertReward(t: Task, date: string): void {
+  const r = t.rewards?.[date]
   if (!r) return
-  const p = appStore.get().personagem
-  const personagem: Personagem = {
+  const p = appStore.get().character
+  const character: Character = {
     ...p,
     xp: Math.max(0, p.xp - r.xp),
   }
-  // rebaixa o nível apenas se ninguém subiu depois (nível atual == nível desta conclusão)
-  if (r.subiu && r.nivel !== undefined && p.nivel === r.nivel) {
-    // restaura o estado exato anterior ao ganho
-    const nivelAntes = r.nivelAntes ?? Math.max(1, p.nivel - 1)
-    personagem.nivel = nivelAntes
-    personagem.xp = r.xpAntes ?? Math.max(0, p.xp - r.xp)
-    personagem.xpProximo = r.xpProximoAntes ?? xpProximoDe(nivelAntes)
-    personagem.hpMax = r.hpMaxAntes ?? hpMaxDe(nivelAntes)
-    personagem.manaMax = r.manaMaxAntes ?? manaMaxDe(nivelAntes)
-    personagem.hp = Math.min(p.hp, personagem.hpMax)
-    personagem.mana = Math.min(p.mana, personagem.manaMax)
+  // only de-levels if nobody leveled up after (current level == this completion's level)
+  if (r.leveledUp && r.level !== undefined && p.level === r.level) {
+    // restores the exact prior state
+    const prevLevel = r.levelBefore ?? Math.max(1, p.level - 1)
+    character.level = prevLevel
+    character.xp = r.xpBefore ?? Math.max(0, p.xp - r.xp)
+    character.xpNext = r.xpNextBefore ?? xpNextFor(prevLevel)
+    character.hpMax = r.hpMaxBefore ?? hpMaxFor(prevLevel)
+    character.manaMax = r.manaMaxBefore ?? manaMaxFor(prevLevel)
+    character.hp = Math.min(p.hp, character.hpMax)
+    character.mana = Math.min(p.mana, character.manaMax)
   }
-  // cartas: SEMPRE re-bloqueadas quando esta conclusão as desbloqueou —
-  // mesmo que o usuário já tenha subido outro nível depois (o nível não
-  // rebaixa nesse caso, mas a carta específica da ação desfeita volta a
-  // ficar bloqueada).
-  if (r.subiu && r.cartas?.length) {
-    const atuais = p.cartas ?? []
-    const removidas = new Set(r.cartas)
-    personagem.cartas = atuais.filter((c) => !removidas.has(c))
-    const inv = { ...(p.invocacoes ?? {}) }
-    for (const c of r.cartas) delete inv[c]
-    personagem.invocacoes = inv
+  // cards: ALWAYS re-blocked when this completion unlocked them — even if the
+  // user has since leveled up again (the level doesn't de-level in that case,
+  // but the specific card of the undone action goes back to blocked).
+  if (r.leveledUp && r.cards?.length) {
+    const current = p.cards ?? []
+    const removed = new Set(r.cards)
+    character.cards = current.filter((c) => !removed.has(c))
+    const inv = { ...(p.invocations ?? {}) }
+    for (const c of r.cards) delete inv[c]
+    character.invocations = inv
   }
-  appStore.set({ ...appStore.get(), personagem })
-  registrarLog('tarefa', `Recompensa revertida (−${r.xp} XP)`)
+  appStore.set({ ...appStore.get(), character })
+  addLog('tarefa', `Recompensa revertida (−${r.xp} XP)`)
 }
 
-/** Hábito: registra uma repetição positiva (+) ou negativa (−). Retorna cartas novas. */
-export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data: string = hojeISO()): string[] {
-  let jaMarcado = false
-  const tarefas = appStore.get().tarefas.map((t) => {
-    if (t.id !== id || t.tipo !== 'habito') return t
-    const contador = t.contador ?? { hoje: 0, hojeNeg: 0, totalPositivo: 0, totalNegativo: 0 }
-    if (sinal === 'positivo') {
-      // dia passado (não-hoje) já marcado → não re-marca nem dá XP de novo
-      if (data < hojeISO() && t.historico.includes(data)) {
-        jaMarcado = true
+/** Habit: records a positive (+) or negative (−) repetition. Returns new cards. */
+export function recordHabit(id: string, sign: 'positivo' | 'negativo', date: string = todayISO()): string[] {
+  let alreadyMarked = false
+  const tasks = appStore.get().tasks.map((t) => {
+    if (t.id !== id || t.type !== 'habito') return t
+    const counter = t.counter ?? { today: 0, todayNeg: 0, totalPositive: 0, totalNegative: 0 }
+    if (sign === 'positivo') {
+      // past day (non-today) already marked → doesn't re-mark nor re-give XP
+      if (date < todayISO() && t.history.includes(date)) {
+        alreadyMarked = true
         return t
       }
-      const historico = t.historico.includes(data) ? t.historico : [...t.historico, data]
+      const history = t.history.includes(date) ? t.history : [...t.history, date]
       return {
         ...t,
-        editadaEm: new Date().toISOString(),
-        historico,
-        contador: { ...contador, hoje: contador.hoje + 1, totalPositivo: contador.totalPositivo + 1 },
+        updatedAt: new Date().toISOString(),
+        history,
+        counter: { ...counter, today: counter.today + 1, totalPositive: counter.totalPositive + 1 },
       }
     }
     return {
       ...t,
-      editadaEm: new Date().toISOString(),
-      contador: { ...contador, hojeNeg: contador.hojeNeg + 1, totalNegativo: contador.totalNegativo + 1 },
+      updatedAt: new Date().toISOString(),
+      counter: { ...counter, todayNeg: counter.todayNeg + 1, totalNegative: counter.totalNegative + 1 },
     }
   })
-  appStore.set({ ...appStore.get(), tarefas })
-  const tarefa = tarefas.find((t) => t.id === id)
-  if (tarefa) {
-    if (sinal === 'positivo') {
-      if (jaMarcado) {
-        notificar('Já marcado neste dia.')
+  appStore.set({ ...appStore.get(), tasks })
+  const task = tasks.find((t) => t.id === id)
+  if (task) {
+    if (sign === 'positivo') {
+      if (alreadyMarked) {
+        notify('Já marcado neste dia.')
         return []
       }
-      registrarLog('habito', `Hábito positivo: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP, +${VIDA_POR_HABITO_POSITIVO} vida)`)
-      const novas = ganharXP(xpDe(tarefa.dificuldade)).novasCartas
-      curar(VIDA_POR_HABITO_POSITIVO)
-      tocarSom('habito-pos')
-      return novas
+      addLog('habito', `Hábito positivo: ${task.title} (+${xpFor(task.difficulty)} XP, +${HP_PER_POSITIVE_HABIT} vida)`)
+      const added = gainXP(xpFor(task.difficulty)).newCards
+      heal(HP_PER_POSITIVE_HABIT)
+      playSound('habito-pos')
+      return added
     }
-    const dano = danoDe(tarefa.dificuldade) // escala com a dificuldade (3/5/8/12)
-    aplicarDano(dano)
-    tocarSom('habito-neg')
-    registrarLog('habito', `Hábito negativo: ${tarefa.titulo} (−${dano} vida)`)
+    const damage = damageFor(task.difficulty) // scales with difficulty (3/5/8/12)
+    applyDamage(damage)
+    playSound('habito-neg')
+    addLog('habito', `Hábito negativo: ${task.title} (−${damage} vida)`)
   }
   return []
 }

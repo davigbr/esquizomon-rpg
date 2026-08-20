@@ -1,30 +1,30 @@
-/** Persistência versionada + wrapper seguro (fallback em memória quando localStorage é bloqueado). */
+/** Versioned persistence + safe wrapper (in-memory fallback when localStorage is blocked). */
 
-import type { AppData, ConfigIa, Configuracao, Conversa, EntradaDiario, LogEvento, MensagemIA, Personagem, ProviderIA, RecompensaConclusao, Tarefa, Tema, TipoLog } from '../core/tipos'
-import { STORAGE_KEY, TEMA_KEY, VERSAO_DADOS } from '../core/tipos'
-import { hpMaxDe, manaMaxDe, personagemInicial, xpProximoDe } from '../core/jogo'
+import type { AiConfig, AiMessage, AiProvider, AppData, Character, CompletionReward, Conversation, DiaryEntry, LogEvent, LogType, Settings, Task, Theme } from '../core/tipos'
+import { DATA_VERSION, STORAGE_KEY, THEME_KEY } from '../core/tipos'
+import { hpMaxFor, initialCharacter, manaMaxFor, xpNextFor } from '../core/jogo'
 
 const memory = new Map<string, string>()
 
-/* ---------- aviso de falha de persistência ----------
- * Quando o localStorage falha (quota cheia, modo privado, storage bloqueado),
- * a escrita cai no fallback em memória: o app segue "funcionando" mas os
- * dados somem no reload SEM aviso (bug real 2026-08-12). A UI registra um
- * callback aqui pra transformar a perda silenciosa em alerta. */
+/* ---------- persistence failure warning ----------
+ * When localStorage fails (quota full, private mode, blocked storage),
+ * the write falls to the in-memory backup: the app keeps "working" but
+ * the data vanishes on reload WITHOUT warning (real bug 2026-08-12). The
+ * UI registers a callback here to turn the silent loss into an alert. */
 
-let avisarFalha: (motivo: string) => void = () => {}
-let jaAvisou = false
+let warnFailure: (reason: string) => void = () => {}
+let alreadyWarned = false
 
-/** A UI (main.ts) registra aqui para avisar o usuário quando a persistência falhar. */
-export function aoFalharPersistencia(cb: (motivo: string) => void): void {
-  avisarFalha = cb
+/** The UI (main.ts) registers here to warn the user when persistence fails. */
+export function onPersistFailure(cb: (reason: string) => void): void {
+  warnFailure = cb
 }
 
-function falhaPersistencia(motivo: string): void {
-  console.error(`[storage] persistência falhou (${motivo}) — dados só em memória; some no reload`)
-  if (jaAvisou) return
-  jaAvisou = true
-  avisarFalha(motivo)
+function persistenceFailed(reason: string): void {
+  console.error(`[storage] persistence failed (${reason}) — data in memory only; lost on reload`)
+  if (alreadyWarned) return
+  alreadyWarned = true
+  warnFailure(reason)
 }
 
 export function storageGet(key: string): string | null {
@@ -40,9 +40,9 @@ export function storageSet(key: string, value: string): void {
     localStorage.setItem(key, value)
   } catch (err) {
     if (err instanceof DOMException && err.name === 'QuotaExceededError') {
-      falhaPersistencia('Armazenamento cheio — os dados podem não sobreviver ao reload. Exporte um backup em Config.')
+      persistenceFailed('Storage full — data may not survive reload. Export a backup in Settings.')
     } else {
-      falhaPersistencia('Navegador bloqueou o armazenamento (modo privado?) — os dados podem não sobreviver ao reload.')
+      persistenceFailed('Browser blocked storage (private mode?) — data may not survive reload.')
     }
     memory.set(key, value)
   }
@@ -56,367 +56,401 @@ export function storageRemove(key: string): void {
   }
 }
 
-/* ---------- tema ---------- */
+/* ---------- theme ---------- */
 
-export function temaInicial(): Tema {
-  const t = storageGet(TEMA_KEY)
+export function initialTheme(): Theme {
+  const t = storageGet(THEME_KEY)
   return t === 'light' || t === 'dark' ? t : 'sistema'
 }
 
-export function salvarTema(tema: Tema): void {
-  storageSet(TEMA_KEY, tema)
+export function saveTheme(theme: Theme): void {
+  storageSet(THEME_KEY, theme)
 }
 
-/* ---------- validação e normalização ---------- */
+/* ---------- validation and normalization ---------- */
 
-function ehObjeto(v: unknown): v is Record<string, unknown> {
+/** Migration frontier: reads the EN field first, falls back to the legacy PT field,
+ *  and returns the value. The app always stores EN, so old PT blobs load transparently
+ *  and get rewritten to EN on the next save (idempotent, no separate migration step). */
+function field<T = unknown>(obj: Record<string, unknown>, en: string, pt: string): T {
+  const v = obj[en] !== undefined ? obj[en] : obj[pt]
+  return v as T
+}
+
+/** `field` but returns the value only if it's a non-null string; else undefined.
+ *  Collapses the old `typeof f(x)==='string' ? f(x) : X` pattern into one typed value. */
+function str(obj: Record<string, unknown>, en: string, pt: string): string | undefined {
+  const v = obj[en] !== undefined ? obj[en] : obj[pt]
+  return typeof v === 'string' ? v : undefined
+}
+
+function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null
 }
 
-function ehTarefa(v: unknown): v is Tarefa {
-  if (!ehObjeto(v)) return false
+function isTask(v: unknown): v is Task {
+  if (!isObject(v)) return false
   const t = v as Record<string, unknown>
   return (
-    typeof t.id === 'string' &&
-    (t.tipo === 'recorrente' || t.tipo === 'unica' || t.tipo === 'habito') &&
-    typeof t.titulo === 'string' &&
-    ['facil', 'media', 'dificil', 'extrema'].includes(String(t.dificuldade)) &&
-    Array.isArray(t.tags) &&
-    Array.isArray(t.historico)
+    typeof field(t, 'id', 'id') === 'string' &&
+    (field(t, 'type', 'tipo') === 'recorrente' || field(t, 'type', 'tipo') === 'unica' || field(t, 'type', 'tipo') === 'habito') &&
+    typeof field(t, 'title', 'titulo') === 'string' &&
+    ['facil', 'media', 'dificil', 'extrema'].includes(String(field(t, 'difficulty', 'dificuldade'))) &&
+    Array.isArray(field(t, 'tags', 'tags')) &&
+    Array.isArray(field(t, 'history', 'historico'))
   )
 }
 
-function normalizarTarefa(v: unknown): Tarefa | null {
-  if (!ehTarefa(v)) return null
-  const t = v
+function normalizeTask(v: unknown): Task | null {
+  if (!isTask(v)) return null
+  const t = v as unknown as Record<string, unknown>
+  const rawAgenda = field<unknown>(t, 'agenda', 'agenda')
   const agenda =
-    t.agenda && typeof t.agenda === 'object' && Array.isArray((t.agenda as { dias?: unknown }).dias)
+    rawAgenda && isObject(rawAgenda) && Array.isArray(field(rawAgenda, 'days', 'dias'))
       ? {
-          dias: ((t.agenda as { dias: unknown[] }).dias).filter((d): d is number => typeof d === 'number'),
-          diasDoMes: Array.isArray((t.agenda as { diasDoMes?: unknown }).diasDoMes)
-            ? ((t.agenda as { diasDoMes: unknown[] }).diasDoMes).filter((d): d is number => typeof d === 'number' && d >= 1 && d <= 31)
+          days: (field(rawAgenda, 'days', 'dias') as unknown[]).filter((d): d is number => typeof d === 'number'),
+          daysOfMonth: Array.isArray(field(rawAgenda, 'daysOfMonth', 'diasDoMes'))
+            ? (field(rawAgenda, 'daysOfMonth', 'diasDoMes') as unknown[]).filter((d): d is number => typeof d === 'number' && d >= 1 && d <= 31)
             : undefined,
         }
       : undefined
-  const contador =
-    t.contador && typeof t.contador === 'object'
+  const rawCounter = field<unknown>(t, 'counter', 'contador')
+  const counter =
+    rawCounter && isObject(rawCounter)
       ? {
-          hoje: typeof (t.contador as { hoje?: unknown }).hoje === 'number' ? (t.contador as { hoje: number }).hoje : 0,
-          hojeNeg: typeof (t.contador as { hojeNeg?: unknown }).hojeNeg === 'number' ? (t.contador as { hojeNeg: number }).hojeNeg : 0,
-          totalPositivo:
-            typeof (t.contador as { totalPositivo?: unknown }).totalPositivo === 'number'
-              ? (t.contador as { totalPositivo: number }).totalPositivo
+          today: typeof field(rawCounter, 'today', 'hoje') === 'number' ? (field(rawCounter, 'today', 'hoje') as number) : 0,
+          todayNeg: typeof field(rawCounter, 'todayNeg', 'hojeNeg') === 'number' ? (field(rawCounter, 'todayNeg', 'hojeNeg') as number) : 0,
+          totalPositive:
+            typeof field(rawCounter, 'totalPositive', 'totalPositivo') === 'number'
+              ? (field(rawCounter, 'totalPositive', 'totalPositivo') as number)
               : 0,
-          totalNegativo:
-            typeof (t.contador as { totalNegativo?: unknown }).totalNegativo === 'number'
-              ? (t.contador as { totalNegativo: number }).totalNegativo
+          totalNegative:
+            typeof field(rawCounter, 'totalNegative', 'totalNegativo') === 'number'
+              ? (field(rawCounter, 'totalNegative', 'totalNegativo') as number)
               : 0,
         }
       : undefined
-  const sinal =
-    t.sinal === 'positivo' || t.sinal === 'negativo' || t.sinal === 'ambos' ? t.sinal : t.tipo === 'habito' ? 'positivo' : undefined
+  const sign = (
+    field(t, 'sign', 'sinal') === 'positivo' || field(t, 'sign', 'sinal') === 'negativo' || field(t, 'sign', 'sinal') === 'ambos'
+      ? field(t, 'sign', 'sinal')
+      : field(t, 'type', 'tipo') === 'habito'
+        ? 'positivo'
+        : undefined
+  ) as 'positivo' | 'negativo' | 'ambos' | undefined
   const dueDate =
-    typeof t.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate) ? t.dueDate : undefined
-  let recompensas: Record<string, RecompensaConclusao> | undefined
-  if (t.recompensas && typeof t.recompensas === 'object') {
-    const rec: Record<string, RecompensaConclusao> = {}
-    for (const [data, r] of Object.entries(t.recompensas as Record<string, unknown>)) {
-      if (typeof data !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data)) continue
-      if (!r || typeof r !== 'object') continue
+    typeof field(t, 'dueDate', 'dueDate') === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(field(t, 'dueDate', 'dueDate') as string)
+      ? field(t, 'dueDate', 'dueDate')
+      : undefined
+  let rewards: Record<string, CompletionReward> | undefined
+  const rawRewards = field<unknown>(t, 'rewards', 'recompensas')
+  if (rawRewards && isObject(rawRewards)) {
+    const rec: Record<string, CompletionReward> = {}
+    for (const [date, r] of Object.entries(rawRewards)) {
+      if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue
+      if (!r || !isObject(r)) continue
       const rr = r as Record<string, unknown>
-      if (typeof rr.xp !== 'number') continue
-      rec[data] = {
-        xp: rr.xp,
-        subiu: rr.subiu === true,
-        nivel: typeof rr.nivel === 'number' ? rr.nivel : undefined,
-        xpAntes: typeof rr.xpAntes === 'number' ? rr.xpAntes : undefined,
-        nivelAntes: typeof rr.nivelAntes === 'number' ? rr.nivelAntes : undefined,
-        xpProximoAntes: typeof rr.xpProximoAntes === 'number' ? rr.xpProximoAntes : undefined,
-        hpMaxAntes: typeof rr.hpMaxAntes === 'number' ? rr.hpMaxAntes : undefined,
-        manaMaxAntes: typeof rr.manaMaxAntes === 'number' ? rr.manaMaxAntes : undefined,
-        cartas: Array.isArray(rr.cartas) ? rr.cartas.filter((c): c is string => typeof c === 'string') : undefined,
+      if (typeof field(rr, 'xp', 'xp') !== 'number') continue
+      rec[date] = {
+        xp: field(rr, 'xp', 'xp') as number,
+        leveledUp: field(rr, 'leveledUp', 'subiu') === true,
+        level: typeof field(rr, 'level', 'nivel') === 'number' ? field(rr, 'level', 'nivel') : undefined,
+        xpBefore: typeof field(rr, 'xpBefore', 'xpAntes') === 'number' ? field(rr, 'xpBefore', 'xpAntes') : undefined,
+        levelBefore: typeof field(rr, 'levelBefore', 'nivelAntes') === 'number' ? field(rr, 'levelBefore', 'nivelAntes') : undefined,
+        xpNextBefore: typeof field(rr, 'xpNextBefore', 'xpProximoAntes') === 'number' ? field(rr, 'xpNextBefore', 'xpProximoAntes') : undefined,
+        hpMaxBefore: typeof field(rr, 'hpMaxBefore', 'hpMaxAntes') === 'number' ? field(rr, 'hpMaxBefore', 'hpMaxAntes') : undefined,
+        manaMaxBefore: typeof field(rr, 'manaMaxBefore', 'manaMaxAntes') === 'number' ? field(rr, 'manaMaxBefore', 'manaMaxAntes') : undefined,
+        cards: Array.isArray(field(rr, 'cards', 'cartas')) ? (field(rr, 'cards', 'cartas') as unknown[]).filter((c): c is string => typeof c === 'string') : undefined,
       }
     }
-    if (Object.keys(rec).length > 0) recompensas = rec
+    if (Object.keys(rec).length > 0) rewards = rec
   }
   return {
-    id: t.id,
-    tipo: t.tipo,
-    titulo: t.titulo,
-    dificuldade: t.dificuldade,
-    tags: t.tags.filter((x): x is string => typeof x === 'string'),
-    dueDate,
-    notas: typeof t.notas === 'string' ? t.notas : undefined,
+    id: field(t, 'id', 'id') as string,
+    type: field(t, 'type', 'tipo') as Task['type'],
+    title: field(t, 'title', 'titulo') as string,
+    difficulty: field(t, 'difficulty', 'dificuldade') as Task['difficulty'],
+    tags: (field(t, 'tags', 'tags') as unknown[]).filter((x): x is string => typeof x === 'string'),
+    dueDate: dueDate as string | undefined,
+    notes: str(t, 'notes', 'notas'),
     agenda,
-    sinal,
-    contador,
-    concluida: t.concluida === true,
-    historico: t.historico.filter((x): x is string => typeof x === 'string'),
-    recompensas,
-    criadaEm: typeof t.criadaEm === 'string' ? t.criadaEm : new Date().toISOString(),
-    editadaEm: typeof t.editadaEm === 'string' ? t.editadaEm : (typeof t.criadaEm === 'string' ? t.criadaEm : undefined),
+    sign,
+    counter,
+    done: field(t, 'done', 'concluida') === true,
+    history: (field(t, 'history', 'historico') as unknown[]).filter((x): x is string => typeof x === 'string'),
+    rewards,
+    createdAt: str(t, 'createdAt', 'criadaEm') ?? new Date().toISOString(),
+    updatedAt: str(t, 'updatedAt', 'editadaEm') ?? str(t, 'createdAt', 'criadaEm'),
   }
 }
 
-function normalizarPersonagem(v: unknown): Personagem {
-  const inicial = personagemInicial()
-  if (!ehObjeto(v)) return inicial
+function normalizeCharacter(v: unknown): Character {
+  const initial = initialCharacter()
+  if (!isObject(v)) return initial
   const p = v as Record<string, unknown>
-  const nivel = typeof p.nivel === 'number' && p.nivel >= 1 ? Math.floor(p.nivel) : inicial.nivel
-  const hpMax = hpMaxDe(nivel)
-  const manaMax = manaMaxDe(nivel)
-  const cartas = Array.isArray(p.cartas) ? p.cartas.filter((x): x is string => typeof x === 'string') : []
-  const invocacoes: Record<string, number> = {}
-  if (ehObjeto(p.invocacoes)) {
-    for (const [k, val] of Object.entries(p.invocacoes as Record<string, unknown>)) {
-      if (typeof k === 'string' && typeof val === 'number' && val > 0) invocacoes[k] = Math.floor(val)
+  const level = typeof field(p, 'level', 'nivel') === 'number' && (field(p, 'level', 'nivel') as number) >= 1 ? Math.floor(field(p, 'level', 'nivel') as number) : initial.level
+  const hpMax = hpMaxFor(level)
+  const manaMax = manaMaxFor(level)
+  const cards = Array.isArray(field(p, 'cards', 'cartas')) ? (field(p, 'cards', 'cartas') as unknown[]).filter((x): x is string => typeof x === 'string') : []
+  const invocations: Record<string, number> = {}
+  const rawInvocations = field<unknown>(p, 'invocations', 'invocacoes')
+  if (isObject(rawInvocations)) {
+    for (const [k, val] of Object.entries(rawInvocations)) {
+      if (typeof k === 'string' && typeof val === 'number' && val > 0) invocations[k] = Math.floor(val)
     }
   }
   return {
-    nivel,
-    xp: typeof p.xp === 'number' && p.xp >= 0 ? Math.floor(p.xp) : 0,
-    xpProximo: typeof p.xpProximo === 'number' && p.xpProximo > 0 ? p.xpProximo : xpProximoDe(nivel),
-    hp: typeof p.hp === 'number' ? Math.min(Math.max(0, Math.floor(p.hp)), hpMax) : hpMax,
+    level,
+    xp: typeof field(p, 'xp', 'xp') === 'number' && (field(p, 'xp', 'xp') as number) >= 0 ? Math.floor(field(p, 'xp', 'xp') as number) : 0,
+    xpNext: typeof field(p, 'xpNext', 'xpProximo') === 'number' && (field(p, 'xpNext', 'xpProximo') as number) > 0 ? field(p, 'xpNext', 'xpProximo') as number : xpNextFor(level),
+    hp: typeof field(p, 'hp', 'hp') === 'number' ? Math.min(Math.max(0, Math.floor(field(p, 'hp', 'hp') as number)), hpMax) : hpMax,
     hpMax,
-    mana: typeof p.mana === 'number' ? Math.min(Math.max(0, Math.floor(p.mana)), manaMax) : manaMax,
+    mana: typeof field(p, 'mana', 'mana') === 'number' ? Math.min(Math.max(0, Math.floor(field(p, 'mana', 'mana') as number)), manaMax) : manaMax,
     manaMax,
-    esgotado: p.esgotado === true,
-    ultimoDia: typeof p.ultimoDia === 'string' ? p.ultimoDia : '',
-    cartas,
-    invocacoes,
+    exhausted: field(p, 'exhausted', 'esgotado') === true,
+    lastDay: str(p, 'lastDay', 'ultimoDia') ?? '',
+    cards,
+    invocations,
     avatar:
-      typeof p.avatar === 'string' && p.avatar.startsWith('data:image/') && p.avatar.length < 200_000
-        ? p.avatar
+      typeof field(p, 'avatar', 'avatar') === 'string' && (field(p, 'avatar', 'avatar') as string).startsWith('data:image/') && (field(p, 'avatar', 'avatar') as string).length < 200_000
+        ? field(p, 'avatar', 'avatar')
         : undefined,
-    nomeMonstruoso:
-      typeof p.nomeMonstruoso === 'string' && p.nomeMonstruoso.trim()
-        ? p.nomeMonstruoso.trim().slice(0, 40)
+    monsterName:
+      typeof field(p, 'monsterName', 'nomeMonstruoso') === 'string' && (field(p, 'monsterName', 'nomeMonstruoso') as string).trim()
+        ? (field(p, 'monsterName', 'nomeMonstruoso') as string).trim().slice(0, 40)
         : undefined,
   }
 }
 
-function normalizarConfiguracao(v: unknown): Configuracao {
-  const tema = ehObjeto(v) && (v.tema === 'light' || v.tema === 'dark' || v.tema === 'sistema') ? v.tema : 'sistema'
-  const modoRelaxado = ehObjeto(v) && v.modoRelaxado === true
-  const ia = ehObjeto(v) ? normalizarConfigIa(v.ia) : undefined
-  const out: Configuracao = { tema, modoRelaxado }
-  if (ia) out.ia = ia
-  if (ehObjeto(v) && typeof v.resumo === 'string' && v.resumo.trim()) out.resumo = v.resumo
-  if (ehObjeto(v) && typeof v.sons === 'boolean') out.sons = v.sons
+function normalizeSettings(v: unknown): Settings {
+  const theme: Theme = (isObject(v) && (field(v, 'theme', 'tema') === 'light' || field(v, 'theme', 'tema') === 'dark' || field(v, 'theme', 'tema') === 'sistema')) ? field(v, 'theme', 'tema') as Theme : 'sistema'
+  const relaxedMode = isObject(v) && field(v, 'relaxedMode', 'modoRelaxado') === true
+  const ai = isObject(v) ? normalizeAiConfig(field<unknown>(v, 'ai', 'ia')) : undefined
+  const out: Settings = { theme, relaxedMode }
+  if (ai) out.ai = ai
+  const summary = isObject(v) ? field(v, 'summary', 'resumo') : undefined
+  if (isObject(v) && typeof summary === 'string' && summary.trim()) out.summary = summary
+  const sound = isObject(v) ? field(v, 'sound', 'sons') : undefined
+  if (typeof sound === 'boolean') out.sound = sound
   return out
 }
 
 const PROVIDERS: ReadonlySet<string> = new Set(['nenhum', 'deepseek', 'opencode'])
 
-function normalizarConfigIa(v: unknown): ConfigIa | undefined {
-  if (!ehObjeto(v)) return undefined
-  const provider: ProviderIA =
-    typeof v.provider === 'string' && PROVIDERS.has(v.provider) ? (v.provider as ProviderIA) : 'nenhum'
-  if (provider === 'nenhum') return undefined // sem provider configurado → não criar config
-  // Migração v2 → v3: presets viraram texto livre. Se o usuário tinha
-  // `preset === 'custom'` + `systemPromptCustom`, copia; senão mantém vazio
-  // (= usa o canônico). O campo `preset` legado é ignorado.
+function normalizeAiConfig(v: unknown): AiConfig | undefined {
+  if (!isObject(v)) return undefined
+  const rawProvider = field<unknown>(v, 'provider', 'provider')
+  const provider: AiProvider = typeof rawProvider === 'string' && PROVIDERS.has(rawProvider) ? rawProvider as AiProvider : 'nenhum'
+  if (provider === 'nenhum') return undefined // no provider configured → do not create config
+  // Migration v2 → v3: presets became free text. If the user had
+  // `preset === 'custom'` + `systemPromptCustom`, copy; otherwise keep empty
+  // (= use the canonical). The legacy `preset` field is ignored.
   let systemPrompt = ''
-  if (typeof v.systemPrompt === 'string') {
-    systemPrompt = v.systemPrompt
-  } else if (v.preset === 'custom' && typeof v.systemPromptCustom === 'string') {
-    systemPrompt = v.systemPromptCustom
+  if (typeof field(v, 'systemPrompt', 'systemPrompt') === 'string') {
+    systemPrompt = field(v, 'systemPrompt', 'systemPrompt') as string
+  } else if (field(v, 'preset', 'preset') === 'custom' && typeof field(v, 'systemPromptCustom', 'systemPromptCustom') === 'string') {
+    systemPrompt = field(v, 'systemPromptCustom', 'systemPromptCustom') as string
   }
   return {
     provider,
-    modelo: typeof v.modelo === 'string' ? v.modelo : '',
-    apiKey: typeof v.apiKey === 'string' ? v.apiKey : '',
+    model: str(v, 'model', 'modelo') ?? '',
+    apiKey: str(v, 'apiKey', 'apiKey') ?? '',
     systemPrompt,
   }
 }
 
-/** Limite de mensagens por conversa (evita localStorage inflado). */
-const MAX_MSG_POR_CONVERSA = 200
-/** Limite de conversas guardadas. */
-export const MAX_CONVERSAS = 30
-/** Limite de entradas do diário guardadas (~1 ano se escrever 1/dia). */
-const MAX_DIARIO = 730
+/** Message limit per conversation (keeps localStorage from inflating). */
+const MAX_MSGS_PER_CONVERSATION = 200
+/** Limit of stored conversations. */
+export const MAX_CONVERSATIONS = 30
+/** Limit of stored diary entries (~1 year if writing 1/day). */
+const MAX_DIARY = 730
 
-function normalizarConversa(v: unknown): Conversa | null {
-  if (!ehObjeto(v)) return null
-  const id = typeof v.id === 'string' && v.id ? v.id : null
+function normalizeConversation(v: unknown): Conversation | null {
+  if (!isObject(v)) return null
+  const id = str(v, 'id', 'id')
   if (!id) return null
-  const titulo = typeof v.titulo === 'string' && v.titulo.trim() ? v.titulo.trim().slice(0, 80) : 'Conversa'
-  const atualizadaEm = typeof v.atualizadaEm === 'string' ? v.atualizadaEm : new Date(0).toISOString()
-  const msgs: MensagemIA[] = []
-  if (Array.isArray(v.mensagens)) {
-    for (const m of v.mensagens) {
-      if (!ehObjeto(m)) continue
-      if (m.role !== 'user' && m.role !== 'assistant') continue
-      if (typeof m.content !== 'string' || !m.content) continue
+  const rawTitle = str(v, 'title', 'titulo')
+  const title = rawTitle && rawTitle.trim() ? rawTitle.trim().slice(0, 80) : 'Conversa'
+  const updatedAt = str(v, 'updatedAt', 'atualizadaEm') ?? new Date(0).toISOString()
+  const msgs: AiMessage[] = []
+  const rawMessages = field<unknown>(v, 'messages', 'mensagens')
+  if (Array.isArray(rawMessages)) {
+    for (const m of rawMessages) {
+      if (!isObject(m)) continue
+      if (field(m, 'role', 'role') !== 'user' && field(m, 'role', 'role') !== 'assistant') continue
+      if (typeof field(m, 'content', 'content') !== 'string' || !field(m, 'content', 'content')) continue
       msgs.push({
-        role: m.role,
-        content: m.content,
-        reasoning: typeof m.reasoning === 'string' ? m.reasoning : undefined,
-        ts: typeof m.ts === 'string' ? m.ts : new Date().toISOString(),
+        role: field(m, 'role', 'role') as AiMessage['role'],
+        content: str(m, 'content', 'content') ?? '',
+        reasoning: str(m, 'reasoning', 'reasoning'),
+        ts: str(m, 'ts', 'ts') ?? new Date().toISOString(),
       })
-      if (msgs.length >= MAX_MSG_POR_CONVERSA) break
+      if (msgs.length >= MAX_MSGS_PER_CONVERSATION) break
     }
   }
-  return { id, titulo, mensagens: msgs, atualizadaEm }
+  return { id, title, messages: msgs, updatedAt }
 }
 
-function normalizarConversas(v: unknown): Conversa[] {
+function normalizeConversations(v: unknown): Conversation[] {
   if (!Array.isArray(v)) return []
-  const out: Conversa[] = []
+  const out: Conversation[] = []
   for (const c of v) {
-    const conv = normalizarConversa(c)
+    const conv = normalizeConversation(c)
     if (conv) out.push(conv)
   }
-  // Mantém só as MAX_CONVERSAS mais recentes.
-  out.sort((a, b) => b.atualizadaEm.localeCompare(a.atualizadaEm))
-  return out.slice(0, MAX_CONVERSAS)
+  // Keeps only the MAX_CONVERSATIONS most recent.
+  out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  return out.slice(0, MAX_CONVERSATIONS)
 }
 
-function normalizarEntradaDiario(v: unknown): EntradaDiario | null {
-  if (!ehObjeto(v)) return null
-  const id = typeof v.id === 'string' && v.id ? v.id : null
-  const data = typeof v.data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.data) ? v.data : null
-  if (!id || !data) return null
+function normalizeDiaryEntry(v: unknown): DiaryEntry | null {
+  if (!isObject(v)) return null
+  const id = str(v, 'id', 'id')
+  const rawDate = field<unknown>(v, 'date', 'data')
+  const date = typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : null
+  if (!id || !date) return null
   return {
     id,
-    data,
-    titulo: typeof v.titulo === 'string' ? v.titulo : '',
-    texto: typeof v.texto === 'string' ? v.texto : '',
-    criadaEm: typeof v.criadaEm === 'string' ? v.criadaEm : new Date(data).toISOString(),
-    editadaEm: typeof v.editadaEm === 'string' ? v.editadaEm : undefined,
+    date,
+    title: str(v, 'title', 'titulo') ?? '',
+    text: str(v, 'text', 'texto') ?? '',
+    createdAt: str(v, 'createdAt', 'criadaEm') ?? new Date(date).toISOString(),
+    updatedAt: str(v, 'updatedAt', 'editadaEm'),
   }
 }
 
-function normalizarDiario(v: unknown): EntradaDiario[] {
+function normalizeDiary(v: unknown): DiaryEntry[] {
   if (!Array.isArray(v)) return []
-  const out: EntradaDiario[] = []
+  const out: DiaryEntry[] = []
   const seen = new Set<string>()
   for (const e of v) {
-    const entrada = normalizarEntradaDiario(e)
-    if (!entrada) continue
-    // Garante unicidade por data (1 entrada/dia): se vier duplicada, mantém a mais recente.
-    if (seen.has(entrada.data)) continue
-    seen.add(entrada.data)
-    out.push(entrada)
-    if (out.length >= MAX_DIARIO) break
+    const entry = normalizeDiaryEntry(e)
+    if (!entry) continue
+    // Guarantees uniqueness by date (1 entry/day): if duplicate comes, keep the most recent.
+    if (seen.has(entry.date)) continue
+    seen.add(entry.date)
+    out.push(entry)
+    if (out.length >= MAX_DIARY) break
   }
-  // Ordena mais recente primeiro.
-  out.sort((a, b) => b.data.localeCompare(a.data))
+  // Sorts most recent first.
+  out.sort((a, b) => b.date.localeCompare(a.date))
   return out
 }
 
-/** Valida e normaliza um dado bruto (de localStorage ou import). Null se irreparável. */
-export function normalizarDados(bruto: unknown): AppData | null {
-  if (!ehObjeto(bruto)) return null
-  const b = bruto as Record<string, unknown>
-  const tarefasBrutas = Array.isArray(b.tarefas) ? b.tarefas : []
-  const tarefas: Tarefa[] = []
-  for (const t of tarefasBrutas) {
-    const ok = normalizarTarefa(t)
-    if (ok) tarefas.push(ok)
+/** Validates and normalizes raw data (from localStorage or import). Null if irreparable. */
+export function normalizeData(raw: unknown): AppData | null {
+  if (!isObject(raw)) return null
+  const b = raw as Record<string, unknown>
+  const rawTasks = Array.isArray(field<unknown>(b, 'tasks', 'tarefas')) ? field<unknown>(b, 'tasks', 'tarefas') as unknown[] : []
+  const tasks: Task[] = []
+  for (const t of rawTasks) {
+    const ok = normalizeTask(t)
+    if (ok) tasks.push(ok)
   }
-  const log = normalizarLog(b.log)
-  const conversas = normalizarConversas(b.conversas)
-  const diario = normalizarDiario(b.diario)
+  const log = normalizeLog(field<unknown>(b, 'log', 'log'))
+  const conversations = normalizeConversations(field<unknown>(b, 'conversations', 'conversas'))
+  const diary = normalizeDiary(field<unknown>(b, 'diary', 'diario'))
   return {
-    versao: VERSAO_DADOS,
-    tarefas,
-    personagem: normalizarPersonagem(b.personagem),
-    configuracao: normalizarConfiguracao(b.configuracao),
+    version: DATA_VERSION,
+    tasks,
+    character: normalizeCharacter(field<unknown>(b, 'character', 'personagem')),
+    settings: normalizeSettings(field<unknown>(b, 'settings', 'configuracao')),
     log,
-    conversas,
-    diario,
-    tarefasExcluidas: normalizarMapaString(b.tarefasExcluidas),
-    diarioXp: normalizarDiarioXp(b.diarioXp),
-    diarioRegistroXp: normalizarDiarioRegistroXp(b.diarioRegistroXp),
+    conversations,
+    diary,
+    deletedTasks: normalizeStringMap(field<unknown>(b, 'deletedTasks', 'tarefasExcluidas')),
+    diaryXp: normalizeDiaryXp(field<unknown>(b, 'diaryXp', 'diarioXp')),
+    diaryLogXp: normalizeDiaryLogXp(field<unknown>(b, 'diaryLogXp', 'diarioRegistroXp')),
   }
 }
 
-/** Normaliza um mapa string→string (ex.: tarefasExcluidas). */
-function normalizarMapaString(x: unknown): Record<string, string> {
+/** Normalizes a string→string map (e.g. deletedTasks). */
+function normalizeStringMap(x: unknown): Record<string, string> {
   if (!x || typeof x !== 'object') return {}
-  const saida: Record<string, string> = {}
+  const out: Record<string, string> = {}
   for (const [k, v] of Object.entries(x)) {
-    if (typeof v === 'string') saida[k] = v
+    if (typeof v === 'string') out[k] = v
   }
-  return saida
-}/** `diarioRegistroXp`: data → true (já rendeu XP de registro). Filtra lixo. */
-function normalizarDiarioRegistroXp(x: unknown): Record<string, boolean> {
-  if (!x || typeof x !== 'object') return {}
-  const saida: Record<string, boolean> = {}
-  for (const [data, ok] of Object.entries(x as Record<string, unknown>)) {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(data) && ok) saida[data] = true
-  }
-  return saida
+  return out
 }
 
-/** `diarioXp`: data → ids de carta já premiados (filtra lixo do import). */
-function normalizarDiarioXp(x: unknown): Record<string, string[]> {
+/** `diaryLogXp`: date → true (already yielded diary-log XP). Filters junk. */
+function normalizeDiaryLogXp(x: unknown): Record<string, boolean> {
   if (!x || typeof x !== 'object') return {}
-  const saida: Record<string, string[]> = {}
-  for (const [data, ids] of Object.entries(x as Record<string, unknown>)) {
+  const out: Record<string, boolean> = {}
+  for (const [date, ok] of Object.entries(x)) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && ok) out[date] = true
+  }
+  return out
+}
+
+/** `diaryXp`: date → card ids already awarded (filters import junk). */
+function normalizeDiaryXp(x: unknown): Record<string, string[]> {
+  if (!x || typeof x !== 'object') return {}
+  const out: Record<string, string[]> = {}
+  for (const [date, ids] of Object.entries(x)) {
     if (Array.isArray(ids)) {
-      const limpos = ids.filter((i): i is string => typeof i === 'string')
-      if (limpos.length > 0) saida[data] = limpos
+      const clean = ids.filter((i): i is string => typeof i === 'string')
+      if (clean.length > 0) out[date] = clean
     }
   }
-  return saida
+  return out
 }
 
-/** Limite de eventos guardados no histórico (evita inchar o localStorage). */
+/** Limit of stored history events (keeps localStorage from inflating). */
 export const MAX_LOG = 400
 
-const TIPOS_LOG: ReadonlySet<string> = new Set(['tarefa', 'habito', 'invocacao', 'carta', 'nivel', 'dano', 'sistema'])
+const LOG_TYPES: ReadonlySet<string> = new Set(['tarefa', 'habito', 'invocacao', 'carta', 'nivel', 'dano', 'sistema'])
 
-function normalizarLog(v: unknown): LogEvento[] {
+function normalizeLog(v: unknown): LogEvent[] {
   if (!Array.isArray(v)) return []
-  const log: LogEvento[] = []
+  const log: LogEvent[] = []
   for (const item of v) {
-    if (!ehObjeto(item)) continue
-    const tipo: TipoLog = typeof item.tipo === 'string' && TIPOS_LOG.has(item.tipo) ? (item.tipo as TipoLog) : 'sistema'
-    if (typeof item.texto !== 'string' || !item.texto) continue
+    if (!isObject(item)) continue
+    const rawType = field<unknown>(item, 'type', 'tipo')
+    const type: LogType = typeof rawType === 'string' && LOG_TYPES.has(rawType) ? rawType as LogType : 'sistema'
+    if (typeof field(item, 'text', 'texto') !== 'string' || !field(item, 'text', 'texto')) continue
     log.push({
-      id: typeof item.id === 'string' ? item.id : String(Math.random()).slice(2),
-      ts: typeof item.ts === 'string' ? item.ts : new Date().toISOString(),
-      tipo,
-      texto: item.texto,
+      id: str(item, 'id', 'id') ?? String(Math.random()).slice(2),
+      ts: str(item, 'ts', 'ts') ?? new Date().toISOString(),
+      type,
+      text: str(item, 'text', 'texto') ?? '',
     })
   }
   return log.slice(0, MAX_LOG)
 }
 
-/** Estado padrão de primeira execução. */
-export function estadoVazio(): AppData {
+/** Default first-run state. */
+export function emptyState(): AppData {
   return {
-    versao: VERSAO_DADOS,
-    tarefas: [],
-    personagem: personagemInicial(),
-    configuracao: { tema: temaInicial() },
+    version: DATA_VERSION,
+    tasks: [],
+    character: initialCharacter(),
+    settings: { theme: initialTheme() },
     log: [],
-    conversas: [],
-    diario: [],
-    tarefasExcluidas: {},
-    diarioXp: {},
-    diarioRegistroXp: {},
+    conversations: [],
+    diary: [],
+    deletedTasks: {},
+    diaryXp: {},
+    diaryLogXp: {},
   }
 }
 
-export function carregar(): AppData {
-  const bruto = storageGet(STORAGE_KEY)
-  if (!bruto) return estadoVazio()
+export function load(): AppData {
+  const raw = storageGet(STORAGE_KEY)
+  if (!raw) return emptyState()
   try {
-    const normalizado = normalizarDados(JSON.parse(bruto))
-    return normalizado ?? estadoVazio()
+    const normalized = normalizeData(JSON.parse(raw))
+    return normalized ?? emptyState()
   } catch {
-    return estadoVazio()
+    return emptyState()
   }
 }
 
-export function salvar(dados: AppData): void {
-  storageSet(STORAGE_KEY, JSON.stringify(dados))
+export function save(data: AppData): void {
+  storageSet(STORAGE_KEY, JSON.stringify(data))
 }
 
-export function apagarTudo(): void {
+export function wipeAll(): void {
   storageRemove(STORAGE_KEY)
 }

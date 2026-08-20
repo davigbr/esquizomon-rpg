@@ -1,7 +1,7 @@
-/** Utilitários compartilhados de UI. */
+/** Shared UI utilities. */
 
-/** Escapa HTML (seguro para qualquer entrada). Fonte única de escape do app. */
-export function escapar(s: string): string {
+/** Escapes HTML (safe for any input). Single source of escaping for the app. */
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

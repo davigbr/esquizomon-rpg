@@ -85,8 +85,8 @@ test('diário: importa crônicas em massa via markdown (e pula dias que já exis
   await expect(page.locator('.toast').last()).toContainText('2 importada')
 
   // as entradas aparecem na lista e a mais recente fica aberta no editor
-  await expect(page.locator('.diario-arquivos')).toContainText('Hoje')
-  await expect(page.locator('.diario-arquivos')).toContainText('Ontem')
+  await expect(page.locator('.diary-files')).toContainText('Hoje')
+  await expect(page.locator('.diary-files')).toContainText('Ontem')
   await expect(page.locator('[data-diario-editor]')).toHaveValue(/Segunda crônica importada/)
 
   // reimportar o mesmo dia → pula (1/dia), modal fecha de novo

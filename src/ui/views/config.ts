@@ -1,191 +1,191 @@
-/** Visão Config — tema, jogo, IA, export/import de dados e zona de perigo. */
+/** Config view — theme, game, AI, data export/import and the danger zone. */
 
-import type { AppData, ConfigIa, ProviderIA, Tema } from '../../core/tipos'
-import { MODELOS_POR_PROVIDER, modeloPadrao, testarConexao, ErroIA } from '../../ia/cliente'
-import { SYSTEM_PROMPT_PADRAO } from '../../ia/prompt'
-import { apagarTodosDados, definirAvatar, definirConfiguracao, definirNomeMonstruoso, definirTema, exportarJSON, importarJSON } from '../../stores/app'
-import { rerolarBaralho } from '../../stores/personagem'
-import { confirmar } from '../modal'
-import { notificar } from '../toast'
-import { escapar } from '../util'
-import { editarAvatar } from '../avatarEditor'
-import { sessaoAtual } from '../../sync/auth'
-import { aposMudancaSessao, inscreverSync, lerBackups, restaurarBackup, sincronizarAgora } from '../../sync/sync'
-import type { EstadoSync } from '../../sync/sync'
-import { abrirLoginModal } from '../loginModal'
+import type { AiConfig, AiProvider, AppData, Theme } from '../../core/tipos'
+import { defaultModel, MODELS_BY_PROVIDER, testConnection, AiError } from '../../ia/cliente'
+import { DEFAULT_SYSTEM_PROMPT } from '../../ia/prompt'
+import { exportJSON, importJSON, setAvatar, setMonsterName, setSettings, setTheme, wipeAllData } from '../../stores/app'
+import { rerollDeck } from '../../stores/personagem'
+import { confirm } from '../modal'
+import { notify } from '../toast'
+import { escapeHtml } from '../util'
+import { editAvatar } from '../avatarEditor'
+import { currentSession } from '../../sync/auth'
+import { getBackups, onSessionChange, restoreBackup, subscribeSync, syncNow } from '../../sync/sync'
+import type { SyncState } from '../../sync/sync'
+import { openLoginModal } from '../loginModal'
 
-const IA_PADRAO: ConfigIa = {
+const DEFAULT_AI: AiConfig = {
   provider: 'nenhum',
-  modelo: '',
+  model: '',
   apiKey: '',
   systemPrompt: '',
 }
 
-function iaAtual(dados: AppData): ConfigIa {
-  return dados.configuracao.ia ?? IA_PADRAO
+function currentAI(data: AppData): AiConfig {
+  return data.settings.ai ?? DEFAULT_AI
 }
 
-export function montarConfig(raiz: HTMLElement, dados: AppData): void {
-  const tema = dados.configuracao.tema
-  const modoRelaxado = dados.configuracao.modoRelaxado === true
-  const sons = dados.configuracao.sons !== false
-  const resumo = dados.configuracao.resumo ?? ''
-  const avatar = dados.personagem.avatar
-  const ia = iaAtual(dados)
-  const total = dados.tarefas.length
+export function mountSettings(root: HTMLElement, data: AppData): void {
+  const theme = data.settings.theme
+  const relaxedMode = data.settings.relaxedMode === true
+  const sound = data.settings.sound !== false
+  const summary = data.settings.summary ?? ''
+  const avatar = data.character.avatar
+  const ai = currentAI(data)
+  const total = data.tasks.length
 
-  raiz.innerHTML = `
+  root.innerHTML = `
     <header class="view-header">
       <h1>Config</h1>
       <p class="view-sub">Ajustes do app e dos seus dados.</p>
     </header>
 
-    <div class="config-secao">
+    <div class="settings-section">
       <h3>Avatar</h3>
-      <div class="avatar-bloco">
-        <div class="avatar-atual" title="Seu avatar">
-          ${avatar ? `<img src="${escapar(avatar)}" alt="Seu avatar" />` : '<i class="fa-solid fa-user" aria-hidden="true"></i>'}
+      <div class="avatar-block">
+        <div class="avatar-current" title="Seu avatar">
+          ${avatar ? `<img src="${escapeHtml(avatar)}" alt="Seu avatar" />` : '<i class="fa-solid" fa-user aria-hidden="true"></i>'}
         </div>
-        <div class="config-acoes-linha">
+        <div class="settings-actions-row">
           <button class="btn" data-avatar-escolher>Escolher imagem</button>
           ${avatar ? '<button class="btn" data-avatar-remover>Remover</button>' : ''}
         </div>
-        <div class="config-campo-linha">
-          <label class="config-rotulo" for="nome-monstruoso">Nome monstruoso</label>
-          <input id="nome-monstruoso" class="campo" data-nome-monstruoso value="${escapar(dados.personagem.nomeMonstruoso ?? '')}" placeholder="Ex.: Devorador de Segundas" maxlength="40" />
-          <p class="config-dica">Aparece em negrito ao lado do seu avatar (não é exibido no celular).</p>
+        <div class="settings-field-row">
+          <label class="settings-label" for="nome-monstruoso">Nome monstruoso</label>
+          <input id="nome-monstruoso" class="field" data-nome-monstruoso value="${escapeHtml(data.character.monsterName ?? '')}" placeholder="Ex.: Devorador de Segundas" maxlength="40" />
+          <p class="settings-hint">Aparece em negrito ao lado do seu avatar (não é exibido no celular).</p>
         </div>
-        <p class="config-dica">Corte sempre circular · comprimido · salvo junto aos dados · exibido ao lado do nível.</p>
+        <p class="settings-hint">Corte sempre circular · comprimido · salvo junto aos dados · exibido ao lado do nível.</p>
       </div>
       <input type="file" accept="image/*" data-avatar-arquivo hidden />
     </div>
 
-    <div class="config-secao">
+    <div class="settings-section">
       <h3>Aparência</h3>
       <p>O tema vale para este dispositivo.</p>
-      <div class="config-linha">
+      <div class="settings-row">
         <div>
-          <div class="config-rotulo">Tema</div>
-          <div class="config-dica">Sistema segue o padrão do dispositivo</div>
+          <div class="settings-label">Tema</div>
+          <div class="settings-hint">Sistema segue o padrão do dispositivo</div>
         </div>
-        <select class="filtro-select" data-tema>
-          <option value="sistema" ${tema === 'sistema' ? 'selected' : ''}>Sistema</option>
-          <option value="dark" ${tema === 'dark' ? 'selected' : ''}>Escuro</option>
-          <option value="light" ${tema === 'light' ? 'selected' : ''}>Claro</option>
+        <select class="filter-select" data-tema>
+          <option value="sistema" ${theme === 'sistema' ? 'selected' : ''}>Sistema</option>
+          <option value="dark" ${theme === 'dark' ? 'selected' : ''}>Escuro</option>
+          <option value="light" ${theme === 'light' ? 'selected' : ''}>Claro</option>
         </select>
       </div>
     </div>
 
-    <div class="config-secao">
+    <div class="settings-section">
       <h3>Jogo</h3>
       <p>O modo relaxado desliga todo dano — recorrentes perdidas e hábitos negativos não machucam o personagem.</p>
-      <div class="config-linha">
+      <div class="settings-row">
         <div>
-          <div class="config-rotulo">Modo relaxado</div>
-          <div class="config-dica">Jogo sem punição — só bônus</div>
+          <div class="settings-label">Modo relaxado</div>
+          <div class="settings-hint">Jogo sem punição — só bônus</div>
         </div>
-        <select class="filtro-select" data-modo-relaxado>
-          <option value="off" ${!modoRelaxado ? 'selected' : ''}>Desligado</option>
-          <option value="on" ${modoRelaxado ? 'selected' : ''}>Ligado</option>
+        <select class="filter-select" data-modo-relaxado>
+          <option value="off" ${!relaxedMode ? 'selected' : ''}>Desligado</option>
+          <option value="on" ${relaxedMode ? 'selected' : ''}>Ligado</option>
         </select>
       </div>
-      <div class="config-linha">
+      <div class="settings-row">
         <div>
-          <div class="config-rotulo">Efeitos sonoros</div>
-          <div class="config-dica">Tique ao marcar · hábito + sobe, hábito − desce · fanfarra ao subir de nível · som sombrio na invocação · acorde na análise</div>
+          <div class="settings-label">Efeitos sonoros</div>
+          <div class="settings-hint">Tique ao marcar · hábito + sobe, hábito − desce · fanfarra ao subir de nível · som sombrio na invocação · acorde na análise</div>
         </div>
-        <select class="filtro-select" data-sons>
-          <option value="on" ${sons !== false ? 'selected' : ''}>Ligados</option>
-          <option value="off" ${sons === false ? 'selected' : ''}>Desligados</option>
+        <select class="filter-select" data-sons>
+          <option value="on" ${sound !== false ? 'selected' : ''}>Ligados</option>
+          <option value="off" ${sound === false ? 'selected' : ''}>Desligados</option>
         </select>
       </div>
     </div>
 
-    <div class="config-secao">
+    <div class="settings-section">
       <h3>Sobre você</h3>
       <p>Um resumo da sua vida — quem você é, o que faz, o que está vivendo. A Fábula usa isso pra te conhecer além do jogo (junto com o seu diário).</p>
-      <textarea class="filtro-textarea" data-resumo rows="6" spellcheck="false" placeholder="Conte quem você é, o que está vivendo, o que anda em movimento — a Fábula lê isso pra te conhecer além do jogo.">${escapar(resumo)}</textarea>
-      <div class="config-dica">Salva automaticamente ao sair do campo. Quanto mais honesto, melhor ela te acompanha.</div>
+      <textarea class="filter-textarea" data-resumo rows="6" spellcheck="false" placeholder="Conte quem você é, o que está vivendo, o que anda em movimento — a Fábula lê isso pra te conhecer além do jogo.">${escapeHtml(summary)}</textarea>
+      <div class="settings-hint">Salva automaticamente ao sair do campo. Quanto mais honesto, melhor ela te acompanha.</div>
     </div>
 
-    ${secaoIA(ia)}
+    ${aiSection(ai)}
 
-    ${secaoConta()}
+    ${accountSection()}
 
-    <div class="config-secao">
+    <div class="settings-section">
       <h3>Dados</h3>
       <p>Exporte ou importe tudo em JSON — o backup do seu território.</p>
-      <div class="config-acoes">
-        <button class="btn" data-exportar><i class="fa-solid fa-download" aria-hidden="true"></i> Exportar (JSON)</button>
-        <button class="btn" data-importar><i class="fa-solid fa-upload" aria-hidden="true"></i> Importar</button>
-        <button class="btn" data-rerolar-cartas title="Re-sorteia todas as cartas desbloqueadas"><i class="fa-solid fa-dice" aria-hidden="true"></i> Rerolar baralho</button>
+      <div class="settings-actions">
+        <button class="btn" data-exportar><i class="fa-solid" fa-download aria-hidden="true"></i> Exportar (JSON)</button>
+        <button class="btn" data-importar><i class="fa-solid" fa-upload aria-hidden="true"></i> Importar</button>
+        <button class="btn" data-rerolar-cartas title="Re-sorteia todas as cartas desbloqueadas"><i class="fa-solid" fa-dice aria-hidden="true"></i> Rerolar baralho</button>
       </div>
-      <div class="config-dica config-dica-linha">${total} tarefa${total === 1 ? '' : 's'} · nível <b>${dados.personagem.nivel}</b> · <b>${dados.personagem.cartas.length}</b> cartas desbloqueadas</div>
-      <div class="config-dica config-dica-linha backup-titulo">Backups automáticos (criados antes de cada sincronização que altera dados):</div>
-      <div class="config-backups" data-backups></div>
+      <div class="settings-hint" settings-hint-row>${total} tarefa${total === 1 ? '' : 's'} · nível <b>${data.character.level}</b> · <b>${data.character.cards.length}</b> cartas desbloqueadas</div>
+      <div class="settings-hint" settings-hint-row backup-title>Backups automáticos (criados antes de cada sincronização que altera dados):</div>
+      <div class="settings-backups" data-backups></div>
     </div>
 
-    <div class="config-secao">
+    <div class="settings-section">
       <h3>Zona de perigo</h3>
       <p>Apaga todas as tarefas e o progresso do personagem deste dispositivo.</p>
-      <div class="config-acoes">
-        <button class="btn btn--perigo" data-apagar><i class="fa-solid fa-trash" aria-hidden="true"></i> Apagar tudo</button>
+      <div class="settings-actions">
+        <button class="btn" btn--perigo data-apagar><i class="fa-solid" fa-trash aria-hidden="true"></i> Apagar tudo</button>
       </div>
     </div>
   `
 
-  raiz.querySelector('[data-tema]')!.addEventListener('change', (e) => {
-    const valor = (e.target as HTMLSelectElement).value as Tema
-    definirTema(valor)
+  root.querySelector('[data-tema]')!.addEventListener('change', (e) => {
+    const value = (e.target as HTMLSelectElement).value as Theme
+    setTheme(value)
   })
 
-  raiz.querySelector('[data-modo-relaxado]')!.addEventListener('change', (e) => {
-    const valor = (e.target as HTMLSelectElement).value === 'on'
-    definirConfiguracao({ modoRelaxado: valor })
-    notificar(valor ? 'Modo relaxado ligado — sem dano.' : 'Modo relaxado desligado.')
+  root.querySelector('[data-modo-relaxado]')!.addEventListener('change', (e) => {
+    const value = (e.target as HTMLSelectElement).value === 'on'
+    setSettings({ relaxedMode: value })
+    notify(value ? 'Modo relaxado ligado — sem dano.' : 'Modo relaxado desligado.')
   })
 
-  raiz.querySelector('[data-sons]')!.addEventListener('change', (e) => {
-    const ligados = (e.target as HTMLSelectElement).value === 'on'
-    definirConfiguracao({ sons: ligados })
-    notificar(ligados ? 'Efeitos sonoros ligados.' : 'Efeitos sonoros desligados.')
+  root.querySelector('[data-sons]')!.addEventListener('change', (e) => {
+    const enabled = (e.target as HTMLSelectElement).value === 'on'
+    setSettings({ sound: enabled })
+    notify(enabled ? 'Efeitos sonoros ligados.' : 'Efeitos sonoros desligados.')
   })
 
-  // avatar: escolher arquivo → editor de corte; remover com confirmação
-  const arquivoAvatar = raiz.querySelector<HTMLInputElement>('[data-avatar-arquivo]')
-  raiz.querySelector('[data-avatar-escolher]')?.addEventListener('click', () => arquivoAvatar?.click())
-  arquivoAvatar?.addEventListener('change', () => {
-    const f = arquivoAvatar.files?.[0]
-    if (f) {
-      editarAvatar(f)
-      arquivoAvatar.value = ''
+  // avatar: choose file → crop editor; remove with confirmation
+  const avatarFile = root.querySelector<HTMLInputElement>('[data-avatar-arquivo]')
+  root.querySelector('[data-avatar-escolher]')?.addEventListener('click', () => avatarFile?.click())
+  avatarFile?.addEventListener('change', () => {
+    const file = avatarFile.files?.[0]
+    if (file) {
+      editAvatar(file)
+      avatarFile.value = ''
     }
   })
-  raiz.querySelector('[data-avatar-remover]')?.addEventListener('click', () => {
-    void confirmar('Remover seu avatar?', 'Remover').then((ok) => {
+  root.querySelector('[data-avatar-remover]')?.addEventListener('click', () => {
+    void confirm('Remover seu avatar?', 'Remover').then((ok) => {
       if (ok) {
-        definirAvatar(null)
-        notificar('Avatar removido.')
+        setAvatar(null)
+        notify('Avatar removido.')
       }
     })
   })
-  // nome monstruoso: salva ao sair do campo
-  raiz.querySelector<HTMLInputElement>('[data-nome-monstruoso]')?.addEventListener('change', (e) => {
-    definirNomeMonstruoso((e.target as HTMLInputElement).value)
+  // monster name: saves on blur
+  root.querySelector<HTMLInputElement>('[data-nome-monstruoso]')?.addEventListener('change', (e) => {
+    setMonsterName((e.target as HTMLInputElement).value)
   })
 
-  raiz.querySelector('[data-resumo]')?.addEventListener('change', (e) => {
-    const valor = (e.target as HTMLTextAreaElement).value.trim()
-    definirConfiguracao({ resumo: valor || undefined })
-    notificar(valor ? 'Resumo salvo — a Fábula leu.' : 'Resumo removido.')
+  root.querySelector('[data-resumo]')?.addEventListener('change', (e) => {
+    const value = (e.target as HTMLTextAreaElement).value.trim()
+    setSettings({ summary: value || undefined })
+    notify(value ? 'Resumo salvo — a Fábula leu.' : 'Resumo removido.')
   })
 
-  instalarHandlersIA(raiz)
+  installAIHandlers(root)
 
-  instalarHandlersConta(raiz)
+  installAccountHandlers(root)
 
-  raiz.querySelector('[data-exportar]')!.addEventListener('click', () => {
-    const json = exportarJSON()
+  root.querySelector('[data-exportar]')!.addEventListener('click', () => {
+    const json = exportJSON()
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -193,288 +193,288 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
     a.download = `esquizomon-rpg-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
-    notificar('Dados exportados.')
+    notify('Dados exportados.')
   })
 
-  raiz.querySelector('[data-importar]')!.addEventListener('click', () => {
+  root.querySelector('[data-importar]')!.addEventListener('click', () => {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'application/json'
     input.addEventListener('change', () => {
-      const arquivo = input.files?.[0]
-      if (!arquivo) return
-      const leitor = new FileReader()
-      leitor.onload = () => {
-        const resultado = importarJSON(String(leitor.result ?? ''))
-        notificar(resultado.ok ? 'Dados importados.' : resultado.motivo ?? 'Falha na importação.', resultado.ok ? 'ok' : 'erro')
+      const file = input.files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = importJSON(String(reader.result ?? ''))
+        notify(result.ok ? 'Dados importados.' : result.reason ?? 'Falha na importação.', result.ok ? 'ok' : 'erro')
       }
-      leitor.readAsText(arquivo)
+      reader.readAsText(file)
     })
     input.click()
   })
 
-  const areaBackups = raiz.querySelector('[data-backups]')
+  const backupsArea = root.querySelector('[data-backups]')
 
-  function preencherBackups(): void {
-    if (!areaBackups) return
-    const lista = lerBackups()
-    if (lista.length === 0) {
-      areaBackups.innerHTML = '<div class="config-dica">Nenhum backup automático ainda — o app cria um antes de cada sincronização que altera os dados.</div>'
+  function renderBackups(): void {
+    if (!backupsArea) return
+    const list = getBackups()
+    if (list.length === 0) {
+      backupsArea.innerHTML = '<div class="settings-hint">Nenhum backup automático ainda — o app cria um antes de cada sincronização que altera os dados.</div>'
       return
     }
-    areaBackups.innerHTML = lista
+    backupsArea.innerHTML = list
       .map((b) => {
         const d = new Date(b.ts)
-        const legivel = Number.isNaN(d.getTime()) ? b.ts : d.toLocaleString('pt-BR')
-        return `<div class="config-backup"><span>${legivel}</span><button class="btn btn--pequeno" data-restaurar="${escapar(b.ts)}">Restaurar</button></div>`
+        const readable = Number.isNaN(d.getTime()) ? b.ts : d.toLocaleString('pt-BR')
+        return `<div class="settings-backup"><span>${readable}</span><button class="btn" btn--small data-restaurar="${escapeHtml(b.ts)}">Restaurar</button></div>`
       })
       .join('')
-    areaBackups.querySelectorAll<HTMLButtonElement>('[data-restaurar]').forEach((bt) => {
-      bt.addEventListener('click', () => {
-        const ts = bt.dataset.restaurar
-        void confirmar('Restaurar substitui os dados atuais deste dispositivo pelos do backup escolhido. Continuar?', 'Restaurar backup').then((ok) => {
+    backupsArea.querySelectorAll<HTMLButtonElement>('[data-restaurar]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const ts = btn.dataset.restaurar
+        void confirm('Restaurar substitui os dados atuais deste dispositivo pelos do backup escolhido. Continuar?', 'Restaurar backup').then((ok) => {
           if (!ok || !ts) return
-          const resultou = restaurarBackup(ts)
-          notificar(resultou ? 'Backup restaurado.' : 'Não foi possível restaurar este backup.', resultou ? 'ok' : 'erro')
+          const restored = restoreBackup(ts)
+          notify(restored ? 'Backup restaurado.' : 'Não foi possível restaurar este backup.', restored ? 'ok' : 'erro')
         })
       })
     })
   }
-  preencherBackups()
+  renderBackups()
 
-  raiz.querySelector<HTMLButtonElement>('[data-rerolar-cartas]')?.addEventListener('click', () => {
-    void confirmar(
+  root.querySelector<HTMLButtonElement>('[data-rerolar-cartas]')?.addEventListener('click', () => {
+    void confirm(
       'Rerolar re-sorteia TODAS as cartas desbloqueadas, mantendo a mesma quantidade e respeitando as chances (monstros 6×, capturas 2×, alianças 1×). A coleção atual será substituída. Continuar?',
       'Rerolar baralho',
     ).then((ok) => {
       if (!ok) return
-      const r = rerolarBaralho()
-      notificar(`Baralho rerolado: ${r.antes} cartas re-sorteadas.`)
+      const result = rerollDeck()
+      notify(`Baralho rerolado: ${result.before} cartas re-sorteadas.`)
     })
   })
 
-  raiz.querySelector('[data-apagar]')!.addEventListener('click', () => {
-    void confirmar('Apagar todas as tarefas e o personagem? Isso não pode ser desfeito.', 'Apagar tudo').then((ok) => {
+  root.querySelector('[data-apagar]')!.addEventListener('click', () => {
+    void confirm('Apagar todas as tarefas e o personagem? Isso não pode ser desfeito.', 'Apagar tudo').then((ok) => {
       if (ok) {
-        apagarTodosDados()
-        notificar('Tudo apagado.')
+        wipeAllData()
+        notify('Tudo apagado.')
       }
     })
   })
 }
 
-function secaoIA(ia: ConfigIa): string {
-  const providerOptions: Array<[ProviderIA, string]> = [
+function aiSection(ai: AiConfig): string {
+  const providerOptions: Array<[AiProvider, string]> = [
     ['nenhum', 'Desligado (sem IA)'],
     ['deepseek', 'DeepSeek'],
     ['opencode', 'OpenCode Zen Go'],
   ]
-  const provider = ia.provider
-  const modelos = MODELOS_POR_PROVIDER[provider] ?? []
-  // Mostra o system prompt: o do usuário OU o canônico (read-only até o usuário editar).
-  const promptAtual = ia.systemPrompt || SYSTEM_PROMPT_PADRAO
-  const isPadrao = !ia.systemPrompt.trim()
+  const provider = ai.provider
+  const models = MODELS_BY_PROVIDER[provider] ?? []
+  // Shows the system prompt: the user's OR the canonical one (read-only until the user edits).
+  const currentPrompt = ai.systemPrompt || DEFAULT_SYSTEM_PROMPT
+  const isDefault = !ai.systemPrompt.trim()
 
   return `
-    <div class="config-secao">
-      <h3><i class="fa-solid fa-feather" aria-hidden="true"></i> Fábula (IA)</h3>
+    <div class="settings-section">
+      <h3><i class="fa-solid" fa-feather aria-hidden="true"></i> Fábula (IA)</h3>
       <p>BYOK: a chave fica só no seu dispositivo. O provedor é contactado direto (sem servidor intermediário guardando dados). DeepSeek e OpenCode têm raciocínio visível no chat.</p>
 
-      <div class="config-linha">
+      <div class="settings-row">
         <div>
-          <div class="config-rotulo">Provider</div>
-          <div class="config-dica">Quem vai responder</div>
+          <div class="settings-label">Provider</div>
+          <div class="settings-hint">Quem vai responder</div>
         </div>
-        <select class="filtro-select" data-ia-provider>
+        <select class="filter-select" data-ia-provider>
           ${providerOptions.map(([v, l]) => `<option value="${v}" ${provider === v ? 'selected' : ''}>${l}</option>`).join('')}
         </select>
       </div>
 
-      <div class="config-linha">
+      <div class="settings-row">
         <div>
-          <div class="config-rotulo">Modelo</div>
-          <div class="config-dica">Vazio = ${provider !== 'nenhum' ? modeloPadrao(provider) : 'escolha um provider'}</div>
+          <div class="settings-label">Modelo</div>
+          <div class="settings-hint">Vazio = ${provider !== 'nenhum' ? defaultModel(provider) : 'escolha um provider'}</div>
         </div>
-        <select class="filtro-select" data-ia-modelo ${provider === 'nenhum' ? 'disabled' : ''}>
-          <option value="" ${ia.modelo === '' ? 'selected' : ''}>(padrão)</option>
-          ${modelos.map((m) => `<option value="${m}" ${ia.modelo === m ? 'selected' : ''}>${m}</option>`).join('')}
+        <select class="filter-select" data-ia-modelo ${provider === 'nenhum' ? 'disabled' : ''}>
+          <option value="" ${ai.model === '' ? 'selected' : ''}>(padrão)</option>
+          ${models.map((m) => `<option value="${m}" ${ai.model === m ? 'selected' : ''}>${m}</option>`).join('')}
         </select>
       </div>
 
-      <div class="config-linha config-linha--empilhado">
+      <div class="settings-row" settings-row--stacked>
         <div>
-          <div class="config-rotulo">Chave de API</div>
-          <div class="config-dica">${provider === 'opencode'
+          <div class="settings-label">Chave de API</div>
+          <div class="settings-hint">${provider === 'opencode'
             ? 'Vem de <code>OPENCODE_GO_ESQUIZOMONRPG_TOKEN</code> se setada no ambiente.'
             : 'Só você vê. Não sai do seu dispositivo.'}</div>
         </div>
-        <input type="password" class="filtro-input" data-ia-chave autocomplete="off" spellcheck="false" placeholder="sk-..." value="${ia.apiKey.replace(/"/g, '&quot;')}" ${provider === 'nenhum' ? 'disabled' : ''} />
+        <input type="password" class="filter-input" data-ia-chave autocomplete="off" spellcheck="false" placeholder="sk-..." value="${ai.apiKey.replace(/"/g, '&quot;')}" ${provider === 'nenhum' ? 'disabled' : ''} />
       </div>
 
-      <div class="config-linha config-linha--empilhado">
-        <div class="config-rotulo-linha">
+      <div class="settings-row" settings-row--stacked>
+        <div class="settings-label-row">
           <div>
-            <div class="config-rotulo">System prompt da Fábula</div>
-            <div class="config-dica">
-              ${isPadrao
+            <div class="settings-label">System prompt da Fábula</div>
+            <div class="settings-hint">
+              ${isDefault
                 ? 'Usando o <strong>prompt canônico</strong> (NARRATIVA.md). Edite pra customizar.'
                 : 'Customizado — edite à vontade.'}
             </div>
           </div>
-          <button class="btn btn--texto" data-ia-restaurar type="button" title="Volta pro prompt canônico">
-            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Restaurar padrão
+          <button class="btn" btn--text data-ia-restaurar type="button" title="Volta pro prompt canônico">
+            <i class="fa-solid" fa-rotate-left aria-hidden="true"></i> Restaurar padrão
           </button>
         </div>
-        <textarea class="filtro-textarea filtro-textarea--prompt" data-ia-prompt rows="14" spellcheck="false">${promptAtual.replace(/</g, '&lt;')}</textarea>
+        <textarea class="filter-textarea" filter-textarea--prompt data-ia-prompt rows="14" spellcheck="false">${currentPrompt.replace(/</g, '&lt;')}</textarea>
       </div>
 
-      <div class="config-acoes">
-        <button class="btn" data-ia-testar ${provider === 'nenhum' ? 'disabled' : ''}><i class="fa-solid fa-plug" aria-hidden="true"></i> Testar conexão</button>
-        <span class="config-dica" data-ia-status></span>
+      <div class="settings-actions">
+        <button class="btn" data-ia-testar ${provider === 'nenhum' ? 'disabled' : ''}><i class="fa-solid" fa-plug aria-hidden="true"></i> Testar conexão</button>
+        <span class="settings-hint" data-ia-status></span>
       </div>
     </div>
   `
 }
 
-function instalarHandlersIA(raiz: HTMLElement): void {
-  const providerEl = raiz.querySelector<HTMLSelectElement>('[data-ia-provider]')
-  const modeloEl = raiz.querySelector<HTMLSelectElement>('[data-ia-modelo]')
-  const chaveEl = raiz.querySelector<HTMLInputElement>('[data-ia-chave]')
-  const promptEl = raiz.querySelector<HTMLTextAreaElement>('[data-ia-prompt]')
-  const restaurarEl = raiz.querySelector<HTMLButtonElement>('[data-ia-restaurar]')
-  const testarEl = raiz.querySelector<HTMLButtonElement>('[data-ia-testar]')
-  const statusEl = raiz.querySelector<HTMLElement>('[data-ia-status]')
+function installAIHandlers(root: HTMLElement): void {
+  const providerEl = root.querySelector<HTMLSelectElement>('[data-ia-provider]')
+  const modelEl = root.querySelector<HTMLSelectElement>('[data-ia-modelo]')
+  const keyEl = root.querySelector<HTMLInputElement>('[data-ia-chave]')
+  const promptEl = root.querySelector<HTMLTextAreaElement>('[data-ia-prompt]')
+  const restoreEl = root.querySelector<HTMLButtonElement>('[data-ia-restaurar]')
+  const testEl = root.querySelector<HTMLButtonElement>('[data-ia-testar]')
+  const statusEl = root.querySelector<HTMLElement>('[data-ia-status]')
 
-  function lerIa(): ConfigIa {
+  function readAI(): AiConfig {
     return {
-      provider: (providerEl?.value as ProviderIA) ?? 'nenhum',
-      modelo: modeloEl?.value ?? '',
-      apiKey: chaveEl?.value ?? '',
+      provider: (providerEl?.value as AiProvider) ?? 'nenhum',
+      model: modelEl?.value ?? '',
+      apiKey: keyEl?.value ?? '',
       systemPrompt: promptEl?.value ?? '',
     }
   }
 
-  function salvar(): void {
-    definirConfiguracao({ ia: lerIa() })
+  function save(): void {
+    setSettings({ ai: readAI() })
   }
 
-  function atualizarModelos(): void {
-    if (!modeloEl) return
-    const provider = (providerEl?.value as ProviderIA) ?? 'nenhum'
-    const modelos = MODELOS_POR_PROVIDER[provider] ?? []
-    const atual = modeloEl.value
-    modeloEl.innerHTML =
-      `<option value="" ${atual === '' ? 'selected' : ''}>(padrão)</option>` +
-      modelos.map((m) => `<option value="${m}" ${atual === m ? 'selected' : ''}>${m}</option>`).join('')
-    modeloEl.disabled = provider === 'nenhum'
-    if (chaveEl) chaveEl.disabled = provider === 'nenhum'
-    if (testarEl) testarEl.disabled = provider === 'nenhum'
+  function refreshModels(): void {
+    if (!modelEl) return
+    const provider = (providerEl?.value as AiProvider) ?? 'nenhum'
+    const models = MODELS_BY_PROVIDER[provider] ?? []
+    const current = modelEl.value
+    modelEl.innerHTML =
+      `<option value="" ${current === '' ? 'selected' : ''}>(padrão)</option>` +
+      models.map((m) => `<option value="${m}" ${current === m ? 'selected' : ''}>${m}</option>`).join('')
+    modelEl.disabled = provider === 'nenhum'
+    if (keyEl) keyEl.disabled = provider === 'nenhum'
+    if (testEl) testEl.disabled = provider === 'nenhum'
   }
 
   providerEl?.addEventListener('change', () => {
-    atualizarModelos()
-    salvar()
+    refreshModels()
+    save()
   })
-  modeloEl?.addEventListener('change', salvar)
-  chaveEl?.addEventListener('change', salvar)
-  promptEl?.addEventListener('change', salvar)
+  modelEl?.addEventListener('change', save)
+  keyEl?.addEventListener('change', save)
+  promptEl?.addEventListener('change', save)
 
-  restaurarEl?.addEventListener('click', async () => {
+  restoreEl?.addEventListener('click', async () => {
     if (!promptEl) return
-    if (promptEl.value.trim() === SYSTEM_PROMPT_PADRAO) {
-      notificar('O prompt já é o padrão.')
+    if (promptEl.value.trim() === DEFAULT_SYSTEM_PROMPT) {
+      notify('O prompt já é o padrão.')
       return
     }
-    const ok = await confirmar(
+    const ok = await confirm(
       'Restaurar o system prompt canônico da Fábula? Suas edições serão perdidas.',
       'Restaurar padrão',
     )
     if (!ok) return
-    promptEl.value = SYSTEM_PROMPT_PADRAO
-    salvar()
-    notificar('System prompt restaurado.')
+    promptEl.value = DEFAULT_SYSTEM_PROMPT
+    save()
+    notify('System prompt restaurado.')
   })
 
-  testarEl?.addEventListener('click', async () => {
-    const ia = lerIa()
-    if (ia.provider === 'nenhum' || !ia.apiKey.trim()) {
-      notificar('Escolha um provider e informe a chave.', 'erro')
+  testEl?.addEventListener('click', async () => {
+    const ai = readAI()
+    if (ai.provider === 'nenhum' || !ai.apiKey.trim()) {
+      notify('Escolha um provider e informe a chave.', 'erro')
       return
     }
     if (statusEl) {
       statusEl.textContent = 'Testando…'
-      testarEl!.disabled = true
+      testEl!.disabled = true
     }
     try {
-      const resp = await testarConexao(ia)
+      const resp = await testConnection(ai)
       if (statusEl) statusEl.textContent = `OK — respondeu: "${resp.slice(0, 30)}"`
-      notificar('Conexão ok.', 'ok')
+      notify('Conexão ok.', 'ok')
     } catch (err) {
-      const msg = err instanceof ErroIA ? err.message : String(err)
+      const msg = err instanceof AiError ? err.message : String(err)
       if (statusEl) statusEl.textContent = `Falhou: ${msg.slice(0, 50)}`
-      notificar(`Falhou: ${msg}`, 'erro')
+      notify(`Falhou: ${msg}`, 'erro')
     } finally {
-      if (testarEl) testarEl.disabled = false
+      if (testEl) testEl.disabled = false
     }
   })
 
-  atualizarModelos()
+  refreshModels()
 }
 
-/* ---------- conta e sincronização ---------- */
+/* ---------- account and sync ---------- */
 
-const ROTULO_ESTADO: Record<EstadoSync, string> = {
+const STATE_LABEL: Record<SyncState, string> = {
   local: 'Offline — dados só neste dispositivo',
   enviando: 'Enviando para a nuvem…',
   sincronizado: 'Sincronizado com a nuvem',
   'sem-conexao': 'Sem conexão — dados locais intactos',
 }
 
-/** Seção de conta: aviso honesto sobre dados locais + status da sincronização. */
-function secaoConta(): string {
-  const sessao = sessaoAtual()
+/** Account section: honest warning about local data + sync status. */
+function accountSection(): string {
+  const session = currentSession()
   return `
-    <div class="config-secao">
-      <h3><i class="fa-solid fa-cloud" aria-hidden="true"></i> Conta e sincronização</h3>
-      <p class="config-aviso"><strong>Seus dados moram neste navegador.</strong> Eles sobrevivem a recargas e fechamentos — mas <strong>podem ser perdidos</strong> se você limpar o cache/dados do navegador, usar modo anônimo, trocar de navegador ou de computador. Exportar (JSON) ou criar uma conta são suas garantias.</p>
-      <div class="config-linha">
+    <div class="settings-section">
+      <h3><i class="fa-solid" fa-cloud aria-hidden="true"></i> Conta e sincronização</h3>
+      <p class="settings-notice"><strong>Seus dados moram neste navegador.</strong> Eles sobrevivem a recargas e fechamentos — mas <strong>podem ser perdidos</strong> se você limpar o cache/dados do navegador, usar modo anônimo, trocar de navegador ou de computador. Exportar (JSON) ou criar uma conta são suas garantias.</p>
+      <div class="settings-row">
         <div>
-          <div class="config-rotulo">Status</div>
-          <div class="config-dica" data-sync-status>${ROTULO_ESTADO['local']}</div>
+          <div class="settings-label">Status</div>
+          <div class="settings-hint" data-sync-status>${STATE_LABEL['local']}</div>
         </div>
-        ${sessao ? `<span class="config-rotulo config-conta-email">${escapar(sessao.usuario.email)}</span>` : ''}
+        ${session ? `<span class="settings-label" settings-account-email>${escapeHtml(session.user.email)}</span>` : ''}
       </div>
-      <div class="config-acoes">
-        ${sessao ? '' : '<button class="btn" data-entrar><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Entrar / criar conta</button>'}
-        ${sessao ? '<button class="btn" data-sair-conta><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Sair</button>' : ''}
-        <button class="btn" data-sincronizar ${sessao ? '' : 'disabled'} title="${sessao ? 'Envia e puxa os dados agora' : 'Entre para sincronizar'}"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Sincronizar agora</button>
+      <div class="settings-actions">
+        ${session ? '' : '<button class="btn" data-entrar><i class="fa-solid" fa-right-to-bracket aria-hidden="true"></i> Entrar / criar conta</button>'}
+        ${session ? '<button class="btn" data-sair-conta><i class="fa-solid" fa-right-from-bracket aria-hidden="true"></i> Sair</button>' : ''}
+        <button class="btn" data-sincronizar ${session ? '' : 'disabled'} title="${session ? 'Envia e puxa os dados agora' : 'Entre para sincronizar'}"><i class="fa-solid" fa-arrows-rotate aria-hidden="true"></i> Sincronizar agora</button>
       </div>
     </div>
   `
 }
 
-let desinscreverSync: (() => void) | null = null
+let unsubscribeSync: (() => void) | null = null
 
-function instalarHandlersConta(raiz: HTMLElement): void {
-  const statusEl = raiz.querySelector<HTMLElement>('[data-sync-status]')
+function installAccountHandlers(root: HTMLElement): void {
+  const statusEl = root.querySelector<HTMLElement>('[data-sync-status]')
 
-  desinscreverSync?.()
-  desinscreverSync = inscreverSync((estado) => {
-    if (statusEl) statusEl.textContent = ROTULO_ESTADO[estado]
+  unsubscribeSync?.()
+  unsubscribeSync = subscribeSync((state) => {
+    if (statusEl) statusEl.textContent = STATE_LABEL[state]
   })
 
-  raiz.querySelector('[data-entrar]')?.addEventListener('click', () => {
-    abrirLoginModal()
+  root.querySelector('[data-entrar]')?.addEventListener('click', () => {
+    openLoginModal()
   })
 
-  raiz.querySelector('[data-sair-conta]')?.addEventListener('click', async () => {
-    const { sair } = await import('../../sync/auth')
-    await sair()
-    aposMudancaSessao()
-    notificar('Sessão encerrada — seus dados seguem neste dispositivo.')
+  root.querySelector('[data-sair-conta]')?.addEventListener('click', async () => {
+    const { logout } = await import('../../sync/auth')
+    await logout()
+    onSessionChange()
+    notify('Sessão encerrada — seus dados seguem neste dispositivo.')
   })
 
-  raiz.querySelector('[data-sincronizar]')?.addEventListener('click', () => {
-    void sincronizarAgora()
+  root.querySelector('[data-sincronizar]')?.addEventListener('click', () => {
+    void syncNow()
   })
 }

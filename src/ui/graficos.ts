@@ -1,82 +1,82 @@
-/** Gráficos SVG de progressão (XP por nível, HP máximo, mana máxima) — sem dependências.
- *  Níveis discretos: um ponto por nível, com tooltip nativo (Nível N — valor). */
+/** SVG progression charts (XP per level, max HP, max mana) — no dependencies.
+ *  Discrete levels: one point per level, with native tooltip (Level N — value). */
 
-export interface SerieGrafico {
-  rotulo: string
-  cor: string
-  /** Valor por nível (índice 0 = nível 1). */
-  valores: number[]
-  /** Formata o valor do eixo Y e do tooltip. */
-  formatar: (v: number) => string
+export interface ChartSeries {
+  label: string
+  color: string
+  /** Value per level (index 0 = level 1). */
+  values: number[]
+  /** Formats the Y-axis value and the tooltip. */
+  format: (v: number) => string
 }
 
-const LARGURA = 520
-const ALTURA = 170
-const MARGEM = { topo: 16, direita: 14, base: 26, esquerda: 48 }
+const WIDTH = 520
+const HEIGHT = 170
+const MARGIN = { top: 16, right: 14, bottom: 26, left: 48 }
 
 /**
- * Gera um gráfico de linha com pontos discretos em SVG para a série dada.
- * `nivelAtual` (1-based) ganha um marcador vertical destacado.
- * Cada ponto tem um tooltip nativo: "Nível N — valor".
+ * Generates a line chart with discrete points in SVG for the given series.
+ * `currentLevel` (1-based) gets a highlighted vertical marker.
+ * Each point has a native tooltip: "Nível N — value".
  */
-export function graficoProgressao(serie: SerieGrafico, nivelAtual: number): string {
-  const { valores, cor } = serie
-  const n = valores.length
-  const larg = LARGURA - MARGEM.esquerda - MARGEM.direita
-  const alt = ALTURA - MARGEM.topo - MARGEM.base
-  const max = Math.max(...valores, 1)
-  const min = Math.min(...valores)
-  const faixa = max - min || 1
+export function progressionChart(series: ChartSeries, currentLevel: number): string {
+  const { values, color } = series
+  const n = values.length
+  const w = WIDTH - MARGIN.left - MARGIN.right
+  const h = HEIGHT - MARGIN.top - MARGIN.bottom
+  const max = Math.max(...values, 1)
+  const min = Math.min(...values)
+  const range = max - min || 1
 
-  const x = (i: number) => MARGEM.esquerda + (i / (n - 1)) * larg
-  const y = (v: number) => MARGEM.topo + alt - ((v - min) / faixa) * alt
+  const x = (i: number) => MARGIN.left + (i / (n - 1)) * w
+  const y = (v: number) => MARGIN.top + h - ((v - min) / range) * h
 
-  const pontos = valores.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
-  const area = `M ${MARGEM.esquerda},${MARGEM.topo + alt} L ${pontos.replace(/ /g, ' L ')} L ${MARGEM.esquerda + larg},${MARGEM.topo + alt} Z`
+  const points = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
+  const area = `M ${MARGIN.left},${MARGIN.top + h} L ${points.replace(/ /g, ' L ')} L ${MARGIN.left + w},${MARGIN.top + h} Z`
 
-  // marca o nível atual (índice 0-based)
-  const idx = Math.max(0, Math.min(n - 1, nivelAtual - 1))
-  const xAtual = x(idx)
-  const yAtual = y(valores[idx])
+  // marks the current level (0-based index)
+  const idx = Math.max(0, Math.min(n - 1, currentLevel - 1))
+  const xCurrent = x(idx)
+  const yCurrent = y(values[idx])
 
-  // 5 marcas no eixo X (níveis) e 4 no Y
+  // 5 marks on the X axis (levels) and 4 on the Y
   const xs = Array.from({ length: 5 }, (_, i) => Math.round((i / 4) * (n - 1)) + 1)
-  const ys = Array.from({ length: 4 }, (_, i) => Math.round(min + (faixa / 3) * i))
-  const slug = serie.rotulo.toLowerCase().replace(/\s+/g, '-')
+  const ys = Array.from({ length: 4 }, (_, i) => Math.round(min + (range / 3) * i))
+  const slug = series.label.toLowerCase().replace(/\s+/g, '-')
 
   return `
-    <svg class="grafico" viewBox="0 0 ${LARGURA} ${ALTURA}" role="img" aria-label="Progressão de ${serie.rotulo.toLowerCase()} por nível">
+    <svg class="chart" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-label="Progressão de ${series.label.toLowerCase()} por nível">
       <defs>
         <linearGradient id="grad-${slug}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="${cor}" stop-opacity="0.35" />
-          <stop offset="100%" stop-color="${cor}" stop-opacity="0.04" />
+          <stop offset="0%" stop-color="${color}" stop-opacity="0.35" />
+          <stop offset="100%" stop-color="${color}" stop-opacity="0.04" />
         </linearGradient>
       </defs>
       ${ys
         .map(
           (v) => `
-        <line class="grafico-grade" x1="${MARGEM.esquerda}" y1="${y(v)}" x2="${MARGEM.esquerda + larg}" y2="${y(v)}" />
-        <text class="grafico-rotulo-y" x="${MARGEM.esquerda - 6}" y="${y(v) + 4}" text-anchor="end">${serie.formatar(v)}</text>`,
+        <line class="chart-grid" x1="${MARGIN.left}" y1="${y(v)}" x2="${MARGIN.left + w}" y2="${y(v)}" />
+        <text class="chart-label-y" x="${MARGIN.left - 6}" y="${y(v) + 4}" text-anchor="end">${series.format(v)}</text>`,
         )
         .join('')}
       ${xs
         .map(
           (lv) => `
-        <text class="grafico-rotulo-x" x="${x(lv - 1)}" y="${ALTURA - 8}" text-anchor="middle">${lv}</text>`,
+        <text class="chart-label-x" x="${x(lv - 1)}" y="${HEIGHT - 8}" text-anchor="middle">${lv}</text>`,
         )
         .join('')}
       <path d="${area}" fill="url(#grad-${slug})" />
-      <polyline class="grafico-linha" points="${pontos}" fill="none" stroke="${cor}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-      <line class="grafico-atual" x1="${xAtual}" y1="${MARGEM.topo}" x2="${xAtual}" y2="${MARGEM.topo + alt}" />
-      ${valores
+      <polyline class="chart-row" points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+      <line class="chart-current" x1="${xCurrent}" y1="${MARGIN.top}" x2="${xCurrent}" y2="${MARGIN.top + h}" />
+      ${values
         .map(
           (v, i) => `
-        <circle class="grafico-ponto${i === idx ? ' grafico-ponto--atual' : ''}" cx="${x(i)}" cy="${y(v)}" r="${i === idx ? 5 : 3.5}" fill="${cor}">
-          <title>Nível ${i + 1} — ${serie.formatar(v)}</title>
+        <circle class="chart-dot${i === idx ? ' chart-dot--current' : ''}" cx="${x(i)}" cy="${y(v)}" r="${i === idx ? 5 : 3.5}" fill="${color}">
+          <title>Nível ${i + 1} — ${series.format(v)}</title>
         </circle>`,
         )
         .join('')}
-      <text class="grafico-rotulo-atual" x="${xAtual}" y="${yAtual - 10}" text-anchor="middle">${serie.formatar(valores[idx])}</text>
+      <text class="chart-label-current" x="${xCurrent}" y="${yCurrent - 10}" text-anchor="middle">${series.format(values[idx])}</text>
     </svg>
   `
 }

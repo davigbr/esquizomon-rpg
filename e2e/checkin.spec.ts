@@ -22,7 +22,7 @@ async function semearPendentes(page: import('@playwright/test').Page): Promise<v
         versao: 3,
         tarefas: [
           { id: 'r1', tipo: 'recorrente', titulo: 'Meditar', dificuldade: 'facil', tags: [], agenda: { dias: [] }, historico: [], criadaEm: new Date().toISOString() },
-          { id: 'u1', tipo: 'unica', titulo: 'Relatório', dificuldade: 'facil', tags: [], dueDate: ontem, concluida: false, historico: [], criadaEm: new Date().toISOString() },
+          { id: 'u1', tipo: 'unica', titulo: 'Relatório', dificuldade: 'facil', tags: [], dueDate: ontem, done: false, historico: [], criadaEm: new Date().toISOString() },
         ],
         personagem: { nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20, esgotado: false, ultimoDia: ontem, cartas: [], invocacoes: {} },
         configuracao: { tema: 'dark' },
@@ -66,7 +66,7 @@ test('check-in: confirmar sem marcar nada equivale a pular (dano em todas)', asy
   await page.locator('[data-checkin-confirmar]').click()
 
   await expect(page.locator('#modal')).toBeHidden()
-  // nada marcado → XP 0; a recorrente Meditar perdida → −3 vida (únicas não dão dano)
+  // nada marked → XP 0; a recorrente Meditar perdida → −3 vida (únicas não dão dano)
   // (dano cancelado pela regeneração diária de +5%; fica 50/50)
   await expect(page.locator('[data-s-xp]')).toHaveText('XP 0/80')
   await expect(page.locator('[data-s-hp]')).toHaveText('50/50')

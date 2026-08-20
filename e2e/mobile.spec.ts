@@ -5,7 +5,7 @@ test.use({ viewport: { width: 390, height: 844 } })
 
 test('mobile: navbar vira menu somente de ícones (rótulos escondidos)', async ({ page }) => {
   await page.goto('/#/hoje')
-  const rotulo = page.locator('[data-rota="hoje"] .nav-texto')
+  const rotulo = page.locator('[data-rota="hoje"] .nav-text')
   await expect(rotulo).toBeHidden()
   await expect(page.locator('[data-rota="hoje"] i')).toBeVisible()
 })
@@ -13,7 +13,7 @@ test('mobile: navbar vira menu somente de ícones (rótulos escondidos)', async 
 test('mobile: Fábula abre como página fullscreen (cobre a tela toda)', async ({ page }) => {
   await page.goto('/#/hoje')
   await page.click('#fabula-toggle')
-  await expect(page.locator('#fabula-panel')).toHaveClass(/aberto/)
+  await expect(page.locator('#fabula-panel')).toHaveClass(/open/)
   // espera a transição de abertura (0.28s) terminar antes de medir
   await expect.poll(async () => (await page.locator('#fabula-panel').boundingBox())?.x ?? -1).toBe(0)
   const box = await page.locator('#fabula-panel').boundingBox()
@@ -46,17 +46,17 @@ test('mobile: nome monstruoso fica ACIMA do nível, tudo centralizado verticalme
     )
   })
   await page.goto('/#/hoje')
-  // nome monstruoso VISÍVEL, ACIMA do nível (mesma coluna à direita da foto)
-  await expect(page.locator('.status-nome')).toBeVisible()
-  const nome = await page.locator('.status-nome').boundingBox()
+  // nome monstruoso VISÍVEL, ACIMA do nível (mesma column à direita da foto)
+  await expect(page.locator('.status-name')).toBeVisible()
+  const nome = await page.locator('.status-name').boundingBox()
   const avatar = await page.locator('.status-avatar').boundingBox()
   const nivel = await page.locator('.status-item--nivel').boundingBox()
   expect(nome!.y).toBeLessThan(nivel!.y) // nome acima do nível
-  expect(nome!.x).toBeCloseTo(nivel!.x, -1) // mesma coluna (à direita da foto)
-  // tudo centralizado verticalmente: centro do avatar ≈ centro da coluna nome+nível
+  expect(nome!.x).toBeCloseTo(nivel!.x, -1) // mesma column (à direita da foto)
+  // tudo centralizado verticalmente: centro do avatar ≈ centro da column nome+nível
   const centroColuna = (nome!.y + nivel!.y + nivel!.height) / 2
   expect(avatar!.y + avatar!.height / 2).toBeCloseTo(centroColuna, 0)
-  expect(avatar!.x).toBeLessThan(nome!.x) // foto à ESQUERDA da coluna
+  expect(avatar!.x).toBeLessThan(nome!.x) // foto à ESQUERDA da column
   expect(avatar!.width).toBeGreaterThan(40) // bolinha maior no mobile (44px)
 })
 
@@ -70,7 +70,7 @@ test('mobile: status bar empilha as barras (vida → XP → mana) com nível à 
   expect(xp).not.toBeNull()
   expect(mana).not.toBeNull()
   expect(nivel).not.toBeNull()
-  // empilhadas na mesma coluna, y crescente (vida → XP → mana)
+  // empilhadas na mesma column, y crescente (vida → XP → mana)
   expect(hp!.x).toBeCloseTo(xp!.x, 0)
   expect(xp!.y).toBeLessThan(mana!.y)
   // nível à esquerda das barras
@@ -80,11 +80,11 @@ test('mobile: status bar empilha as barras (vida → XP → mana) com nível à 
 test('mobile: seletor de conversas vira faixa horizontal no topo', async ({ page }) => {
   await page.goto('/#/hoje')
   await page.click('#fabula-toggle')
-  const lateral = await page.locator('.fabula-lateral').boundingBox()
+  const lateral = await page.locator('.fable-side').boundingBox()
   expect(lateral).not.toBeNull()
-  const conversa = await page.locator('.fabula-conversa').boundingBox()
+  const conversa = await page.locator('.fable-conversation').boundingBox()
   expect(conversa).not.toBeNull()
-  // lateral no topo, conversa abaixo (coluna, não mais lado a lado)
+  // lateral no topo, conversa abaixo (column, não mais lado a lado)
   expect(lateral!.y).toBeLessThan(conversa!.y)
   expect(lateral!.width).toBeGreaterThan(300)
 })

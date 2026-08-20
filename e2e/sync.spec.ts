@@ -7,7 +7,7 @@ test('sync: fundirDados mescla criações dos dois lados (nada se perde)', async
   const r = await page.evaluate(async () => {
     const { fundirDados } = await import('/src/core/syncMerge')
     const t = (id: string, titulo: string, editadaEm: string) => ({
-      id, titulo, tipo: 'unica', dificuldade: 'facil', concluida: false,
+      id, titulo, tipo: 'unica', dificuldade: 'facil', done: false,
       historico: [], criadaEm: '2026-01-01', editadaEm,
     })
     const base = { tarefas: [], diario: [], conversas: [], log: [], versao: 6 }
@@ -25,7 +25,7 @@ test('sync: exclusão não é revertida pelo merge (tombstone)', async ({ page }
   const r = await page.evaluate(async () => {
     const { fundirDados } = await import('/src/core/syncMerge')
     const t = (id: string, titulo: string, editadaEm: string) => ({
-      id, titulo, tipo: 'unica', dificuldade: 'facil', concluida: false, historico: [], tags: [], criadaEm: editadaEm, editadaEm,
+      id, titulo, tipo: 'unica', dificuldade: 'facil', done: false, historico: [], tags: [], criadaEm: editadaEm, editadaEm,
     })
     const base = { tarefas: [], diario: [], conversas: [], log: [], personagem: {}, configuracao: {}, versao: 6 } as any
     // local: excluiu 'b' (tombstone); nuvem: ainda tem 'b'
@@ -43,7 +43,7 @@ test('sync: conflito na mesma tarefa vence a mais recente', async ({ page }) => 
   const r = await page.evaluate(async () => {
     const { fundirDados } = await import('/src/core/syncMerge')
     const t = (titulo: string, editadaEm: string) => ({
-      id: 'x', titulo, tipo: 'unica', dificuldade: 'facil', concluida: false,
+      id: 'x', titulo, tipo: 'unica', dificuldade: 'facil', done: false,
       historico: [], criadaEm: '2026-01-01', editadaEm,
     })
     const base = { tarefas: [], diario: [], conversas: [], log: [], versao: 6 }
@@ -86,7 +86,7 @@ test('sync ponta a ponta: dois dispositivos convergem sem perder criações', as
     localStorage.setItem(
       'esquizomon-rpg:v1',
       JSON.stringify({ versao: 6, tarefas: [{
-        id: 'a', titulo: 'local-a', tipo: 'unica', dificuldade: 'facil', concluida: false,
+        id: 'a', titulo: 'local-a', tipo: 'unica', dificuldade: 'facil', done: false,
         tags: [], historico: [], criadaEm: hoje, editadaEm: hoje,
       }], diario: [], conversas: [], log: [], personagem: {}, configuracao: {},
       }),
@@ -106,7 +106,7 @@ test('sync ponta a ponta: dois dispositivos convergem sem perder criações', as
     localStorage.setItem(
       'esquizomon-rpg:v1',
       JSON.stringify({ versao: 6, tarefas: [{
-        id: 'b', titulo: 'local-b', tipo: 'unica', dificuldade: 'facil', concluida: false,
+        id: 'b', titulo: 'local-b', tipo: 'unica', dificuldade: 'facil', done: false,
         tags: [], historico: [], criadaEm: hoje, editadaEm: hoje,
       }], diario: [], conversas: [], log: [], personagem: {}, configuracao: {},
       }),
