@@ -154,6 +154,7 @@ function normalizarTarefa(v: unknown): Tarefa | null {
     historico: t.historico.filter((x): x is string => typeof x === 'string'),
     recompensas,
     criadaEm: typeof t.criadaEm === 'string' ? t.criadaEm : new Date().toISOString(),
+    editadaEm: typeof t.editadaEm === 'string' ? t.editadaEm : (typeof t.criadaEm === 'string' ? t.criadaEm : undefined),
   }
 }
 

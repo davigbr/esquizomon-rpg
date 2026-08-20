@@ -66,6 +66,8 @@ export interface Tarefa {
   /** Recompensas concedidas por data de conclusão (para reverter ao desmarcar). */
   recompensas?: Record<string, RecompensaConclusao>
   criadaEm: string
+  /** ISO da última edição (sincronização: merge LWW por item). */
+  editadaEm?: string
 }
 
 /** Snapshot da recompensa de UMA conclusão — permite reverter XP/nível/cartas ao desmarcar.

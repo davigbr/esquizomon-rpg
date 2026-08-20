@@ -9,7 +9,7 @@ import { notificar } from '../toast'
 import { escapar } from '../util'
 import { editarAvatar } from '../avatarEditor'
 import { sessaoAtual } from '../../sync/auth'
-import { aposMudancaSessao, inscreverSync, sincronizarAgora } from '../../sync/sync'
+import { aposMudancaSessao, inscreverSync, lerBackups, restaurarBackup, sincronizarAgora } from '../../sync/sync'
 import type { EstadoSync } from '../../sync/sync'
 import { abrirLoginModal } from '../loginModal'
 
@@ -119,6 +119,8 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
         <button class="btn" data-importar><i class="fa-solid fa-upload" aria-hidden="true"></i> Importar</button>
       </div>
       <div class="config-dica config-dica-linha">${total} tarefa${total === 1 ? '' : 's'} · nível <b>${dados.personagem.nivel}</b> · <b>${dados.personagem.cartas.length}</b> cartas desbloqueadas</div>
+      <div class="config-dica config-dica-linha backup-titulo">Backups automáticos (criados antes de cada sincronização que altera dados):</div>
+      <div class="config-backups" data-backups></div>
     </div>
 
     <div class="config-secao">
@@ -208,6 +210,34 @@ export function montarConfig(raiz: HTMLElement, dados: AppData): void {
     })
     input.click()
   })
+
+  const areaBackups = raiz.querySelector('[data-backups]')
+  function preencherBackups(): void {
+    if (!areaBackups) return
+    const lista = lerBackups()
+    if (lista.length === 0) {
+      areaBackups.innerHTML = '<div class="config-dica">Nenhum backup automático ainda — o app cria um antes de cada sincronização que altera os dados.</div>'
+      return
+    }
+    areaBackups.innerHTML = lista
+      .map((b) => {
+        const d = new Date(b.ts)
+        const legivel = Number.isNaN(d.getTime()) ? b.ts : d.toLocaleString('pt-BR')
+        return `<div class="config-backup"><span>${legivel}</span><button class="btn btn--pequeno" data-restaurar="${escapar(b.ts)}">Restaurar</button></div>`
+      })
+      .join('')
+    areaBackups.querySelectorAll<HTMLButtonElement>('[data-restaurar]').forEach((bt) => {
+      bt.addEventListener('click', () => {
+        const ts = bt.dataset.restaurar
+        void confirmar('Restaurar substitui os dados atuais deste dispositivo pelos do backup escolhido. Continuar?', 'Restaurar backup').then((ok) => {
+          if (!ok || !ts) return
+          const resultou = restaurarBackup(ts)
+          notificar(resultou ? 'Backup restaurado.' : 'Não foi possível restaurar este backup.', resultou ? 'ok' : 'erro')
+        })
+      })
+    })
+  }
+  preencherBackups()
 
   raiz.querySelector('[data-apagar]')!.addEventListener('click', () => {
     void confirmar('Apagar todas as tarefas e o personagem? Isso não pode ser desfeito.', 'Apagar tudo').then((ok) => {

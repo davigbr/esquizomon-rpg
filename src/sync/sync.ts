@@ -14,7 +14,8 @@
 import { appStore } from '../stores/base'
 import { normalizarDados } from '../db/storage'
 import { obterTokenValido, renovarToken, sessaoAtual } from './auth'
-import { notificar } from '../ui/toast'
+import type { AppData } from '../core/tipos'
+import { fundirDados } from '../core/syncMerge'
 
 const CHAVE_SYNC = 'esquizomon-rpg:sync' // metadados locais de sincronização
 const FUNCAO = '/.netlify/functions/dados'
@@ -163,6 +164,50 @@ function substituirDados(dados: unknown): void {
   if (normalizado) appStore.set(normalizado)
 }
 
+/* ---------- paraquedas: backup local versionado (caminho "E", 2026-08-17) ---------- */
+
+const CHAVE_BACKUP = 'esquizomon-rpg:backup'
+
+interface BackupLocal {
+  ts: string
+  dados: AppData
+}
+
+function lerBackupBruto(): BackupLocal[] {
+  try {
+    const lista = JSON.parse(localStorage.getItem(CHAVE_BACKUP) ?? '[]') as BackupLocal[]
+    return Array.isArray(lista) ? lista : []
+  } catch {
+    return []
+  }
+}
+
+/** Guarda a versão local atual ANTES de uma sobreescrita (merge) — as últimas
+ *  3 cópias ficam recuperáveis. */
+function backupLocal(dados: AppData): void {
+  try {
+    const historico = lerBackupBruto()
+    historico.push({ ts: new Date().toISOString(), dados: (normalizarDados(dados) ?? dados) })
+    localStorage.setItem(CHAVE_BACKUP, JSON.stringify(historico.slice(-3)))
+  } catch {
+    /* sincronização importa mais que backup */
+  }
+}
+
+/** Backups locais salvos (tela de restauração da Config). */
+export function lerBackups(): Array<{ ts: string }> {
+  return lerBackupBruto().map((b) => ({ ts: b.ts }))
+}
+
+/** Restaura uma cópia de backup (sobrescreve o estado atual, guardando o atual). */
+export function restaurarBackup(ts: string): boolean {
+  const b = lerBackupBruto().find((x) => x.ts === ts)
+  if (!b) return false
+  backupLocal(appStore.get())
+  substituirDados(b.dados)
+  return true
+}
+
 async function enviarAgora(): Promise<void> {
   const token = await obterTokenValido()
   if (!token) return
@@ -177,10 +222,10 @@ async function enviarAgora(): Promise<void> {
   }
 }
 
-/** Sincroniza com a nuvem. `forcar` decide a direção (pergunta da UI no
- *  login com dados locais — 2026-08-12): 'local' envia SEMPRE (o dispositivo
- *  sobrescreve a nuvem), 'nuvem' aplica SEMPRE (a nuvem sobrescreve o local),
- *  omitido = last-write-wins por `salvoEm`. */
+/** Sincroniza com a nuvem — MERGE não-destrutivo (caminho "E", 2026-08-17).
+ *  `forcar` decide apenas a BASE do personagem/configuração (a pergunta do
+ *  login); as coleções (tarefas, diário, conversas) sempre mesclam por item.
+ *  Nunca há sobrescrita global que perca entidades. */
 export async function sincronizarAgora(forcar?: 'local' | 'nuvem'): Promise<void> {
   const token = await obterTokenValido()
   if (!token) {
@@ -192,29 +237,53 @@ export async function sincronizarAgora(forcar?: 'local' | 'nuvem'): Promise<void
     const res = await chamar('GET')
     if (!res.ok) throw new Error(`GET falhou: HTTP ${res.status}`)
     const envelope = (await res.json()) as { salvoEm: string | null; dados: unknown }
-    const local = lerMetadados()
+    const local = appStore.get()
+    const localSalvoEm = lerMetadados().salvoEm ?? ''
+    const nuvem: AppData | null = envelope.dados ? normalizarDados(envelope.dados) : null
 
-    if (forcar === 'local') {
+    if (!nuvem) {
+      // nuvem vazia (primeira vez) → o local vira a nuvem
       await enviarAgora()
       return
     }
 
-    const blobMaisNovo =
-      forcar === 'nuvem' || (envelope.salvoEm && (!local.salvoEm || envelope.salvoEm > local.salvoEm))
-    if (blobMaisNovo && envelope.dados) {
-      // nuvem mais nova (ou forçado) → aplica
-      carregando = true
-      substituirDados(envelope.dados)
-      carregando = false
-      gravarMetadados({ salvoEm: envelope.salvoEm ?? undefined })
-      notificar('Sincronizado — dados atualizados da nuvem.')
-      definirEstado('sincronizado')
-    } else if (!envelope.salvoEm || (local.salvoEm && local.salvoEm > envelope.salvoEm)) {
-      // nuvem vazia ou mais velha → envia o local (primeira migração)
-      await enviarAgora()
+    // BASE do personagem/configuração: forçar, senão LWW global (salvoEm).
+    // As coleções mesclam de forma comutativa independentemente da base.
+    let base: AppData
+    let outro: AppData
+    if (forcar === 'nuvem') {
+      base = nuvem
+      outro = local
+    } else if (forcar === 'local') {
+      base = local
+      outro = nuvem
+    } else if ((envelope.salvoEm ?? '') > localSalvoEm) {
+      base = nuvem
+      outro = local
     } else {
-      definirEstado('sincronizado')
+      base = local
+      outro = nuvem
     }
+
+    const fundido = fundirDados(base, outro)
+
+    const localMudou = JSON.stringify(fundido) !== JSON.stringify(local)
+    if (localMudou) {
+      backupLocal(local) // paraquedas: guarda a versão anterior
+      carregando = true
+      substituirDados(fundido)
+      carregando = false
+      gravarMetadados({
+        salvoEm: ((envelope.salvoEm ?? '') > localSalvoEm ? envelope.salvoEm : localSalvoEm) ?? undefined,
+      })
+    }
+
+    const nuvemMudou = JSON.stringify(fundido) !== JSON.stringify(nuvem)
+    if (nuvemMudou) {
+      await enviarAgora() // PUT usa appStore.get() — o fundido (aplicado ao local acima)
+      return
+    }
+    definirEstado('sincronizado')
   } catch {
     definirEstado('sem-conexao')
   }

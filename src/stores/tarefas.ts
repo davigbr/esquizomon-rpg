@@ -33,6 +33,7 @@ export function criarTarefa(dados: DadosTarefa): Resultado {
     concluida: false,
     historico: [],
     criadaEm: new Date().toISOString(),
+    editadaEm: new Date().toISOString(),
   }
   // nova tarefa entra no TOPO da lista (a mais recente acima) — 2026-08-17
   appStore.set({ ...appStore.get(), tarefas: [tarefa, ...appStore.get().tarefas] })
@@ -60,6 +61,7 @@ export function atualizarTarefa(id: string, dados: Partial<DadosTarefa>): Result
 
   const proxima: Tarefa = {
     ...atual,
+    editadaEm: new Date().toISOString(),
     titulo: titulo ?? atual.titulo,
     dificuldade: dados.dificuldade ?? atual.dificuldade,
     tags: dados.tags ?? atual.tags,
@@ -195,7 +197,7 @@ export function registrarRecompensa(id: string, data: string, antes: Personagem,
       manaMaxAntes: antes.manaMax,
       cartas: cartasNovas.length > 0 ? cartasNovas : undefined,
     }
-    return { ...t, recompensas: { ...t.recompensas, [data]: recompensa } }
+    return { ...t, editadaEm: new Date().toISOString(), recompensas: { ...t.recompensas, [data]: recompensa } }
   })
   appStore.set({ ...appStore.get(), tarefas })
 }
@@ -246,12 +248,14 @@ export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data
       const historico = t.historico.includes(data) ? t.historico : [...t.historico, data]
       return {
         ...t,
+        editadaEm: new Date().toISOString(),
         historico,
         contador: { ...contador, hoje: contador.hoje + 1, totalPositivo: contador.totalPositivo + 1 },
       }
     }
     return {
       ...t,
+      editadaEm: new Date().toISOString(),
       contador: { ...contador, hojeNeg: contador.hojeNeg + 1, totalNegativo: contador.totalNegativo + 1 },
     }
   })

@@ -1551,6 +1551,32 @@ select.campo {
   margin-bottom: 4px;
 }
 
+/* backups automáticos (paraquedas do sync — 2026-08-17) */
+.backup-titulo {
+  margin-top: 8px;
+  opacity: 0.75;
+}
+.config-backups {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.config-backup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.btn--pequeno {
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
 /* seção do avatar: círculo no topo, botões logo abaixo (2026-08-12) */
 .avatar-bloco {
   display: flex;
