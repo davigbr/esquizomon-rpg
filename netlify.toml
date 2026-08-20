@@ -9,6 +9,11 @@
   # Funções em netlify/functions, runtime default (Node 20).
   directory = "netlify/functions"
 
+# A function /api/ia gera respostas longas (invocação, /analisar) e o timeout
+# default de 10s estourava em 504 no chat. 26s é o teto do Netlify.
+[functions."ia"]
+  timeout = 26
+
 # Redireciona /api/ia → function /.netlify/functions/ia
 # (mesma URL em dev e prod — Vite middleware serve /api/ia em dev)
 [[redirects]]
