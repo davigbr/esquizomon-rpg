@@ -37,8 +37,8 @@ export function verificarCheckin(): void {
     .join('')
 
   abrirModal(`
-    <h2 class="checkin-titulo-modal">Tarefas de ontem</h2>
-    <p class="checkin-sub">Você não marcou estas tarefas em <strong>${escapar(dataPorExtenso(pend.data))}</strong>. Nada vem pré-marcado: marque as que você fez de verdade — as que ficarem sem marcação contarão como perdidas.</p>
+    <h2 class="checkin-titulo-modal">Atividades de ontem</h2>
+    <p class="checkin-sub">Confira as <strong>atividades recorrentes de ${escapar(dataPorExtenso(pend.data))}</strong> (ontem). Nada vem pré-marcado: marque as que você fez de verdade — <strong>só as recorrentes</strong> não marcadas contam como perdidas e causam dano (tarefas únicas vencidas não dão dano).</p>
     <div class="checkin-lista">${itens}</div>
     <div class="form-acoes">
       <button class="btn btn-primary" data-checkin-confirmar>Check-in</button>
