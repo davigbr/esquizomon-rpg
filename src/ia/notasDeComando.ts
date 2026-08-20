@@ -77,9 +77,11 @@ export function coletarNotasDeComando(texto: string, dados: AppData): NotasDeCom
     sistema.push({
       role: 'system',
       content:
-        'O jogador pediu que VOCÊ escolha a carta a invocar (comando /invocar sem nome — custo PREMIUM: ×1,5 do normal: monstro 6, captura 12, aliança 18, crescendo com reusos). ' +
-        'Escolha UMA carta desbloqueada (lista CARTAS DESBLOQUEADAS abaixo) que sirva ao momento dele, justifique a escolha em 1-2 frases, responda de forma EXTENSA sobre os possíveis efeitos dela, ' +
-        'e emita o marcador exato na última linha: [[acao:{"tipo":"invocar","carta":"<id>"}]] — o app valida a mana premium e executa.',
+        'O jogador pediu que VOCÊ escolha a carta a invocar (comando /invocar sem nome — custo PREMIUM: ×1,5 do normal, crescendo com reusos). ' +
+        'Escolha UMA carta da lista CARTAS DESBLOQUEADAS abaixo, responda de forma EXTENSA sobre os possíveis efeitos dela, justifique a escolha em 1-2 frases ' +
+        'e, na ÚLTIMA linha (sem code block, sem aspas extras, sem texto depois), emita o marcador. Exemplo do marcador EXATO: ' +
+        '[[acao:{"tipo":"invocar","carta":"ninho-enclausurado"}]] — use o id real (slug) da carta escolhida no lugar de "ninho-enclausurado". ' +
+        'Sem ele, a invocação NÃO acontece.',
     })
   }
   if (analisePedida) {

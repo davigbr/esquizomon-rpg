@@ -524,7 +524,7 @@ test('fabula: /invocar sem nome — a Fábula escolhe a carta (custo premium ×1
     void rota.fulfill({
       status: 200,
       contentType: 'text/event-stream',
-      body: sseFake('Escolho esta: Ninho Enclausurado.\n[[acao:{"tipo":"invocar","carta":"ninho-enclausurado"}]]'),
+      body: sseFake('Escolho esta: Ninho Enclausurado.\\n[[acao: {"tipo":"invocar","carta":"ninho-enclausurado"}]]'),
     })
   })
 

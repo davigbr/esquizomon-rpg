@@ -19,7 +19,7 @@ export interface ComandoIA {
   escolhaFabula: boolean
 }
 
-const RE_ACAO = /\[\[acao:(\{[\s\S]*?)\]\]/g
+const RE_ACAO = /\[\[acao:\s*(\{[\s\S]*?)\s*\]\]/g
 
 /** Extrai os marcadores do texto e devolve o texto limpo + as ações. */
 export function extrairAcoes(texto: string): { texto: string; acoes: AcaoIA[] } {
