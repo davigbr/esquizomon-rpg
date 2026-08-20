@@ -1,11 +1,11 @@
 /** Domínio das tarefas: CRUD, alternância (XP/recompensas) e hábitos. */
 
 import type { AppData, Personagem, RecompensaConclusao, Tarefa, TipoTarefa } from '../core/tipos'
-import { danoDe, hojeISO, novoId, xpDe, xpProximoDe, hpMaxDe, manaMaxDe } from '../core/jogo'
+import { danoDe, hojeISO, novoId, xpDe, xpProximoDe, hpMaxDe, manaMaxDe, VIDA_POR_HABITO_POSITIVO } from '../core/jogo'
 import { appStore, registrarLog, tarefaPorId } from './base'
 import type { DadosTarefa, Resultado } from './base'
 import { tocarSom } from '../ui/sons'
-import { aplicarDano, ganharXP } from './personagem'
+import { aplicarDano, curar, ganharXP } from './personagem'
 
 export function tagsEmUso(dados: AppData): string[] {
   const set = new Set<string>()
@@ -263,8 +263,9 @@ export function registrarHabito(id: string, sinal: 'positivo' | 'negativo', data
   const tarefa = tarefas.find((t) => t.id === id)
   if (tarefa) {
     if (sinal === 'positivo') {
-      registrarLog('habito', `Hábito positivo: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP)`)
+      registrarLog('habito', `Hábito positivo: ${tarefa.titulo} (+${xpDe(tarefa.dificuldade)} XP, +${VIDA_POR_HABITO_POSITIVO} vida)`)
       const novas = ganharXP(xpDe(tarefa.dificuldade)).novasCartas
+      curar(VIDA_POR_HABITO_POSITIVO)
       tocarSom('habito-pos')
       return novas
     }

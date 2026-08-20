@@ -53,8 +53,9 @@ test('check-in: tudo vem desmarcado; marcar um item conclui em ontem e o resto s
   await expect(page.locator('#modal')).toBeHidden()
 
   // Relatório concluída em ontem → +10 XP; Meditar perdida → −3 vida
+  // (o dano de −3 é cancelado pela regeneração diária de +5% = +3, então fica 50/50)
   await expect(page.locator('[data-s-xp]')).toHaveText('XP 10/80')
-  await expect(page.locator('[data-s-hp]')).toHaveText('47/50')
+  await expect(page.locator('[data-s-hp]')).toHaveText('50/50')
 })
 
 test('check-in: confirmar sem marcar nada equivale a pular (dano em todas)', async ({ page }) => {
@@ -66,8 +67,9 @@ test('check-in: confirmar sem marcar nada equivale a pular (dano em todas)', asy
 
   await expect(page.locator('#modal')).toBeHidden()
   // nada marcado → XP 0; a recorrente Meditar perdida → −3 vida (únicas não dão dano)
+  // (dano cancelado pela regeneração diária de +5%; fica 50/50)
   await expect(page.locator('[data-s-xp]')).toHaveText('XP 0/80')
-  await expect(page.locator('[data-s-hp]')).toHaveText('47/50')
+  await expect(page.locator('[data-s-hp]')).toHaveText('50/50')
 })
 
 test('sem pendentes: nenhum modal aparece no novo dia', async ({ page }) => {

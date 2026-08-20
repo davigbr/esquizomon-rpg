@@ -45,6 +45,12 @@ export function danoDe(dificuldade: Dificuldade): number {
 /** XP por registrar o diário (uma vez por dia — escrever a crônica). */
 export const XP_POR_REGISTRO_DIARIO = 5
 
+/** Regeneração de vida por dia — fração do hpMax (lenta, 5%). */
+export const REGEN_HP_POR_DIA = 0.05
+
+/** Vida recuperada por cada hábito positivo marcado. */
+export const VIDA_POR_HABITO_POSITIVO = 1
+
 /** XP necessário para subir do nível atual (curva suave: nível n exige n×80). */
 export function xpProximoDe(nivel: number): number {
   return Math.max(80, nivel * 80)

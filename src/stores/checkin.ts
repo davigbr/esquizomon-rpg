@@ -1,7 +1,7 @@
 /** Domínio do ciclo diário: renovação do dia e check-in (estilo Habitica). */
 
 import type { Tarefa } from '../core/tipos'
-import { danoDe, diaDaSemana, diaDoMes, hojeISO, somarDias, xpDe } from '../core/jogo'
+import { danoDe, diaDaSemana, diaDoMes, hojeISO, REGEN_HP_POR_DIA, somarDias, xpDe } from '../core/jogo'
 import { appStore, registrarLog } from './base'
 import { aplicarDano, ganharXP } from './personagem'
 import { registrarRecompensa } from './tarefas'
@@ -18,6 +18,8 @@ function finalizarDia(hoje: string): void {
     personagem: {
       ...atual,
       ultimoDia: hoje,
+      // regeneração LENTA de vida: +5% do hpMax por dia (mín. 1)
+      hp: Math.min(atual.hpMax, atual.hp + Math.max(1, Math.round(atual.hpMax * REGEN_HP_POR_DIA))),
       mana: !atual.esgotado ? atual.manaMax : atual.mana,
     },
   })

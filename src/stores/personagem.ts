@@ -172,3 +172,13 @@ export function aplicarDano(quantidade: number): { esgotou: boolean } {
   if (esgotou) registrarMorte()
   return { esgotou }
 }
+
+/** Recupera vida até o máximo (no-op acima do cap). Retorna o quanto curou. */
+export function curar(quantidade: number): number {
+  const p = appStore.get().personagem
+  const antes = p.hp
+  const hp = Math.min(p.hpMax, p.hp + Math.max(0, Math.floor(quantidade)))
+  if (hp === antes) return 0
+  appStore.set({ ...appStore.get(), personagem: { ...p, hp } })
+  return hp - antes
+}
