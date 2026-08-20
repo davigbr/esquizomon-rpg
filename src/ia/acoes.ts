@@ -27,14 +27,12 @@ export function extractActions(text: string): { text: string; actions: AiAction[
   const clean = text.replace(ACTION_RE, (_match, json: string) => {
     try {
       const obj: unknown = JSON.parse(json)
-      if (
-        typeof obj === 'object' &&
-        obj !== null &&
-        (obj as Record<string, unknown>).type === 'invocar' &&
-        typeof (obj as Record<string, unknown>).card === 'string' &&
-        ((obj as Record<string, unknown>).card as string).trim()
-      ) {
-        actions.push({ type: 'invocar', card: ((obj as Record<string, unknown>).card as string).trim() })
+      if (typeof obj !== 'object' || obj === null) return ''
+      const o = obj as Record<string, unknown>
+      const actionType = o.tipo ?? o.type
+      const cardRaw = o.carta ?? o.card
+      if (actionType === 'invocar' && typeof cardRaw === 'string' && cardRaw.trim()) {
+        actions.push({ type: 'invocar', card: cardRaw.trim() })
       }
     } catch {
       // marcador malformado — remove mesmo assim, sem executar

@@ -49,13 +49,13 @@ function openCrop(img: HTMLImageElement, url: string): void {
       <div class="avatar-mask" aria-hidden="true"></div>
     </div>
     <div class="avatar-zoom">
-      <i class="fa-solid" fa-minus aria-hidden="true"></i>
+      <i class="fa-solid fa-minus" aria-hidden="true"></i>
       <input type="range" min="${sMin.toFixed(2)}" max="${sMax.toFixed(2)}" step="0.01" value="${sMin.toFixed(2)}" data-avatar-zoom aria-label="Zoom do corte" />
-      <i class="fa-solid" fa-plus aria-hidden="true"></i>
+      <i class="fa-solid fa-plus" aria-hidden="true"></i>
     </div>
     <div class="form-actions">
       <button class="btn" data-avatar-cancelar>Cancelar</button>
-      <button class="btn" btn-primary data-avatar-salvar>Salvar avatar</button>
+      <button class="btn btn-primary" data-avatar-salvar>Salvar avatar</button>
     </div>
   `)
 

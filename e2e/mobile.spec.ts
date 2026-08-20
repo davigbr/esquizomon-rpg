@@ -30,17 +30,17 @@ test('mobile: nome monstruoso fica ACIMA do nível, tudo centralizado verticalme
     localStorage.setItem(
       'esquizomon-rpg:v1',
       JSON.stringify({
-        versao: 3,
-        tarefas: [],
+        version: 3,
+        tasks: [],
         log: [],
-        diario: [],
-        conversas: [],
-        configuracao: { tema: 'dark', ia: { provider: 'nenhum', modelo: '', apiKey: '' } },
-        personagem: {
+        diary: [],
+        conversations: [],
+        settings: { tema: 'dark', ai: { provider: 'nenhum', model: '', apiKey: '' } },
+        character: {
           nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20,
-          esgotado: false, ultimoDia: hoje, cartas: [], invocacoes: {},
+          exhausted: false, lastDay: hoje, cartas: [], invocations: {},
           avatar: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-          nomeMonstruoso: 'Devorador de Segundas',
+          monsterName: 'Devorador de Segundas',
         },
       }),
     )

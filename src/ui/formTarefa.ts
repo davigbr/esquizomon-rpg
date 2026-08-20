@@ -101,7 +101,7 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
         <label>Tags</label>
         <div class="tag-list" data-tags-chips>
           ${tags.map((t) => `<button type="button" class="tag-row${currentTags.includes(t) ? ' active' : ''}" data-tag="${escape(t)}"><span class="tag-row-check">✓</span><span class="tag-row-name">#${escape(t)}</span></button>`).join('')}
-          ${currentTags.filter((t) => !tags.includes(t)).map((t) => `<button type="button" class="tag-row" active data-tag="${escape(t)}"><span class="tag-row-check">✓</span><span class="tag-row-name">#${escape(t)}</span></button>`).join('')}
+          ${currentTags.filter((t) => !tags.includes(t)).map((t) => `<button type="button" class="tag-row active" data-tag="${escape(t)}"><span class="tag-row-check">✓</span><span class="tag-row-name">#${escape(t)}</span></button>`).join('')}
         </div>
         <div class="tag-input">
           <input class="field" name="tag-nova" placeholder="Nova tag (Enter para adicionar)" list="tags-sugeridas" />
@@ -119,7 +119,7 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
 
       <div class="form-actions">
         <button type="button" class="btn" data-cancelar>Cancelar</button>
-        <button type="submit" class="btn" btn-primary>${task ? 'Salvar' : 'Criar'}</button>
+        <button type="submit" class="btn btn-primary">${task ? 'Salvar' : 'Criar'}</button>
       </div>
     </form>
   `)
@@ -136,7 +136,7 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
   const agendaHint = form.querySelector<HTMLElement>('[data-agenda-dica]')!
 
   function applyType(t: TaskType): void {
-    options.forEach((o) => o.classList.toggle('selected', o.getAttribute('data-tipo') === t))
+    options.forEach((o) => o.classList.toggle('selected' , o.getAttribute('data-tipo') === t))
     typeInput.value = t
     agendaField.hidden = t !== 'recorrente'
     signField.hidden = t !== 'habito'
@@ -165,7 +165,7 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
 
   const tagsChips = form.querySelector('[data-tags-chips]') as HTMLElement
   function selectedTags(): string[] {
-    return [...tagsChips.querySelectorAll('.tag-linha.ativo')].map((c) => c.getAttribute('data-tag')!)
+    return [...tagsChips.querySelectorAll('.tag-row.active')].map((c) => c.getAttribute('data-tag')!)
   }
   function addTagChip(name: string): void {
     const clean = name.trim().replace(/^#/, '')
@@ -173,7 +173,7 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
     if (!tagsChips.querySelector(`[data-tag="${CSS.escape(clean)}"]`)) {
       const b = document.createElement('button')
       b.type = 'button'
-      b.className = 'tag-row active'
+      b.className = 'tag-row active' 
       b.dataset.tag = clean
       b.innerHTML = `<span class="tag-row-check">✓</span><span class="tag-row-name">#${escape(clean)}</span>`
       tagsChips.appendChild(b)
@@ -181,7 +181,7 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
   }
   tagsChips.addEventListener('click', (e) => {
     const row = (e.target as HTMLElement).closest('[data-tag]') as HTMLElement | null
-    if (row) row.classList.toggle('active')
+    if (row) row.classList.toggle('active' )
   })
   const newTagInput = form.querySelector<HTMLInputElement>('input[name="tag-nova"]')!
   form.querySelector('[data-add-tag]')!.addEventListener('click', () => {
@@ -201,7 +201,7 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
 
   dayChips.addEventListener('click', (e) => {
     const chip = (e.target as HTMLElement).closest('[data-dia]') as HTMLElement | null
-    if (chip) chip.classList.toggle('active')
+    if (chip) chip.classList.toggle('active' )
   })
 
   form.querySelector('[data-cancelar]')!.addEventListener('click', () => {
@@ -232,7 +232,7 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
           .filter((n) => Number.isInteger(n) && n >= 1 && n <= 31)
         agenda = { days: [], daysOfMonth: [...new Set(daysOfMonth)].sort((a, b) => a - b) }
       } else if (r === 'semana') {
-        const days = [...dayChips.querySelectorAll('.chip.ativo')].map((c) => Number(c.getAttribute('data-dia')))
+        const days = [...dayChips.querySelectorAll('.chip.active')].map((c) => Number(c.getAttribute('data-dia')))
         agenda = { days }
       } else {
         agenda = { days: [] }

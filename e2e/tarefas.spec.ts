@@ -1,4 +1,4 @@
-/** E2E — núcleo de tarefas: criar, marcar/desmarcar com XP, hábito, filters. */
+/** E2E — núcleo de tasks: criar, marcar/desmarcar com XP, hábito, filters. */
 import { test, expect } from '@playwright/test'
 
 test('criar tarefa única, marcar (XP sobe) e desmarcar (XP reverte)', async ({ page }) => {
@@ -86,7 +86,7 @@ test('hábito: repetição negativa EXTREMA tira 12 de vida (dano escala com a d
   await expect(page.locator('[data-s-hp]')).toHaveText('38/50')
   await expect
     .poll(() =>
-      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.log?.[0]?.texto ?? '')),
+      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.log?.[0]?.text ?? '')),
     )
     .toContain('(−12 vida)')
 })

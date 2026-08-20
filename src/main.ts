@@ -52,7 +52,7 @@ function mountRoute(route: Route): void {
       mountSettings(root, data)
       break
   }
-  navLinks.forEach((a) => a.classList.toggle('active', a.dataset.rota === route))
+  navLinks.forEach((a) => a.classList.toggle('active' , a.dataset.rota === route))
 }
 
 /* ---------- theme ---------- */
@@ -92,7 +92,7 @@ let els: {
 
 /** Applies glow (animation class) to an item and removes it when done. */
 function glow(item: HTMLElement, cls: string): void {
-  item.classList.remove('status-glow-gain', 'status-brilho-perda', 'status-brilho-mana')
+  item.classList.remove('status-glow-gain' , 'status-brilho-perda', 'status-brilho-mana')
   void item.offsetWidth // restarts the animation
   item.classList.add(cls)
   item.addEventListener('animationend', () => item.classList.remove(cls), { once: true })
@@ -119,16 +119,16 @@ function mountStatusBar(): void {
       <div class="status-identity">
         <div class="status-identity-info">
           <span class="status-name"></span>
-          <div class="status-item" status-item--nivel title="Nível"><i class="fa-solid" fa-arrow-trend-up aria-hidden="true"></i><span data-s-nivel></span></div>
+          <div class="status-item status-item--nivel" title="Nível"><i class="fa-solid fa-arrow-trend-up" aria-hidden="true"></i><span data-s-nivel></span></div>
         </div>
       </div>
       <div class="status-barras">
-        <div class="status-item" status-item--hp title="Vida"><i class="fa-solid" fa-heart aria-hidden="true"></i><span data-s-hp></span><div class="status-track"><div class="status-fill" status-fill--hp data-b-hp></div></div></div>
-        <div class="status-item" status-item--xp title="Experiência"><i class="fa-solid" fa-star aria-hidden="true"></i><span data-s-xp></span><div class="status-track"><div class="status-fill" status-fill--xp data-b-xp></div></div></div>
-        <div class="status-item" status-item--mana title="Mana"><i class="fa-solid" fa-droplet aria-hidden="true"></i><span data-s-mana></span><div class="status-track"><div class="status-fill" status-fill--mana data-b-mana></div></div></div>
+        <div class="status-item status-item--hp" title="Vida"><i class="fa-solid fa-heart" aria-hidden="true"></i><span data-s-hp></span><div class="status-track"><div class="status-fill status-fill--hp" data-b-hp></div></div></div>
+        <div class="status-item status-item--xp" title="Experiência"><i class="fa-solid fa-star" aria-hidden="true"></i><span data-s-xp></span><div class="status-track"><div class="status-fill status-fill--xp" data-b-xp></div></div></div>
+        <div class="status-item status-item--mana" title="Mana"><i class="fa-solid fa-droplet" aria-hidden="true"></i><span data-s-mana></span><div class="status-track"><div class="status-fill status-fill--mana" data-b-mana></div></div></div>
       </div>
-      <div class="status-item" status-item--depleted title="Esgotado" data-s-esgotado style="display:none"><i class="fa-solid" fa-triangle-exclamation aria-hidden="true"></i><span>Esgotado</span></div>
-      <div class="status-item" status-item--sync data-s-sync title="Última sincronização"></div>
+      <div class="status-item status-item--depleted" title="Esgotado" data-s-esgotado style="display:none"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>Esgotado</span></div>
+      <div class="status-item status-item--sync" data-s-sync title="Última sincronização"></div>
     `
     const q = (s: string) => statusBar.querySelector<HTMLElement>(s)!
     els = {
@@ -160,17 +160,17 @@ function mountStatusBar(): void {
   const avatarEl = statusBar.querySelector<HTMLImageElement>('.status-avatar')
   const currentAvatar = p.avatar
   // monster name: fills the FIXED span of the markup (display none if empty)
-  const nameSpan = statusBar.querySelector<HTMLElement>('.status-nome')
+  const nameSpan = statusBar.querySelector<HTMLElement>('.status-name')
   if (nameSpan) {
     const name = p.monsterName?.trim() ?? ''
     nameSpan.textContent = name
     nameSpan.style.display = name ? '' : 'none'
   }
-  const identity = statusBar.querySelector<HTMLElement>('.status-identidade')
-  const infoEl = statusBar.querySelector<HTMLElement>('.status-identidade-info')
+  const identity = statusBar.querySelector<HTMLElement>('.status-identity')
+  const infoEl = statusBar.querySelector<HTMLElement>('.status-identity-info')
   if (currentAvatar && !avatarEl) {
     const img = document.createElement('img')
-    img.className = 'status-avatar'
+    img.className = 'status-avatar' 
     img.alt = 'Avatar'
     img.src = currentAvatar
     // inserts BEFORE the top (level) — inline, to the left; order via flex `order`
@@ -246,10 +246,10 @@ function updateSyncStatus(): void {
   if (t) {
     const d = new Date(t)
     const hour = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    el.innerHTML = `<i class="fa-solid" fa-cloud aria-hidden="true"></i><span>${hour}</span>`
+    el.innerHTML = `<i class="fa-solid fa-cloud" aria-hidden="true"></i><span>${hour}</span>`
     el.title = `Última sincronização em ${d.toLocaleString('pt-BR')}`
   } else {
-    el.innerHTML = '<i class="fa-solid" fa-cloud aria-hidden="true"></i><span>—</span>'
+    el.innerHTML = '<i class="fa-solid fa-cloud" aria-hidden="true"></i><span>—</span>'
     el.title = 'Ainda não sincronizado'
   }
 }

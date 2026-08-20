@@ -19,16 +19,16 @@ async function semearPendentes(page: import('@playwright/test').Page): Promise<v
   await page.addInitScript(
     ({ ontem }) => {
       const d = {
-        versao: 3,
-        tarefas: [
-          { id: 'r1', tipo: 'recorrente', titulo: 'Meditar', dificuldade: 'facil', tags: [], agenda: { dias: [] }, historico: [], criadaEm: new Date().toISOString() },
-          { id: 'u1', tipo: 'unica', titulo: 'Relatório', dificuldade: 'facil', tags: [], dueDate: ontem, done: false, historico: [], criadaEm: new Date().toISOString() },
+        version: 3,
+        tasks: [
+          { id: 'r1', type: 'recorrente', title: 'Meditar', difficulty: 'facil', tags: [], agenda: { dias: [] }, history: [], createdAt: new Date().toISOString() },
+          { id: 'u1', type: 'unica', title: 'Relatório', difficulty: 'facil', tags: [], dueDate: ontem, done: false, history: [], createdAt: new Date().toISOString() },
         ],
-        personagem: { nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20, esgotado: false, ultimoDia: ontem, cartas: [], invocacoes: {} },
-        configuracao: { tema: 'dark' },
+        character: { nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20, exhausted: false, lastDay: ontem, cartas: [], invocations: {} },
+        settings: { tema: 'dark' },
         log: [],
-        conversas: [],
-        diario: [],
+        conversations: [],
+        diary: [],
       }
       localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
     },

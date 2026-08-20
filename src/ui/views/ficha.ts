@@ -21,7 +21,7 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
   root.innerHTML = `
     <header class="view-header">
       <h1>Jogo</h1>
-      <p class="view-sub">${char.exhausted ? '<i class="fa-solid" fa-triangle-exclamation aria-hidden="true"></i> Esgotado — sem regeneração de mana até o próximo dia.' : 'Regras, coleção e progressão.'}</p>
+      <p class="view-sub">${char.exhausted ? '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Esgotado — sem regeneração de mana até o próximo dia.' : 'Regras, coleção e progressão.'}</p>
     </header>
 
     <div class="settings-section">
@@ -129,7 +129,7 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
       <p>Coleção desbloqueada conforme você sobe de nível — 1 carta por nível (a partir de 7 iniciais): monstros são 6× mais comuns que alianças, capturas 2×.</p>
       <div class="sheet-bar" title="Cartas desbloqueadas do baralho">
         <span class="sheet-bar-label">Baralho</span>
-        <div class="sheet-bar-track"><div class="sheet-bar-fill" sheet-bar--xp style="width:${collectionPct}%"></div></div>
+        <div class="sheet-bar-track"><div class="sheet-bar-fill sheet-bar--xp" style="width:${collectionPct}%"></div></div>
         <span class="sheet-bar-value">${char.cards.length}/65</span>
       </div>
       <p class="settings-hint">Nível ${fullDeckLevel()} completa o baralho. A mana é o recurso de invocação: monstros custam menos, alianças custam mais; reusar a mesma carta encarece até um teto.</p>

@@ -15,14 +15,14 @@ export function mountAccountButton(): void {
     const s = currentSession()
     if (s) {
       btn.innerHTML =
-        '<i class="fa-solid" fa-circle-user aria-hidden="true"></i>'
+        '<i class="fa-solid fa-circle-user" aria-hidden="true"></i>'
       btn.title = `Conta: ${s.user.email}`
       btn.setAttribute('aria-label', `Conta: ${escapeHtml(s.user.email)}`)
-      btn.classList.add('logged')
+      btn.classList.add('logged' )
     } else {
-      btn.innerHTML = '<i class="fa-solid" fa-cloud aria-hidden="true"></i>'
+      btn.innerHTML = '<i class="fa-solid fa-cloud" aria-hidden="true"></i>'
       btn.title = 'Entrar / criar conta (sincronização opcional)'
-      btn.classList.remove('logged')
+      btn.classList.remove('logged' )
     }
   }
 

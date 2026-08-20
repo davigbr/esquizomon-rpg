@@ -42,7 +42,7 @@ export function confirm(msg: string, label = 'Confirmar'): Promise<boolean> {
       <p style="color:var(--text-secondary);font-size:14px;margin:0 0 20px">${msg}</p>
       <div class="form-actions">
         <button class="btn" data-modal-cancelar>Cancelar</button>
-        <button class="btn" btn-primary data-modal-confirmar>${label}</button>
+        <button class="btn btn-primary" data-modal-confirmar>${label}</button>
       </div>
     `)
     modalBody.querySelector('[data-modal-confirmar]')!.addEventListener('click', () => {

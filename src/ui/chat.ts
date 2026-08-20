@@ -150,14 +150,14 @@ function render(): void {
   const last = conversation?.messages[conversation.messages.length - 1]
   const waiting = busy && last?.role === 'user'
 
-  panel.classList.toggle('open', state.open)
-  document.body.classList.toggle('fable-open', state.open)
+  panel.classList.toggle('open' , state.open)
+  document.body.classList.toggle('fable-open' , state.open)
 
   panel.innerHTML = `
     <div class="fable-resize" data-fabula-resize title="Arraste pra redimensionar" aria-label="Redimensionar painel"></div>
     <div class="fable-side">
-      <button class="btn" btn-icon fable-new data-fabula-nova title="Nova conversa" aria-label="Nova conversa">
-        <i class="fa-solid" fa-pen-to-square aria-hidden="true"></i>
+      <button class="btn btn-icon fable-new" data-fabula-nova title="Nova conversa" aria-label="Nova conversa">
+        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
       </button>
       <div class="fable-list" data-fabula-lista role="list" aria-label="Conversas">
         ${currentConversations.length === 0
@@ -171,21 +171,21 @@ function render(): void {
         ${renaming && conversation
           ? `<input class="fable-title-input" data-fabula-titulo-input value="${escape(conversation.title ?? '')}" maxlength="60" aria-label="Título da conversa" title="Digite o novo título e Enter para salvar" />`
           : `<div class="fable-title">
-          <i class="fa-solid" fa-feather aria-hidden="true"></i>
+          <i class="fa-solid fa-feather" aria-hidden="true"></i>
           <div>
             <strong>Fábula</strong>
             <span class="fable-sub">a Rizomante</span>
           </div>
         </div>`}
         <div class="fable-header-actions">
-          <button class="btn" btn-icon data-fabula-renomear title="Renomear conversa" aria-label="Renomear conversa" ${conversation ? '' : 'disabled'}>
-            <i class="fa-solid" fa-pen aria-hidden="true"></i>
+          <button class="btn btn-icon" data-fabula-renomear title="Renomear conversa" aria-label="Renomear conversa" ${conversation ? '' : 'disabled'}>
+            <i class="fa-solid fa-pen" aria-hidden="true"></i>
           </button>
-          <button class="btn" btn-icon data-fabula-excluir title="Apagar conversa" aria-label="Apagar conversa" ${conversation ? '' : 'disabled'}>
-            <i class="fa-solid" fa-trash aria-hidden="true"></i>
+          <button class="btn btn-icon" data-fabula-excluir title="Apagar conversa" aria-label="Apagar conversa" ${conversation ? '' : 'disabled'}>
+            <i class="fa-solid fa-trash" aria-hidden="true"></i>
           </button>
-          <button class="btn" btn-icon data-fabula-fechar aria-label="Fechar chat" title="Fechar">
-            <i class="fa-solid" fa-xmark aria-hidden="true"></i>
+          <button class="btn btn-icon" data-fabula-fechar aria-label="Fechar chat" title="Fechar">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
         </div>
       </header>
@@ -196,12 +196,12 @@ function render(): void {
           : conversation.messages.length === 0
             ? '<div class="fable-empty">Senta. Como você chega hoje? — e não vale responder "bem" sem me dizer o que "bem" quer dizer.</div>'
             : conversation.messages.map((m, i) => bubble(m, i)).join('')}
-        ${waiting ? '<div class="fable-bubble" fable-bubble--assistant fable-typing><span></span><span></span><span></span></div>' : ''}
+        ${waiting ? '<div class="fable-bubble fable-bubble--assistant fable-typing"><span></span><span></span><span></span></div>' : ''}
       </div>
 
       <form class="fable-form" data-fabula-form>
         <textarea class="fable-input" data-fabula-input rows="1" placeholder="${conversation ? '' : 'Crie uma conversa para começar'}" autocomplete="off" ${!conversation || busy ? 'disabled' : ''}></textarea>
-        <button class="btn" btn-icon type="submit" aria-label="Enviar" ${!conversation || busy ? 'disabled' : ''}><i class="fa-solid" fa-paper-plane aria-hidden="true"></i></button>
+        <button class="btn btn-icon" type="submit" aria-label="Enviar" ${!conversation || busy ? 'disabled' : ''}><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></button>
       </form>
       <p class="fable-hint">Comandos: <b>/invocar &lt;carta&gt;</b> (custa mana) · <b>/invocar</b> sem nome (a Fábula escolhe, custa mais) · <b>/analisar</b> (10 mana, análise esquizoanalítica) · <b>/capturas</b> (25 mana, varredura das capturas desbloqueadas). Ou peça no texto: <b>invoca a carta &lt;nome&gt;</b>.</p>
     </div>
@@ -215,7 +215,7 @@ function render(): void {
 function conversationItem(c: Conversation): string {
   const active = c.id === state.activeConversationId
   const preview = c.messages[c.messages.length - 1]?.content ?? 'Nova conversa'
-  return `<button class="fable-item" ${active ? 'fable-item--active' : ''} data-conversa="${escape(c.id)}" role="listitem" title="${escape(c.title)}">
+  return `<button class="fable-item ${active ? 'fable-item--active' : ''}" data-conversa="${escape(c.id)}" role="listitem" title="${escape(c.title)}">
     <span class="fable-item-title">${escape(c.title || 'Sem título')}</span>
     <span class="fable-item-preview">${escape(preview.slice(0, 40))}</span>
   </button>`
@@ -349,7 +349,7 @@ function installResize(): void {
     handle.setPointerCapture(eDown.pointerId)
     const startX = eDown.clientX
     const initialWidth = panel.getBoundingClientRect().width
-    document.body.classList.add('fable-resizing')
+    document.body.classList.add('fable-resizing' )
 
     const move = (eMove: PointerEvent) => {
       if (!panel) return
@@ -363,7 +363,7 @@ function installResize(): void {
       handle.removeEventListener('pointermove', move)
       handle.removeEventListener('pointerup', end)
       handle.removeEventListener('pointercancel', end)
-      document.body.classList.remove('fable-resizing')
+      document.body.classList.remove('fable-resizing' )
       if (panel) saveWidth(panel.getBoundingClientRect().width)
     }
 
@@ -429,7 +429,7 @@ function renderSuggestions(items: Suggestion[]): void {
   let el = existing
   if (!el) {
     el = document.createElement('div')
-    el.className = 'fable-suggestions'
+    el.className = 'fable-suggestions' 
     el.dataset.fabulaSugestoes = ''
     el.setAttribute('role', 'listbox')
     el.setAttribute('aria-label', 'Comandos e cartas')
@@ -457,7 +457,7 @@ function moveSuggestion(delta: number): void {
   if (suggestions.length === 0) return
   suggestionIdx = (suggestionIdx + delta + suggestions.length) % suggestions.length
   panel?.querySelectorAll<HTMLButtonElement>('[data-fabula-sugestao]').forEach((btn, i) => {
-    btn.classList.toggle('fable-suggestion--active', i === suggestionIdx)
+    btn.classList.toggle('fable-suggestion--active' , i === suggestionIdx)
     btn.setAttribute('aria-selected', String(i === suggestionIdx))
   })
 }
@@ -623,15 +623,15 @@ async function send(text: string): Promise<void> {
         // In-place update (no full re-render) to avoid losing focus / lag
         const area = messagesEl
         if (!area) return
-        let last = area.querySelector<HTMLElement>('.fabula-bolha--assistente[data-stream="1"]')
+        let last = area.querySelector<HTMLElement>('.fable-bubble--assistant[data-stream="1"]')
         if (!last) {
           last = document.createElement('div')
-          last.className = 'fable-bubble fable-bubble--assistant'
+          last.className = 'fable-bubble fable-bubble--assistant' 
           last.dataset.stream = '1'
           area.appendChild(last)
         }
         // Preserves the <details> of reasoning if it already exists; if not, builds later.
-        const reasoningEl = last.querySelector<HTMLElement>('.fabula-reasoning')
+        const reasoningEl = last.querySelector<HTMLElement>('.fable-reasoning')
         // Shows without the markers ([[acao:...]] and [[carta:...]]) — streaming shows the crude text
         last.textContent = response.replace(/\[\[(?:acao|carta):[\s\S]*?\]\]/g, '')
         if (reasoningEl) last.appendChild(reasoningEl)
@@ -643,15 +643,15 @@ async function send(text: string): Promise<void> {
         // inserted only when the content starts (onContent callback above).
         const area = messagesEl
         if (!area) return
-        const last = area.querySelector<HTMLElement>('.fabula-bolha--assistente[data-stream="1"]')
+        const last = area.querySelector<HTMLElement>('.fable-bubble--assistant[data-stream="1"]')
         if (!last) return
-        let reasoningEl = last.querySelector<HTMLElement>('.fabula-reasoning')
+        let reasoningEl = last.querySelector<HTMLElement>('.fable-reasoning')
         if (!reasoningEl) {
           const det = document.createElement('details')
-          det.className = 'fable-reasoning'
+          det.className = 'fable-reasoning' 
           det.open = true // visible while writing
           const sum = document.createElement('summary')
-          sum.innerHTML = '<i class="fa-solid" fa-brain aria-hidden="true"></i> Raciocínio'
+          sum.innerHTML = '<i class="fa-solid fa-brain" aria-hidden="true"></i> Raciocínio'
           const pre = document.createElement('pre')
           det.appendChild(sum)
           det.appendChild(pre)

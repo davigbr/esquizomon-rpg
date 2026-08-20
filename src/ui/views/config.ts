@@ -44,7 +44,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
       <h3>Avatar</h3>
       <div class="avatar-block">
         <div class="avatar-current" title="Seu avatar">
-          ${avatar ? `<img src="${escapeHtml(avatar)}" alt="Seu avatar" />` : '<i class="fa-solid" fa-user aria-hidden="true"></i>'}
+          ${avatar ? `<img src="${escapeHtml(avatar)}" alt="Seu avatar" />` : '<i class="fa-solid fa-user" aria-hidden="true"></i>'}
         </div>
         <div class="settings-actions-row">
           <button class="btn" data-avatar-escolher>Escolher imagem</button>
@@ -116,12 +116,12 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
       <h3>Dados</h3>
       <p>Exporte ou importe tudo em JSON — o backup do seu território.</p>
       <div class="settings-actions">
-        <button class="btn" data-exportar><i class="fa-solid" fa-download aria-hidden="true"></i> Exportar (JSON)</button>
-        <button class="btn" data-importar><i class="fa-solid" fa-upload aria-hidden="true"></i> Importar</button>
-        <button class="btn" data-rerolar-cartas title="Re-sorteia todas as cartas desbloqueadas"><i class="fa-solid" fa-dice aria-hidden="true"></i> Rerolar baralho</button>
+        <button class="btn" data-exportar><i class="fa-solid fa-download" aria-hidden="true"></i> Exportar (JSON)</button>
+        <button class="btn" data-importar><i class="fa-solid fa-upload" aria-hidden="true"></i> Importar</button>
+        <button class="btn" data-rerolar-cartas title="Re-sorteia todas as cartas desbloqueadas"><i class="fa-solid fa-dice" aria-hidden="true"></i> Rerolar baralho</button>
       </div>
-      <div class="settings-hint" settings-hint-row>${total} tarefa${total === 1 ? '' : 's'} · nível <b>${data.character.level}</b> · <b>${data.character.cards.length}</b> cartas desbloqueadas</div>
-      <div class="settings-hint" settings-hint-row backup-title>Backups automáticos (criados antes de cada sincronização que altera dados):</div>
+      <div class="settings-hint settings-hint-row">${total} tarefa${total === 1 ? '' : 's'} · nível <b>${data.character.level}</b> · <b>${data.character.cards.length}</b> cartas desbloqueadas</div>
+      <div class="settings-hint settings-hint-row backup-title">Backups automáticos (criados antes de cada sincronização que altera dados):</div>
       <div class="settings-backups" data-backups></div>
     </div>
 
@@ -129,7 +129,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
       <h3>Zona de perigo</h3>
       <p>Apaga todas as tarefas e o progresso do personagem deste dispositivo.</p>
       <div class="settings-actions">
-        <button class="btn" btn--perigo data-apagar><i class="fa-solid" fa-trash aria-hidden="true"></i> Apagar tudo</button>
+        <button class="btn btn--perigo" data-apagar><i class="fa-solid fa-trash" aria-hidden="true"></i> Apagar tudo</button>
       </div>
     </div>
   `
@@ -226,7 +226,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
       .map((b) => {
         const d = new Date(b.ts)
         const readable = Number.isNaN(d.getTime()) ? b.ts : d.toLocaleString('pt-BR')
-        return `<div class="settings-backup"><span>${readable}</span><button class="btn" btn--small data-restaurar="${escapeHtml(b.ts)}">Restaurar</button></div>`
+        return `<div class="settings-backup"><span>${readable}</span><button class="btn btn--small" data-restaurar="${escapeHtml(b.ts)}">Restaurar</button></div>`
       })
       .join('')
     backupsArea.querySelectorAll<HTMLButtonElement>('[data-restaurar]').forEach((btn) => {
@@ -277,7 +277,7 @@ function aiSection(ai: AiConfig): string {
 
   return `
     <div class="settings-section">
-      <h3><i class="fa-solid" fa-feather aria-hidden="true"></i> Fábula (IA)</h3>
+      <h3><i class="fa-solid fa-feather" aria-hidden="true"></i> Fábula (IA)</h3>
       <p>BYOK: a chave fica só no seu dispositivo. O provedor é contactado direto (sem servidor intermediário guardando dados). DeepSeek e OpenCode têm raciocínio visível no chat.</p>
 
       <div class="settings-row">
@@ -301,7 +301,7 @@ function aiSection(ai: AiConfig): string {
         </select>
       </div>
 
-      <div class="settings-row" settings-row--stacked>
+      <div class="settings-row settings-row--stacked">
         <div>
           <div class="settings-label">Chave de API</div>
           <div class="settings-hint">${provider === 'opencode'
@@ -311,7 +311,7 @@ function aiSection(ai: AiConfig): string {
         <input type="password" class="filter-input" data-ia-chave autocomplete="off" spellcheck="false" placeholder="sk-..." value="${ai.apiKey.replace(/"/g, '&quot;')}" ${provider === 'nenhum' ? 'disabled' : ''} />
       </div>
 
-      <div class="settings-row" settings-row--stacked>
+      <div class="settings-row settings-row--stacked">
         <div class="settings-label-row">
           <div>
             <div class="settings-label">System prompt da Fábula</div>
@@ -321,15 +321,15 @@ function aiSection(ai: AiConfig): string {
                 : 'Customizado — edite à vontade.'}
             </div>
           </div>
-          <button class="btn" btn--text data-ia-restaurar type="button" title="Volta pro prompt canônico">
-            <i class="fa-solid" fa-rotate-left aria-hidden="true"></i> Restaurar padrão
+          <button class="btn btn--text" data-ia-restaurar type="button" title="Volta pro prompt canônico">
+            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Restaurar padrão
           </button>
         </div>
-        <textarea class="filter-textarea" filter-textarea--prompt data-ia-prompt rows="14" spellcheck="false">${currentPrompt.replace(/</g, '&lt;')}</textarea>
+        <textarea class="filter-textarea filter-textarea--prompt" data-ia-prompt rows="14" spellcheck="false">${currentPrompt.replace(/</g, '&lt;')}</textarea>
       </div>
 
       <div class="settings-actions">
-        <button class="btn" data-ia-testar ${provider === 'nenhum' ? 'disabled' : ''}><i class="fa-solid" fa-plug aria-hidden="true"></i> Testar conexão</button>
+        <button class="btn" data-ia-testar ${provider === 'nenhum' ? 'disabled' : ''}><i class="fa-solid fa-plug" aria-hidden="true"></i> Testar conexão</button>
         <span class="settings-hint" data-ia-status></span>
       </div>
     </div>
@@ -435,19 +435,19 @@ function accountSection(): string {
   const session = currentSession()
   return `
     <div class="settings-section">
-      <h3><i class="fa-solid" fa-cloud aria-hidden="true"></i> Conta e sincronização</h3>
+      <h3><i class="fa-solid fa-cloud" aria-hidden="true"></i> Conta e sincronização</h3>
       <p class="settings-notice"><strong>Seus dados moram neste navegador.</strong> Eles sobrevivem a recargas e fechamentos — mas <strong>podem ser perdidos</strong> se você limpar o cache/dados do navegador, usar modo anônimo, trocar de navegador ou de computador. Exportar (JSON) ou criar uma conta são suas garantias.</p>
       <div class="settings-row">
         <div>
           <div class="settings-label">Status</div>
           <div class="settings-hint" data-sync-status>${STATE_LABEL['local']}</div>
         </div>
-        ${session ? `<span class="settings-label" settings-account-email>${escapeHtml(session.user.email)}</span>` : ''}
+        ${session ? `<span class="settings-label settings-account-email">${escapeHtml(session.user.email)}</span>` : ''}
       </div>
       <div class="settings-actions">
-        ${session ? '' : '<button class="btn" data-entrar><i class="fa-solid" fa-right-to-bracket aria-hidden="true"></i> Entrar / criar conta</button>'}
-        ${session ? '<button class="btn" data-sair-conta><i class="fa-solid" fa-right-from-bracket aria-hidden="true"></i> Sair</button>' : ''}
-        <button class="btn" data-sincronizar ${session ? '' : 'disabled'} title="${session ? 'Envia e puxa os dados agora' : 'Entre para sincronizar'}"><i class="fa-solid" fa-arrows-rotate aria-hidden="true"></i> Sincronizar agora</button>
+        ${session ? '' : '<button class="btn" data-entrar><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Entrar / criar conta</button>'}
+        ${session ? '<button class="btn" data-sair-conta><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Sair</button>' : ''}
+        <button class="btn" data-sincronizar ${session ? '' : 'disabled'} title="${session ? 'Envia e puxa os dados agora' : 'Entre para sincronizar'}"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Sincronizar agora</button>
       </div>
     </div>
   `

@@ -57,7 +57,7 @@ export function mountHistory(root: HTMLElement, data: AppData): void {
       <p class="view-sub">${data.log.length} evento${data.log.length === 1 ? '' : 's'} registrados · as últimas ações do seu território</p>
     </header>
 
-    <div class="filters" history-filters>
+    <div class="filters history-filters">
       <button class="filter-chip${filterType === '' ? ' active' : ''}" data-filtro-tipo="">Tudo (${data.log.length})</button>
       ${(Object.keys(TYPES) as LogType[]).map((t) => `<button class="filter-chip${filterType === t ? ' active' : ''}" data-filtro-tipo="${t}">${TYPES[t].label} (${counts[t] ?? 0})</button>`).join('')}
     </div>
@@ -74,7 +74,7 @@ export function mountHistory(root: HTMLElement, data: AppData): void {
             .map(
               (e) => `
             <li class="history-item">
-              <span class="history-icon" historico-icone--${e.type} title="${TYPES[e.type].label}"><i class="fa-solid" ${TYPES[e.type].icon} aria-hidden="true"></i></span>
+              <span class="history-icon historico-icone--${e.type}" title="${TYPES[e.type].label}"><i class="fa-solid ${TYPES[e.type].icon}" aria-hidden="true"></i></span>
               <span class="history-text">${escapeHtml(e.text)}</span>
               <time class="history-time" datetime="${escapeHtml(e.ts)}">${timeOf(e.ts)}</time>
             </li>`,

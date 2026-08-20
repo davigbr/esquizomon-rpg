@@ -54,7 +54,7 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
   const focusBefore = !!editorEl && document.activeElement === editorEl
   if (editActive && entryExists) {
     // updates only the side list + status; the editor stays intact
-    const listEl = root.querySelector<HTMLElement>('.diario-arquivos')
+    const listEl = root.querySelector<HTMLElement>('.diary-files')
     if (listEl) {
       listEl.innerHTML = entries.length === 0
         ? '<div class="diary-empty">Nenhuma crônica ainda.<br>Clique em + pra começar hoje.</div>'
@@ -75,11 +75,11 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
         <div class="diary-list-header">
           <span class="diary-list-title">Entradas</span>
           <div class="diary-list-buttons">
-            <button class="btn" btn-icon diary-import data-diario-importar title="Importar crônicas (markdown)" aria-label="Importar crônicas (markdown)">
-              <i class="fa-solid" fa-file-import aria-hidden="true"></i>
+            <button class="btn btn-icon diary-import" data-diario-importar title="Importar crônicas (markdown)" aria-label="Importar crônicas (markdown)">
+              <i class="fa-solid fa-file-import" aria-hidden="true"></i>
             </button>
-            <button class="btn" btn-icon diary-new data-diario-novo title="Nova entrada de hoje" aria-label="Nova entrada de hoje">
-              <i class="fa-solid" fa-plus aria-hidden="true"></i>
+            <button class="btn btn-icon diary-new" data-diario-novo title="Nova entrada de hoje" aria-label="Nova entrada de hoje">
+              <i class="fa-solid fa-plus" aria-hidden="true"></i>
             </button>
           </div>
         </div>
@@ -93,15 +93,15 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
       <section class="diary-editor" aria-label="Editor da entrada">
         <div class="diary-editor-header">
           <div class="diary-editor-data">
-            ${entry?.date === today ? '<span class="badge" badge--hoje>Hoje</span>' : ''}
+            ${entry?.date === today ? '<span class="badge badge--hoje">Hoje</span>' : ''}
             <input type="date" class="diary-data-input" data-diario-data value="${entry?.date ?? today}"
               max="${new Date().toISOString().slice(0, 10)}" title="Data da crônica" aria-label="Data da crônica" />
           </div>
           <div class="diary-editor-actions">
             <span class="diary-status" data-diario-status>${entry ? '' : 'Sem conteúdo ainda'}</span>
             ${entry ? `
-              <button class="btn" btn-icon data-diario-excluir="${escapeHtml(entry.id)}" title="Excluir crônica" aria-label="Excluir crônica">
-                <i class="fa-solid" fa-trash aria-hidden="true"></i>
+              <button class="btn btn-icon" data-diario-excluir="${escapeHtml(entry.id)}" title="Excluir crônica" aria-label="Excluir crônica">
+                <i class="fa-solid fa-trash" aria-hidden="true"></i>
               </button>` : ''}
           </div>
         </div>
@@ -110,7 +110,7 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
           value="${escapeHtml(entry?.title ?? '')}" autocomplete="off" />
 
         <div class="diary-tools">
-          <button class="btn" btn-pequeno data-diario-toggle title="Alternar entre editar e visualizar">Ver</button>
+          <button class="btn btn-pequeno" data-diario-toggle title="Alternar entre editar e visualizar">Ver</button>
         </div>
 
         <div class="diary-editor-area">
@@ -118,7 +118,7 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
             spellcheck="true" aria-label="Crônica em markdown">${escapeHtml(entry?.text ?? '')}</textarea>
           <div class="diary-preview" data-diario-preview hidden></div>
         </div>
-        <p class="settings-hint" diary-hint>Markdown: <code>## título</code> · <code>- lista</code> · <code>1.</code> · <code>&gt; citação</code> · <code>**negrito**</code> · <code>*itálico*</code> · <code>[link](url)</code> · <code>| tabela |</code></p>
+        <p class="settings-hint diary-hint">Markdown: <code>## título</code> · <code>- lista</code> · <code>1.</code> · <code>&gt; citação</code> · <code>**negrito**</code> · <code>*itálico*</code> · <code>[link](url)</code> · <code>| tabela |</code></p>
       </section>
     </div>
   `
@@ -229,7 +229,7 @@ function installImport(root: HTMLElement): void {
       <p class="settings-hint" data-import-status></p>
       <div class="form-actions">
         <button class="btn" data-modal-cancelar>Cancelar</button>
-        <button class="btn" btn-primary data-import-executar>Importar</button>
+        <button class="btn btn-primary" data-import-executar>Importar</button>
       </div>
     `)
     const fileEl = modalBody.querySelector<HTMLInputElement>('[data-import-arquivo]')

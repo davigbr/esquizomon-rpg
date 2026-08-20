@@ -29,7 +29,7 @@ test('diário: cria entrada, digita markdown, autosave, Ver (preview) e reload',
     .poll(async () => {
       return page.evaluate(() => {
         const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')
-        return d?.diario?.[0]?.texto ?? ''
+        return d?.diary?.[0]?.text ?? ''
       })
     })
     .toBe(TEXTO)
@@ -56,7 +56,7 @@ test('diário: excluir entrada com confirmação', async ({ page }) => {
   await page.locator('[data-diario-editor]').fill('conteúdo que será excluído')
   await expect
     .poll(async () =>
-      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.diario ?? []).length),
+      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.diary ?? []).length),
     )
     .toBe(1)
 
@@ -66,7 +66,7 @@ test('diário: excluir entrada com confirmação', async ({ page }) => {
   await expect(page.locator('[data-diario-editor]')).toHaveValue('')
   await expect
     .poll(async () =>
-      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.diario ?? []).length),
+      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.diary ?? []).length),
     )
     .toBe(0)
 })

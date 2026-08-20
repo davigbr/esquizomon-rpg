@@ -29,11 +29,11 @@ function openSyncChoice(): void {
   openModal(`
     <h2 class="login-title">Sincronizar com a conta</h2>
     <p class="login-sub">Este dispositivo tem dados salvos — e a conta pode ter outros. Qual versão deve ficar?</p>
-    <p class="login-hint" login-hint--notice>⚠️ Recomendamos <strong>exportar um backup antes</strong> (Config → Exportar). Assim você não perde nada, aconteça o que acontecer.</p>
-    <div class="form-actions" form-actions--column>
-      <button class="btn" btn-primary data-sync-local>Manter os dados deste dispositivo</button>
+    <p class="login-hint login-hint--notice">⚠️ Recomendamos <strong>exportar um backup antes</strong> (Config → Exportar). Assim você não perde nada, aconteça o que acontecer.</p>
+    <div class="form-actions form-actions--column">
+      <button class="btn btn-primary" data-sync-local>Manter os dados deste dispositivo</button>
       <button class="btn" data-sync-nuvem>Usar os dados da conta</button>
-      <button class="btn" btn--text data-sync-cancelar>Cancelar — quero exportar antes</button>
+      <button class="btn btn--text" data-sync-cancelar>Cancelar — quero exportar antes</button>
     </div>
   `)
   const body = document.getElementById('modal-body')!
@@ -70,28 +70,28 @@ export function openLoginModal(): void {
 
     ${logged ? '' : `
     <div class="login-tabs" role="tablist">
-      <button type="button" class="login-tab" active data-modo="entrar">Entrar</button>
+      <button type="button" class="login-tab active" data-modo="entrar">Entrar</button>
       <button type="button" class="login-tab" data-modo="criar">Criar conta</button>
     </div>
 
     <form class="login-form" data-form="entrar">
       ${field('E-mail', 'email', 'email', 'email')}
       ${field('Senha', 'password', 'senha', 'current-password')}
-      <button type="button" class="btn" btn--text login-recover data-modo="recuperar">Esqueci a senha</button>
-      <button type="submit" class="btn" btn-primary data-enviar>Entrar</button>
+      <button type="button" class="btn btn--text login-recover" data-modo="recuperar">Esqueci a senha</button>
+      <button type="submit" class="btn btn-primary" data-enviar>Entrar</button>
     </form>
 
     <form class="login-form" data-form="criar" hidden>
       ${field('E-mail', 'email', 'email', 'email')}
       ${field('Senha', 'password', 'senha', 'new-password')}
       <small class="login-hint">Use uma senha que você não usa em outros lugares.</small>
-      <small class="login-hint" login-hint--notice>📧 Ao criar a conta, enviaremos um <strong>link de confirmação</strong> para o seu e-mail — clique nele para ativar a conta antes de entrar (confira também o spam).</small>
-      <button type="submit" class="btn" btn-primary data-enviar>Criar conta</button>
+      <small class="login-hint login-hint--notice">📧 Ao criar a conta, enviaremos um <strong>link de confirmação</strong> para o seu e-mail — clique nele para ativar a conta antes de entrar (confira também o spam).</small>
+      <button type="submit" class="btn btn-primary" data-enviar>Criar conta</button>
     </form>
 
     <form class="login-form" data-form="recuperar" hidden>
       ${field('E-mail da conta', 'email', 'email', 'email')}
-      <button type="submit" class="btn" btn-primary data-enviar>Enviar link de recuperação</button>
+      <button type="submit" class="btn btn-primary" data-enviar>Enviar link de recuperação</button>
     </form>
 
     <p class="login-status" data-status></p>
@@ -100,8 +100,8 @@ export function openLoginModal(): void {
     ${logged ? `
     <p class="login-account">Você está logado como <strong>${escapeHtml(logged.user.email)}</strong>.</p>
     <div class="form-actions">
-      <button class="btn" btn--perigo data-sair>Encerrar sessão</button>
-      <button class="btn" btn-primary data-fechar>Fechar</button>
+      <button class="btn btn--perigo" data-sair>Encerrar sessão</button>
+      <button class="btn btn-primary" data-fechar>Fechar</button>
     </div>` : ''}
   `)
 
@@ -127,12 +127,12 @@ export function openLoginModal(): void {
 
   const setStatus = (text: string, error = false): void => {
     status.textContent = text
-    status.classList.toggle('login-status--error', error)
+    status.classList.toggle('login-status--error' , error)
   }
 
   function showForm(m: Mode): void {
     for (const [name, form] of Object.entries(forms)) form.hidden = name !== m
-    body.querySelectorAll<HTMLButtonElement>('.login-aba').forEach((b) => b.classList.toggle('active', b.dataset.modo === m))
+    body.querySelectorAll<HTMLButtonElement>('.login-tab').forEach((b) => b.classList.toggle('active' , b.dataset.modo === m))
     status.textContent = ''
   }
 
@@ -211,9 +211,9 @@ function showCreationSuccess(email: string): void {
   openModal(`
     <h2>Conta criada! 🎉</h2>
     <p class="login-hint">Enviamos um link de confirmação para <strong>${escapeHtml(email)}</strong>.</p>
-    <p class="login-hint" login-hint--notice>Clique no link do e-mail para ativar a conta antes de entrar — ele pode levar alguns minutos para chegar (confira também o spam).</p>
-    <div class="form-actions" form-actions--column>
-      <button type="button" class="btn" btn-primary data-fechar-criacao>Fechar</button>
+    <p class="login-hint login-hint--notice">Clique no link do e-mail para ativar a conta antes de entrar — ele pode levar alguns minutos para chegar (confira também o spam).</p>
+    <div class="form-actions form-actions--column">
+      <button type="button" class="btn btn-primary" data-fechar-criacao>Fechar</button>
     </div>
   `)
   modalBody.querySelector<HTMLButtonElement>('[data-fechar-criacao]')?.addEventListener('click', () => closeModal())
