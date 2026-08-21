@@ -3,6 +3,7 @@
 import type { AppData } from '../../core/tipos'
 import { damageFor, DIFFICULTIES, difficultyMeta, fullDeckLevel, hpMaxFor, manaMaxFor, xpFor, xpNextFor } from '../../core/jogo'
 import { progressionChart } from '../graficos'
+import { t } from '../../i18n'
 
 /** Levels shown in the charts (up to the full deck). */
 const MAX_LEVEL_CHART = 30
@@ -20,12 +21,12 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
 
   root.innerHTML = `
     <header class="view-header">
-      <h1>Jogo</h1>
-      <p class="view-sub">${char.exhausted ? '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Esgotado — sem regeneração de mana até o próximo dia.' : 'Regras, coleção e progressão.'}</p>
+      <h1>${t('ficha.titulo')}</h1>
+      <p class="view-sub">${char.exhausted ? `<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> ${t('ficha.esgotadoSalvar')}` : t('ficha.sub')}</p>
     </header>
 
     <div class="settings-section">
-      <h3>Como o jogo funciona</h3>
+      <h3>${t('ficha.comoFunciona')}</h3>
       <ul class="rules-list">
         <li><b>Concluir tarefas</b> dá XP conforme a dificuldade (Fácil ×1 · Média ×1,5 · Difícil ×2 · Extrema ×2,5).</li>
         <li><b>Subir de nível</b> restaura vida e mana, e aumenta os máximos. Cada dia você também <b>regenera +5% da vida</b> (mín. 1).</li>
@@ -40,13 +41,13 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
 
     <div class="game-tables-grid">
       <div class="settings-section">
-        <h3>XP ganho</h3>
+        <h3>${t('ficha.xpGanho')}</h3>
         <p>Quanto cada conclusão de tarefa adiciona ao seu XP. Recorrentes marcadas, únicas concluídas e hábitos positivos dão o mesmo valor.</p>
         <table class="game-table">
           <thead>
             <tr>
-              <th scope="col">Dificuldade</th>
-              <th scope="col">Mult.</th>
+              <th scope="col">${t('ficha.colDificuldade')}</th>
+              <th scope="col">${t('ficha.colMult')}</th>
               <th scope="col">XP</th>
             </tr>
           </thead>
@@ -64,26 +65,26 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
       </div>
 
       <div class="settings-section">
-        <h3>Dano</h3>
+        <h3>${t('ficha.dano')}</h3>
         <p>Quanto você perde de vida no reset diário (recorrentes perdidas) ou por repetição negativa de hábito.</p>
         <table class="game-table">
           <thead>
             <tr>
-              <th scope="col">Origem</th>
-              <th scope="col">Dif.</th>
-              <th scope="col">Vida</th>
+              <th scope="col">${t('ficha.colOrigem')}</th>
+              <th scope="col">${t('ficha.colDif')}</th>
+              <th scope="col">${t('ficha.colVida')}</th>
             </tr>
           </thead>
           <tbody>
             ${DIFFICULTIES.map((d) => `
               <tr>
-                <th scope="row">Recorrente perdida</th>
+                <th scope="row">${t('ficha.recorrentePerdida')}</th>
                 <td>${difficultyMeta(d.id).label}</td>
                 <td><b>−${damageFor(d.id)}</b></td>
               </tr>
             `).join('')}
             <tr>
-              <th scope="row">Hábito negativo</th>
+              <th scope="row">${t('ficha.habitoNegativo')}</th>
               <td>${difficultyMeta(DIFFICULTIES[0].id).label} a ${difficultyMeta(DIFFICULTIES[DIFFICULTIES.length - 1].id).label}</td>
               <td><b>−${damageFor(DIFFICULTIES[0].id)} a −${damageFor(DIFFICULTIES[DIFFICULTIES.length - 1].id)}</b></td>
             </tr>
@@ -94,41 +95,41 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
     </div>
 
     <div class="settings-section">
-      <h3>Progressão</h3>
+      <h3>${t('ficha.progressao')}</h3>
       <p>A curva até o nível ${MAX_LEVEL_CHART} (baralho completo). A linha vertical marca o seu nível atual (${char.level}).</p>
 
       <div class="chart-grid">
         <div class="chart-block">
-          <div class="chart-title"><span class="chart-dot" style="background:var(--accent-gold)"></span> XP por nível</div>
-          ${progressionChart({ label: 'XP', color: 'var(--accent-gold)', values: xpPerLevel, format: (v) => `${v}` }, char.level)}
+          <div class="chart-title"><span class="chart-dot" style="background:var(--accent-gold)"></span> ${t('ficha.xpPorNivel')}</div>
+          ${progressionChart({ label: t('ficha.xp'), color: 'var(--accent-gold)', values: xpPerLevel, format: (v) => `${v}` }, char.level)}
           <p class="chart-legend">Cada nível exige mais XP: nível ${char.level} precisa de ${xpNextFor(char.level)} XP para o próximo.</p>
         </div>
 
         <div class="chart-block">
-          <div class="chart-title"><span class="chart-dot" style="background:#c83030"></span> Vida máxima por nível</div>
-          ${progressionChart({ label: 'Vida', color: '#c83030', values: hpPerLevel, format: (v) => `${v}` }, char.level)}
+          <div class="chart-title"><span class="chart-dot" style="background:#c83030"></span> ${t('ficha.vidaMaxPorNivel')}</div>
+          ${progressionChart({ label: t('ficha.vida'), color: '#c83030', values: hpPerLevel, format: (v) => `${v}` }, char.level)}
           <p class="chart-legend">Vida máxima cresce 5 por nível: no seu nível é ${hpMaxFor(char.level)}.</p>
         </div>
 
         <div class="chart-block">
-          <div class="chart-title"><span class="chart-dot" style="background:#2868d0"></span> Mana máxima por nível</div>
-          ${progressionChart({ label: 'Mana', color: '#2868d0', values: manaPerLevel, format: (v) => `${v}` }, char.level)}
+          <div class="chart-title"><span class="chart-dot" style="background:#2868d0"></span> ${t('ficha.manaMaxPorNivel')}</div>
+          ${progressionChart({ label: t('ficha.mana'), color: '#2868d0', values: manaPerLevel, format: (v) => `${v}` }, char.level)}
           <p class="chart-legend">Mana máxima cresce 2 por nível: no seu nível é ${manaMaxFor(char.level)} — invocar monstros custa 4, capturas 8, alianças 12.</p>
         </div>
 
         <div class="chart-block">
-          <div class="chart-title"><span class="chart-dot" style="background:#9fd17c"></span> XP acumulado até cada nível</div>
-          ${progressionChart({ label: 'XP acumulado', color: '#9fd17c', values: xpCumulative, format: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`) }, char.level)}
+          <div class="chart-title"><span class="chart-dot" style="background:#9fd17c"></span> ${t('ficha.xpAcumulado')}</div>
+          ${progressionChart({ label: t('ficha.xpAcumuladoCurto'), color: '#9fd17c', values: xpCumulative, format: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`) }, char.level)}
           <p class="chart-legend">Total de XP somando todos os níveis até ali: ir do nível 1 ao 30 exige ${xpCumulative.at(-1)} XP.</p>
         </div>
       </div>
     </div>
 
     <div class="settings-section">
-      <h3>Baralho</h3>
+      <h3>${t('ficha.baralho')}</h3>
       <p>Coleção desbloqueada conforme você sobe de nível — 1 carta por nível (a partir de 7 iniciais): monstros são 6× mais comuns que alianças, capturas 2×.</p>
-      <div class="sheet-bar" title="Cartas desbloqueadas do baralho">
-        <span class="sheet-bar-label">Baralho</span>
+      <div class="sheet-bar" title="${t('ficha.baralhoTitle')}">
+        <span class="sheet-bar-label">${t('ficha.baralho')}</span>
         <div class="sheet-bar-track"><div class="sheet-bar-fill sheet-bar--xp" style="width:${collectionPct}%"></div></div>
         <span class="sheet-bar-value">${char.cards.length}/65</span>
       </div>
