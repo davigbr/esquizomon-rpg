@@ -1,17 +1,17 @@
-/** Cliente do Netlify Identity (goTrue) feito à mão — mesmo padrão do
- *  Rizomove. Controle total da tela de login (tema do app), sem o widget
- *  oficial (modal branco num iframe, sem como estilizar).
+/** Hand-rolled Netlify Identity (goTrue) client — same pattern as Rizomove.
+ *  Full control of the login screen (app theme), without the official widget
+ *  (a white modal in an iframe, no way to style it).
  *
- *  Endpoints usados (relativos ao site):
+ *  Endpoints used (relative to the site):
  *    POST /.netlify/identity/token   (grant_type=password | refresh_token)
  *    POST /.netlify/identity/signup  ({ email, password })
  *    POST /.netlify/identity/verify  ({ token, type })
  *    POST /.netlify/identity/recover ({ email })
- *    POST /.netlify/identity/logout  (revoga a sessão)
- *    GET  /.netlify/identity/user    (valida a sessão restaurada)
+ *    POST /.netlify/identity/logout  (revokes the session)
+ *    GET  /.netlify/identity/user    (validates the restored session)
  *
- *  O login é OPCIONAL no Esquizomon: o app roda 100% offline; a conta serve
- *  para guardar uma cópia na nuvem (backup/restauração entre dispositivos). */
+ *  Login is OPTIONAL in Esquizomon: the app runs 100% offline; the account is
+ *  used to hold a copy in the cloud (backup/restore between devices). */
 
 const AUTH_KEY = 'esquizomon-rpg:auth'
 const IDENTITY = '/.netlify/identity'
@@ -19,25 +19,25 @@ const IDENTITY = '/.netlify/identity'
 export interface Session {
   accessToken: string
   refreshToken: string
-  /** Timestamp (ms) em que o access token expira. */
+  /** Timestamp (ms) when the access token expires. */
   expiresAt: number
   user: { id: string; email: string }
 }
 
 let session: Session | null = null
 
-// Cooldown anti-rate-limit: após uma falha transitória de refresh (429/5xx),
-// não martela o endpoint de token — espera antes de tentar de novo.
+// Anti-rate-limit cooldown: after a transient refresh failure (429/5xx),
+// don't hammer the token endpoint — wait before trying again.
 let refreshCooldownUntil = 0
 const REFRESH_COOLDOWN_MS = 30_000
 
-// Mutex de refresh: garante que nunca existam DOIS POSTs de refresh_token em
-// voo com o mesmo token. O goTrue rotaciona o refresh_token a cada renovação;
-// um segundo POST que chega com o token JÁ rotacionado é tratado como "reuso"
-// (proteção anti-roubo) e REVOGA toda a família de sessões do usuário — foi a
-// causa do logout em massa 2026-08-21 (dois dispositivos caíram juntos). No
-// mobile (iOS Safari/Quick Browser) os handlers de focus/visibility disparam
-// várias syncNow quase ao mesmo tempo, o que tornava a corrida provável.
+// Refresh mutex: guarantees there are never TWO in-flight refresh_token POSTs
+// with the same token. goTrue rotates the refresh_token on every renewal;
+// a second POST arriving with the ALREADY rotated token is treated as "reuse"
+// (anti-theft protection) and REVOKES the whole family of the user's sessions —
+// that was the cause of the mass logout 2026-08-21 (two devices dropped at once).
+// On mobile (iOS Safari/Quick Browser) the focus/visibility handlers fire
+// several syncNow almost at the same time, which made the race likely.
 let refreshInFlight: Promise<string | null> | null = null
 
 function clearSession(): void {
@@ -46,10 +46,10 @@ function clearSession(): void {
   notifySession()
 }
 
-/** Um único POST de refresh_token até o servidor, SEMPRE serializado. */
+/** A single refresh_token POST to the server, ALWAYS serialized. */
 function refreshOnce(): Promise<string | null> {
-  // Se já há um refresh em voo, reaproveita o MESMO resultado — nunca dispara
-  // um segundo POST com o mesmo refresh_token.
+  // If a refresh is already in flight, reuse the SAME result — never fire
+  // a second POST with the same refresh_token.
   if (refreshInFlight) return refreshInFlight
   refreshInFlight = doTokenRefresh().finally(() => {
     refreshInFlight = null
@@ -59,7 +59,7 @@ function refreshOnce(): Promise<string | null> {
 
 async function doTokenRefresh(): Promise<string | null> {
   if (!session?.refreshToken) return null
-  // Cooldown (rate-limit/falha transitória recente): não martela o endpoint.
+  // Cooldown (rate-limit/recent transient failure): don't hammer the endpoint.
   if (Date.now() < refreshCooldownUntil) return session?.accessToken ?? null
   try {
     const res = await fetch(`${IDENTITY}/token`, {
@@ -67,32 +67,32 @@ async function doTokenRefresh(): Promise<string | null> {
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(session.refreshToken)}`,
     })
-    // 400/401 = refresh_token revogado/inválido de VERDADE → a sessão morreu.
-    // Bug real 2026-08-21: só tratávamos 401; com 400 (token morto) o app entrava
-    // em retry infinito de refresh, martelando o endpoint até dar 429 (rate-limit).
+    // 400/401 = refresh_token REALLY revoked/invalid → the session is dead.
+    // Real bug 2026-08-21: we only handled 401; with 400 (dead token) the app
+    // entered an infinite refresh retry, hammering the endpoint until 429.
     if (res.status === 400 || res.status === 401) {
       clearSession()
       return null
     }
-    // Falha transitória (rede, 5xx, rate-limit 429, timeout): NÃO desloga.
+    // Transient failure (network, 5xx, rate-limit 429, timeout): does NOT log out.
     if (!res.ok) {
       refreshCooldownUntil = Date.now() + REFRESH_COOLDOWN_MS
       return session?.accessToken ?? null
     }
     const t = await res.json()
     const tokens = buildTokens({ ...t, refresh_token: t.refresh_token ?? session.refreshToken })
-    session = buildSession(tokens, session.user) // o usuário não muda no refresh
+    session = buildSession(tokens, session.user) // the user does not change on refresh
     saveSession(session)
     return session.accessToken
   } catch {
-    // transmissão falhou (timeout/rede): mantém a sessão; devolve o token atual.
-    // bug real 2026-08-17: aqui deslogava o usuário em QUALQUER falha de refresh.
+    // transmission failed (timeout/network): keep the session; return the current token.
+    // real bug 2026-08-17: here it logged the user out on ANY refresh failure.
     refreshCooldownUntil = Date.now() + REFRESH_COOLDOWN_MS
     return session?.accessToken ?? null
   }
 }
 
-// ── Inscrição em mudanças de sessão (header/UI reagem ao login/sair) ──
+// ── Session-change subscription (header/UI react to login/logout) ──
 
 let sessionCb: (() => void) | null = null
 
@@ -107,14 +107,14 @@ function notifySession(): void {
   sessionCb?.()
 }
 
-// ── Persistência da sessão ──────────────────────────────────────────
+// ── Session persistence ──────────────────────────────────────────────
 
 function readSession(): Session | null {
   try {
     const s = JSON.parse(localStorage.getItem(AUTH_KEY) ?? 'null') as Session | null
     if (s?.accessToken && s?.refreshToken && s?.expiresAt && s?.user?.id) return s
   } catch {
-    /* json inválido → sem sessão */
+    /* invalid json → no session */
   }
   return null
 }
@@ -124,7 +124,7 @@ function saveSession(s: Session | null): void {
   else localStorage.removeItem(AUTH_KEY)
 }
 
-/** Extrai só os tokens da resposta do goTrue — a Netlify NÃO devolve o usuário no /token. */
+/** Extracts only the tokens from the goTrue response — Netlify does NOT return the user on /token. */
 function buildTokens(t: unknown): { accessToken: string; refreshToken: string; expiresAt: number } {
   const r = (t ?? {}) as { access_token?: string; refresh_token?: string; expires_in?: number }
   if (!r.access_token || !r.expires_in) {
@@ -141,8 +141,8 @@ function buildSession(tokens: { accessToken: string; refreshToken: string; expir
   return { ...tokens, user }
 }
 
-/** Mensagem de erro amigável a partir da resposta do goTrue — os erros do
- *  servidor vêm em INGLÊS; traduzimos os comuns para pt-BR (2026-08-12). */
+/** Friendly error message from the goTrue response — the server errors come
+ *  in ENGLISH; we translate the common ones to pt-BR (2026-08-12). */
 const TRANSLATED_ERRORS: Array<[RegExp, string]> = [
   [/email.{0,20}not.{0,15}confirmed|not confirmed|confirm your email/i, 'Seu e-mail ainda não foi confirmado. Abra o link que enviamos (confira também o spam) e tente de novo.'],
   [/invalid login|invalid.{0,10}password|incorrect/i, 'E-mail ou senha incorretos.'],
@@ -168,14 +168,14 @@ function extractError(res: Response, body: unknown): string {
   return `Falha na autenticação (HTTP ${res.status}).`
 }
 
-/** Busca o usuário com o access token (GET /user) com fallback para o JWT. */
+/** Fetches the user with the access token (GET /user) with a JWT fallback. */
 async function fetchUser(token: string): Promise<{ id: string; email: string } | null> {
   try {
     const res = await fetch(`${IDENTITY}/user`, { headers: { Authorization: `Bearer ${token}` } })
     if (!res.ok) throw new Error('user falhou')
     const u = (await res.json()) as { id?: string; email?: string }
     if (u.id) return { id: u.id, email: u.email ?? '' }
-    // fallback: decodifica o payload do JWT (nunca confia em claims além do id/email)
+    // fallback: decode the JWT payload (never trust claims beyond id/email)
     const payload = token.split('.')[1]
     if (payload) {
       const claims = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))) as { sub?: string; email?: string }
@@ -187,26 +187,26 @@ async function fetchUser(token: string): Promise<{ id: string; email: string } |
   }
 }
 
-// ── API pública ─────────────────────────────────────────────────────
+// ── Public API ───────────────────────────────────────────────────────
 
 export function currentSession(): Session | null {
   return session
 }
 
-/** Token válido, renovando via refresh_token se estiver perto de expirar. */
+/** Valid token, renewing via refresh_token if it's close to expiring. */
 export async function getValidToken(): Promise<string | null> {
   if (!session) return null
   if (Date.now() < session.expiresAt - 30_000) return session.accessToken
-  // Sessão entrou em cooldown (rate-limit/falha transitória recente): evita
-  // martelar o endpoint e devolve o token atual de 'última chance'.
+  // Session entered cooldown (rate-limit/recent transient failure): avoids
+  // hammering the endpoint and returns the current 'last chance' token.
   if (Date.now() < refreshCooldownUntil) return session.accessToken
   return refreshOnce()
 }
 
 /**
- * Renova o access token SEMPRE (ignora expiresAt) — usado quando a function
- * responde 401: o token guardado pode estar expirado no relógio do servidor
- * mesmo com expiresAt no futuro (clock skew do browser).
+ * Renews the access token ALWAYS (ignores expiresAt) — used when the function
+ * answers 401: the stored token may be expired on the server clock
+ * even with expiresAt in the future (browser clock skew).
  */
 export async function renewToken(): Promise<string | null> {
   if (!session?.refreshToken) return null
@@ -269,7 +269,7 @@ export async function createAccount(email: string, password: string): Promise<{ 
     const body = await res.json().catch(() => null)
     if (!res.ok) return { ok: false, reason: extractError(res, body) }
     if (body?.access_token) {
-      // Confirmação desabilitada: já vem logado (o signup devolve o usuário no corpo).
+      // Confirmation disabled: already logged in (signup returns the user in the body).
       const tokens = buildTokens(body)
       const u = body as { id?: string; email?: string }
       const user = u.id ? { id: u.id, email: u.email ?? email } : await fetchUser(tokens.accessToken)
@@ -305,7 +305,7 @@ export async function logout(): Promise<void> {
     try {
       await fetch(`${IDENTITY}/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
     } catch {
-      /* ignora falha de revogação */
+      /* ignore revocation failure */
     }
   }
   session = null
@@ -313,10 +313,10 @@ export async function logout(): Promise<void> {
   notifySession()
 }
 
-// ── Inicialização (boot) ────────────────────────────────────────────
+// ── Initialization (boot) ────────────────────────────────────────────
 
-/** Link de confirmação: o goTrue espera type 'signup' (não 'confirmation'!)
- *  — bug real 2026-08-12: o verify falhava 400 e a conta nunca confirmava. */
+/** Confirmation link: goTrue expects type 'signup' (not 'confirmation'!)
+ *  — real bug 2026-08-12: verify failed with 400 and the account never confirmed. */
 const VERIFY_TYPES: Record<string, string> = {
   confirmation: 'signup',
   invite: 'invite',
@@ -324,16 +324,16 @@ const VERIFY_TYPES: Record<string, string> = {
 }
 
 /**
- * Processa o hash de confirmação (link do email) e restaura a sessão.
- * Deve rodar ANTES do router (o hash carrega confirmation_token, não rota).
+ * Processes the confirmation hash (email link) and restores the session.
+ * Must run BEFORE the router (the hash carries confirmation_token, not a route).
  */
 export async function initAuth(): Promise<Session | null> {
-  // Link de confirmação/convite/recuperação: https://site/#confirmation_token=...
+  // Confirmation/invite/recovery link: https://site/#confirmation_token=...
   const match = location.hash.match(/(confirmation|invite|recovery)_token=([^&]+)/)
   if (match) {
     const tipo = VERIFY_TYPES[match[1]!] ?? match[1]!
     const token = decodeURIComponent(match[2]!)
-    location.hash = '' // limpa antes do router ver
+    location.hash = '' // clears before the router sees it
     try {
       const res = await fetch(`${IDENTITY}/verify`, {
         method: 'POST',
@@ -362,8 +362,8 @@ export async function initAuth(): Promise<Session | null> {
   return session
 }
 
-/** Aviso pós-confirmação de email (lido e limpo pela tela de login):
- *  'ok' = confirmado, 'falhou' = o link não funcionou, null = sem aviso. */
+/** Post-email-confirmation notice (read and cleared by the login screen):
+ *  'ok' = confirmed, 'falhou' = the link failed, null = no notice. */
 export function consumeConfirmationNotice(): 'ok' | 'falhou' | null {
   const ok = sessionStorage.getItem('esquizomon-rpg:confirmado') === '1'
   const falhou = sessionStorage.getItem('esquizomon-rpg:confirmacao-falhou') === '1'
