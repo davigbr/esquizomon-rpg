@@ -6,7 +6,7 @@ import { HP_PER_POSITIVE_HABIT } from '../core/jogo'
 import { xpNextFor, hpMaxFor, manaMaxFor } from '../core/jogo'
 import { appStore, addLog, taskById } from './base'
 import type { TaskInput, Result } from './base'
-import { playSound } from '../ui/sons'
+import { playSound } from '../ui/audio'
 import { notify } from '../ui/toast'
 import { applyDamage, heal, gainXP } from './personagem'
 

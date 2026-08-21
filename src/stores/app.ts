@@ -4,8 +4,8 @@
 
 export * from './base'
 export * from './personagem'
-export * from './tarefas'
+export * from './tasks'
 export * from './checkin'
-export * from './diario'
+export * from './diary'
 export * from './conversas'
-export * from './config'
+export * from './settings'

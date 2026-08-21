@@ -26,7 +26,7 @@ import type { Card } from '../core/baralho'
 import { drawInitialIds, drawWeightedIds, allCards } from '../core/baralho'
 import { appStore, addLog } from './base'
 import type { Result } from './base'
-import { playSound } from '../ui/sons'
+import { playSound } from '../ui/audio'
 
 /* Deck loaded + unlock queue (the deck arrives async on boot). */
 export let loadedDeck: Card[] | null = null

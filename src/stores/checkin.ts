@@ -4,8 +4,8 @@ import type { Task } from '../core/tipos'
 import { damageFor, dayOfWeek, dayOfMonth, todayISO, HP_REGEN_PER_DAY, addDays, xpFor } from '../core/jogo'
 import { appStore, addLog } from './base'
 import { applyDamage, gainXP } from './personagem'
-import { storeReward } from './tarefas'
-import { playSound } from '../ui/sons'
+import { storeReward } from './tasks'
+import { playSound } from '../ui/audio'
 
 /** Yesterday's outstanding items awaiting the check-in decision (Habitica-style modal). */
 export let pendingCheckin: { date: string; ids: string[] } | null = null
