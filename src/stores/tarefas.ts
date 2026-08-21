@@ -250,12 +250,13 @@ function revertReward(t: Task, date: string): void {
 /** Habit: records a positive (+) or negative (−) repetition. Returns new cards. */
 export function recordHabit(id: string, sign: 'positivo' | 'negativo', date: string = todayISO()): string[] {
   let alreadyMarked = false
+  const isToday = date === todayISO() // retroativo (day selector) must NOT bump today's counter
   const tasks = appStore.get().tasks.map((t) => {
     if (t.id !== id || t.type !== 'habito') return t
     const counter = t.counter ?? { today: 0, todayNeg: 0, totalPositive: 0, totalNegative: 0 }
     if (sign === 'positivo') {
       // past day (non-today) already marked → doesn't re-mark nor re-give XP
-      if (date < todayISO() && t.history.includes(date)) {
+      if (!isToday && t.history.includes(date)) {
         alreadyMarked = true
         return t
       }
@@ -264,24 +265,40 @@ export function recordHabit(id: string, sign: 'positivo' | 'negativo', date: str
         ...t,
         updatedAt: new Date().toISOString(),
         history,
-        counter: { ...counter, today: counter.today + 1, totalPositive: counter.totalPositive + 1 },
+        // only TODAY's counter increments when the date is today — retroactive
+        // marks (day selector) record the history but never touch it.
+        counter: {
+          ...counter,
+          today: isToday ? counter.today + 1 : counter.today,
+          totalPositive: counter.totalPositive + 1,
+        },
       }
+    }
+    // negative
+    const negHist = t.negativeHistory ?? []
+    if (!isToday && negHist.includes(date)) {
+      alreadyMarked = true
+      return t
     }
     return {
       ...t,
       updatedAt: new Date().toISOString(),
-      counter: { ...counter, todayNeg: counter.todayNeg + 1, totalNegative: counter.totalNegative + 1 },
-      negativeHistory: t.negativeHistory?.includes(date) ? t.negativeHistory : [...(t.negativeHistory ?? []), date],
+      counter: {
+        ...counter,
+        todayNeg: isToday ? counter.todayNeg + 1 : counter.todayNeg,
+        totalNegative: counter.totalNegative + 1,
+      },
+      negativeHistory: negHist.includes(date) ? negHist : [...negHist, date],
     }
   })
   appStore.set({ ...appStore.get(), tasks })
   const task = tasks.find((t) => t.id === id)
   if (task) {
+    if (alreadyMarked) {
+      notify('Já marcado neste dia.')
+      return []
+    }
     if (sign === 'positivo') {
-      if (alreadyMarked) {
-        notify('Já marcado neste dia.')
-        return []
-      }
       addLog('habito', `Hábito positivo: ${task.title} (+${xpFor(task.difficulty)} XP, +${HP_PER_POSITIVE_HABIT} vida)`)
       const added = gainXP(xpFor(task.difficulty)).newCards
       heal(HP_PER_POSITIVE_HABIT)

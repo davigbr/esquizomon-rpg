@@ -129,8 +129,14 @@ test('hábito: negativo marcado em ontem persiste e aparece ativo ao voltar para
     )
     .toEqual(expect.arrayContaining([yesterday]))
 
-  // volta pra hoje e retorna a ontem: o estado negativo DEVE continuar ativo
+  // volta pra hoje: o estado negativo de ONTEM NÃO deve vazar para HOJE
+  // (contador do dia não pode ser afetado por marcação retroativa)
   await page.locator('[data-dia-seguinte]').click()
+  const cardHoje = page.locator('.habit-card', { hasText: 'Hábito ontem E2E' })
+  await expect(cardHoje.locator('[data-habito="negativo"]')).not.toHaveClass(/active/)
+  await expect(cardHoje.locator('[data-habito="positivo"]')).not.toHaveClass(/active/)
+
+  // volta pra ontem de novo: o estado negativo DEVE continuar ativo (persistido)
   await page.locator('[data-dia-anterior]').click()
   const cardVolta = page.locator('.habit-card', { hasText: 'Hábito ontem E2E' })
   await expect(cardVolta.locator('[data-habito="negativo"]')).toHaveClass(/active/)
