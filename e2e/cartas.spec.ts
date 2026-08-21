@@ -21,8 +21,8 @@ test('cartas: modal não tem mais botão Invocar — invocação é pelo chat', 
   await primeira.click()
 
   // o botão Invocar saiu do modal; a dica aponta o chat
-  await expect(page.locator('[data-modal-invocar]')).toHaveCount(0)
+  await expect(page.locator('[data-modal-invoke]')).toHaveCount(0)
   await expect(page.locator('.card-modal')).toContainText('Invocação pelo chat')
   // e o modal continua navegável (setas presentes)
-  await expect(page.locator('[data-modal-anterior]')).toBeVisible()
+  await expect(page.locator('[data-modal-prev]')).toBeVisible()
 })

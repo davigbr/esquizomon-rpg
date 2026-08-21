@@ -54,8 +54,8 @@ function openCrop(img: HTMLImageElement, url: string): void {
       <i class="fa-solid fa-plus" aria-hidden="true"></i>
     </div>
     <div class="form-actions">
-      <button class="btn" data-avatar-cancelar>Cancelar</button>
-      <button class="btn btn-primary" data-avatar-salvar>Salvar avatar</button>
+      <button class="btn" data-avatar-cancel>Cancelar</button>
+      <button class="btn btn-primary" data-avatar-save>Salvar avatar</button>
     </div>
   `)
 
@@ -126,11 +126,11 @@ function openCrop(img: HTMLImageElement, url: string): void {
     URL.revokeObjectURL(url)
   }
 
-  modalBody.querySelector('[data-avatar-cancelar]')!.addEventListener('click', () => {
+  modalBody.querySelector('[data-avatar-cancel]')!.addEventListener('click', () => {
     cleanup()
     closeModal()
   })
-  modalBody.querySelector('[data-avatar-salvar]')!.addEventListener('click', () => {
+  modalBody.querySelector('[data-avatar-save]')!.addEventListener('click', () => {
     const { sx, sy, sw, sh } = crop()
     const c = document.createElement('canvas')
     c.width = OUTPUT

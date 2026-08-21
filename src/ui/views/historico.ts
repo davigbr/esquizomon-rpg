@@ -58,8 +58,8 @@ export function mountHistory(root: HTMLElement, data: AppData): void {
     </header>
 
     <div class="filters history-filters">
-      <button class="filter-chip${filterType === '' ? ' active' : ''}" data-filtro-tipo="">Tudo (${data.log.length})</button>
-      ${(Object.keys(TYPES) as LogType[]).map((t) => `<button class="filter-chip${filterType === t ? ' active' : ''}" data-filtro-tipo="${t}">${TYPES[t].label} (${counts[t] ?? 0})</button>`).join('')}
+      <button class="filter-chip${filterType === '' ? ' active' : ''}" data-filter-type="">Tudo (${data.log.length})</button>
+      ${(Object.keys(TYPES) as LogType[]).map((t) => `<button class="filter-chip${filterType === t ? ' active' : ''}" data-filter-type="${t}">${TYPES[t].label} (${counts[t] ?? 0})</button>`).join('')}
     </div>
 
     ${days.length === 0 ? '<div class="empty"><strong>Nenhum evento ainda.</strong><p>Conclua tarefas, invoque cartas e suba de nível — tudo fica registrado aqui.</p></div>' : ''}
@@ -86,9 +86,9 @@ export function mountHistory(root: HTMLElement, data: AppData): void {
       .join('')}
   `
 
-  root.querySelectorAll('[data-filtro-tipo]').forEach((chip) => {
+  root.querySelectorAll('[data-filter-type]').forEach((chip) => {
     chip.addEventListener('click', () => {
-      filterType = (chip.getAttribute('data-filtro-tipo') ?? '') as LogType | ''
+      filterType = (chip.getAttribute('data-filter-type') ?? '') as LogType | ''
       mountHistory(root, appStore.get())
     })
   })

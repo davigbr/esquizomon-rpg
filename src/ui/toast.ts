@@ -29,8 +29,8 @@ export async function notifyCards(ids: string[], text: string): Promise<void> {
   const minis = cards
     .map(
       (c) =>
-        `<span class="toast-carta" title="${c.name}"><img src="/images/cards/${c.id}.png" alt="${c.name}" /><em>${c.name}</em></span>`,
+        `<span class="toast-card" title="${c.name}"><img src="/images/cards/${c.id}.png" alt="${c.name}" /><em>${c.name}</em></span>`,
     )
     .join('')
-  notifyHtml(`<strong>${text}</strong><span class="toast-cartas">${minis}</span>`)
+  notifyHtml(`<strong>${text}</strong><span class="toast-cards">${minis}</span>`)
 }

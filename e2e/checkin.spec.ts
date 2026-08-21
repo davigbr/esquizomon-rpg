@@ -47,7 +47,7 @@ test('check-in: tudo vem desmarcado; marcar um item conclui em ontem e o resto s
 
   // marca apenas a 2ª (Relatório) — a 1ª (Meditar) fica sem marcação
   await page.locator('.checkin-check').nth(1).check()
-  await page.locator('[data-checkin-confirmar]').click()
+  await page.locator('[data-checkin-confirm]').click()
 
   // modal fechou
   await expect(page.locator('#modal')).toBeHidden()
@@ -63,7 +63,7 @@ test('check-in: confirmar sem marcar nada equivale a pular (dano em todas)', asy
   await page.goto('/#/hoje')
 
   await expect(page.locator('.checkin-item')).toHaveCount(2)
-  await page.locator('[data-checkin-confirmar]').click()
+  await page.locator('[data-checkin-confirm]').click()
 
   await expect(page.locator('#modal')).toBeHidden()
   // nada marked → XP 0; a recorrente Meditar perdida → −3 vida (únicas não dão dano)

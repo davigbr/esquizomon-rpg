@@ -67,7 +67,7 @@ test('config: tema tem opção "sistema" como padrão e persiste a escolha', asy
 test('config: avatar — upload, corte quadrado, compressão e exibição ao lado do nível', async ({ page }) => {
   await semear(page)
   await page.goto('/#/config')
-  await page.locator('[data-avatar-escolher]').click()
+  await page.locator('[data-avatar-choose]').click()
   await page.locator('[data-avatar-arquivo]').setInputFiles({
     name: 'avatar.png',
     mimeType: 'image/png',
@@ -78,7 +78,7 @@ test('config: avatar — upload, corte quadrado, compressão e exibição ao lad
   })
   // modal de corte abre; salva
   await expect(page.locator('[data-avatar-janela]')).toBeVisible()
-  await page.locator('[data-avatar-salvar]').click()
+  await page.locator('[data-avatar-save]').click()
   // avatar persistido como JPEG comprimido
   await expect
     .poll(() =>
@@ -94,8 +94,8 @@ test('config: avatar — upload, corte quadrado, compressão e exibição ao lad
   expect(avatar!.x).toBeLessThan(nivel!.x)
   // remover com confirmação
   await page.goto('/#/config')
-  await page.locator('[data-avatar-remover]').click()
-  await page.locator('[data-modal-confirmar]').click()
+  await page.locator('[data-avatar-remove]').click()
+  await page.locator('[data-modal-confirm]').click()
   await expect
     .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.character?.avatar ?? null))
     .toBe(null)
@@ -104,8 +104,8 @@ test('config: avatar — upload, corte quadrado, compressão e exibição ao lad
 test('config: nome monstruoso salva e aparece em negrito ao lado do avatar', async ({ page }) => {
   await semearChat(page)
   await page.goto('/#/config')
-  await page.locator('[data-nome-monstruoso]').fill('Devorador de Segundas')
-  await page.locator('[data-nome-monstruoso]').blur()
+  await page.locator('[data-monster-name]').fill('Devorador de Segundas')
+  await page.locator('[data-monster-name]').blur()
   await expect.poll(() =>
     page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.character?.monsterName ?? null),
   ).toBe('Devorador de Segundas')
@@ -162,8 +162,8 @@ test('fabula: prompt injeta {resumo}, cartas desbloqueadas e o protocolo de invo
   await page.locator('[data-resumo]').fill('Vivo com a Aline e duas gatas.')
   await page.locator('[data-resumo]').blur()
   await page.goto('/#/diario')
-  await page.locator('[data-diario-novo]').click()
-  await page.locator('[data-diario-editor]').fill('Hoje lembrei do Ninho Enclausurado.')
+  await page.locator('[data-dayry-new]').click()
+  await page.locator('[data-dayry-editor]').fill('Hoje lembrei do Ninho Enclausurado.')
   await page.keyboard.press('Tab')
 
   const prompt = await page.evaluate(async () => {
@@ -204,11 +204,11 @@ test('fabula: marcador [[acao:invocar]] é extraído e removido do texto', async
 test('fabula: as últimas entradas do diário entram NA ÍNTEGRA no prompt (sem truncar)', async ({ page }) => {
   await semear(page)
   await page.goto('/#/diario')
-  await page.locator('[data-diario-novo]').click()
+  await page.locator('[data-dayry-new]').click()
 
   // entrada longa (bem acima do antigo corte de 600 chars)
   const longo = 'A'.repeat(800) + ' FIM-DO-REGISTRO-INTEGRO'
-  await page.locator('[data-diario-editor]').fill(longo)
+  await page.locator('[data-dayry-editor]').fill(longo)
   await page.keyboard.press('Tab')
 
   await expect
@@ -592,11 +592,11 @@ test('hábito: marcar no dia anterior (ontem) marca retroativo e dá XP', async 
     })
   })
   // navega para ONTEM
-  await page.locator('[data-dia-anterior]').click()
+  await page.locator('[data-prev-day]').click()
   const xp0 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').character.xp)
   // o botão positivo está habilitado em ontem (retroativo)
-  await expect(page.locator('[data-habito="positivo"]')).toBeEnabled()
-  await page.locator('[data-habito="positivo"]').click()
+  await expect(page.locator('[data-habit="positivo"]')).toBeEnabled()
+  await page.locator('[data-habit="positivo"]').click()
   await expect(page.locator('.toast').last()).toContainText('Repetição registrada')
   const xp1 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').character.xp)
   expect(xp1).toBe(xp0 + 10) // hábito fácil = +10 XP
@@ -604,12 +604,12 @@ test('hábito: marcar no dia anterior (ontem) marca retroativo e dá XP', async 
   await expect(page.locator('.habit-card')).toContainText('seq 1')
   // clicar de novo (dedup em dia passado) NÃO dá XP de novo
   const xpAntesDedup = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').character.xp)
-  await page.locator('[data-habito="positivo"]').click()
+  await page.locator('[data-habit="positivo"]').click()
   const xpDepoisDedup = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').character.xp)
   expect(xpDepoisDedup).toBe(xpAntesDedup)
   // antes de ontem: botão desabilitado
-  await page.locator('[data-dia-anterior]').click() // agora em "anteontem"
-  await expect(page.locator('[data-habito="positivo"]')).toBeDisabled()
+  await page.locator('[data-prev-day]').click() // agora em "anteontem"
+  await expect(page.locator('[data-habit="positivo"]')).toBeDisabled()
 })
 
 test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async ({ page }) => {
@@ -819,10 +819,10 @@ test('config: rerolar baralho pede confirmação e mantém o total de cartas', a
   await page.goto('/#/config')
   const antes = await page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.character?.cards?.length ?? 0))
   expect(antes).toBeGreaterThan(0)
-  await page.locator('[data-rerolar-cartas]').click()
+  await page.locator('[data-reshuffle-cards]').click()
   // o modal de confirmação (operação destrutiva) abre
-  await expect(page.locator('[data-modal-confirmar]')).toBeVisible()
-  await page.locator('[data-modal-confirmar]').click()
+  await expect(page.locator('[data-modal-confirm]')).toBeVisible()
+  await page.locator('[data-modal-confirm]').click()
   // após o reroll, o mesmo total de cartas é preservado
   await expect
     .poll(() => page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.character?.cards?.length ?? 0)))

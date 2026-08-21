@@ -41,16 +41,16 @@ export function confirm(msg: string, label = 'Confirmar'): Promise<boolean> {
       <h2>Confirmar</h2>
       <p style="color:var(--text-secondary);font-size:14px;margin:0 0 20px">${msg}</p>
       <div class="form-actions">
-        <button class="btn" data-modal-cancelar>Cancelar</button>
-        <button class="btn btn-primary" data-modal-confirmar>${label}</button>
+        <button class="btn" data-modal-cancel>Cancelar</button>
+        <button class="btn btn-primary" data-modal-confirm>${label}</button>
       </div>
     `)
-    modalBody.querySelector('[data-modal-confirmar]')!.addEventListener('click', () => {
+    modalBody.querySelector('[data-modal-confirm]')!.addEventListener('click', () => {
       document.removeEventListener('keydown', handler)
       closeModal()
       resolve(true)
     })
-    modalBody.querySelector('[data-modal-cancelar]')!.addEventListener('click', onClose)
+    modalBody.querySelector('[data-modal-cancel]')!.addEventListener('click', onClose)
     document.addEventListener('keydown', handler)
   })
 }

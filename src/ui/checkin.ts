@@ -41,14 +41,14 @@ export function checkDaily(): void {
     <p class="checkin-sub">Confira as <strong>atividades recorrentes de ${escapeHtml(formatLongDate(pend.date))}</strong> (ontem). Nada vem pré-marcado: marque as que você fez de verdade — <strong>só as recorrentes</strong> não marcadas contam como perdidas e causam dano (tarefas únicas vencidas não dão dano).</p>
     <div class="checkin-list">${items}</div>
     <div class="form-actions">
-      <button class="btn btn-primary" data-checkin-confirmar>Check-in</button>
+      <button class="btn btn-primary" data-checkin-confirm>Check-in</button>
     </div>
   `)
 
   const mark = (): string[] =>
     Array.from(getModalBody().querySelectorAll<HTMLInputElement>('.checkin-check:checked')).map((i) => i.dataset.checkinId ?? '').filter(Boolean)
 
-  getModalBody().querySelector<HTMLButtonElement>('[data-checkin-confirmar]')?.addEventListener('click', () => {
+  getModalBody().querySelector<HTMLButtonElement>('[data-checkin-confirm]')?.addEventListener('click', () => {
     const ids = mark()
     closeModal()
     finishCheckin(ids)

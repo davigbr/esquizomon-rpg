@@ -47,12 +47,12 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
           ${avatar ? `<img src="${escapeHtml(avatar)}" alt="Seu avatar" />` : '<i class="fa-solid fa-user" aria-hidden="true"></i>'}
         </div>
         <div class="settings-actions-row">
-          <button class="btn" data-avatar-escolher>Escolher imagem</button>
-          ${avatar ? '<button class="btn" data-avatar-remover>Remover</button>' : ''}
+          <button class="btn" data-avatar-choose>Escolher imagem</button>
+          ${avatar ? '<button class="btn" data-avatar-remove>Remover</button>' : ''}
         </div>
         <div class="settings-field-row">
           <label class="settings-label" for="nome-monstruoso">Nome monstruoso</label>
-          <input id="nome-monstruoso" class="field" data-nome-monstruoso value="${escapeHtml(data.character.monsterName ?? '')}" placeholder="Ex.: Devorador de Segundas" maxlength="40" />
+          <input id="nome-monstruoso" class="field" data-monster-name value="${escapeHtml(data.character.monsterName ?? '')}" placeholder="Ex.: Devorador de Segundas" maxlength="40" />
           <p class="settings-hint">Aparece em negrito ao lado do seu avatar (não é exibido no celular).</p>
         </div>
         <p class="settings-hint">Corte sempre circular · comprimido · salvo junto aos dados · exibido ao lado do nível.</p>
@@ -84,7 +84,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
           <div class="settings-label">Modo relaxado</div>
           <div class="settings-hint">Jogo sem punição — só bônus</div>
         </div>
-        <select class="filter-select" data-modo-relaxado>
+        <select class="filter-select" data-relaxed-mode>
           <option value="off" ${!relaxedMode ? 'selected' : ''}>Desligado</option>
           <option value="on" ${relaxedMode ? 'selected' : ''}>Ligado</option>
         </select>
@@ -116,9 +116,9 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
       <h3>Dados</h3>
       <p>Exporte ou importe tudo em JSON — o backup do seu território.</p>
       <div class="settings-actions">
-        <button class="btn" data-exportar><i class="fa-solid fa-download" aria-hidden="true"></i> Exportar (JSON)</button>
-        <button class="btn" data-importar><i class="fa-solid fa-upload" aria-hidden="true"></i> Importar</button>
-        <button class="btn" data-rerolar-cartas title="Re-sorteia todas as cartas desbloqueadas"><i class="fa-solid fa-dice" aria-hidden="true"></i> Rerolar baralho</button>
+        <button class="btn" data-export><i class="fa-solid fa-download" aria-hidden="true"></i> Exportar (JSON)</button>
+        <button class="btn" data-import><i class="fa-solid fa-upload" aria-hidden="true"></i> Importar</button>
+        <button class="btn" data-reshuffle-cards title="Re-sorteia todas as cartas desbloqueadas"><i class="fa-solid fa-dice" aria-hidden="true"></i> Rerolar baralho</button>
       </div>
       <div class="settings-hint settings-hint-row">${total} tarefa${total === 1 ? '' : 's'} · nível <b>${data.character.level}</b> · <b>${data.character.cards.length}</b> cartas desbloqueadas</div>
       <div class="settings-hint settings-hint-row backup-title">Backups automáticos (criados antes de cada sincronização que altera dados):</div>
@@ -129,7 +129,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
       <h3>Zona de perigo</h3>
       <p>Apaga todas as tarefas e o progresso do personagem deste dispositivo.</p>
       <div class="settings-actions">
-        <button class="btn btn--perigo" data-apagar><i class="fa-solid fa-trash" aria-hidden="true"></i> Apagar tudo</button>
+        <button class="btn btn--perigo" data-forget><i class="fa-solid fa-trash" aria-hidden="true"></i> Apagar tudo</button>
       </div>
     </div>
   `
@@ -139,7 +139,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
     setTheme(value)
   })
 
-  root.querySelector('[data-modo-relaxado]')!.addEventListener('change', (e) => {
+  root.querySelector('[data-relaxed-mode]')!.addEventListener('change', (e) => {
     const value = (e.target as HTMLSelectElement).value === 'on'
     setSettings({ relaxedMode: value })
     notify(value ? 'Modo relaxado ligado — sem dano.' : 'Modo relaxado desligado.')
@@ -153,7 +153,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
 
   // avatar: choose file → crop editor; remove with confirmation
   const avatarFile = root.querySelector<HTMLInputElement>('[data-avatar-arquivo]')
-  root.querySelector('[data-avatar-escolher]')?.addEventListener('click', () => avatarFile?.click())
+  root.querySelector('[data-avatar-choose]')?.addEventListener('click', () => avatarFile?.click())
   avatarFile?.addEventListener('change', () => {
     const file = avatarFile.files?.[0]
     if (file) {
@@ -161,7 +161,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
       avatarFile.value = ''
     }
   })
-  root.querySelector('[data-avatar-remover]')?.addEventListener('click', () => {
+  root.querySelector('[data-avatar-remove]')?.addEventListener('click', () => {
     void confirm('Remover seu avatar?', 'Remover').then((ok) => {
       if (ok) {
         setAvatar(null)
@@ -170,7 +170,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
     })
   })
   // monster name: saves on blur
-  root.querySelector<HTMLInputElement>('[data-nome-monstruoso]')?.addEventListener('change', (e) => {
+  root.querySelector<HTMLInputElement>('[data-monster-name]')?.addEventListener('change', (e) => {
     setMonsterName((e.target as HTMLInputElement).value)
   })
 
@@ -184,7 +184,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
 
   installAccountHandlers(root)
 
-  root.querySelector('[data-exportar]')!.addEventListener('click', () => {
+  root.querySelector('[data-export]')!.addEventListener('click', () => {
     const json = exportJSON()
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -196,7 +196,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
     notify('Dados exportados.')
   })
 
-  root.querySelector('[data-importar]')!.addEventListener('click', () => {
+  root.querySelector('[data-import]')!.addEventListener('click', () => {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = 'application/json'
@@ -226,12 +226,12 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
       .map((b) => {
         const d = new Date(b.ts)
         const readable = Number.isNaN(d.getTime()) ? b.ts : d.toLocaleString('pt-BR')
-        return `<div class="settings-backup"><span>${readable}</span><button class="btn btn--small" data-restaurar="${escapeHtml(b.ts)}">Restaurar</button></div>`
+        return `<div class="settings-backup"><span>${readable}</span><button class="btn btn--small" data-restore="${escapeHtml(b.ts)}">Restaurar</button></div>`
       })
       .join('')
-    backupsArea.querySelectorAll<HTMLButtonElement>('[data-restaurar]').forEach((btn) => {
+    backupsArea.querySelectorAll<HTMLButtonElement>('[data-restore]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const ts = btn.dataset.restaurar
+        const ts = btn.dataset.restore
         void confirm('Restaurar substitui os dados atuais deste dispositivo pelos do backup escolhido. Continuar?', 'Restaurar backup').then((ok) => {
           if (!ok || !ts) return
           const restored = restoreBackup(ts)
@@ -242,7 +242,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
   }
   renderBackups()
 
-  root.querySelector<HTMLButtonElement>('[data-rerolar-cartas]')?.addEventListener('click', () => {
+  root.querySelector<HTMLButtonElement>('[data-reshuffle-cards]')?.addEventListener('click', () => {
     void confirm(
       'Rerolar re-sorteia TODAS as cartas desbloqueadas, mantendo a mesma quantidade e respeitando as chances (monstros 6×, capturas 2×, alianças 1×). A coleção atual será substituída. Continuar?',
       'Rerolar baralho',
@@ -253,7 +253,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
     })
   })
 
-  root.querySelector('[data-apagar]')!.addEventListener('click', () => {
+  root.querySelector('[data-forget]')!.addEventListener('click', () => {
     void confirm('Apagar todas as tarefas e o personagem? Isso não pode ser desfeito.', 'Apagar tudo').then((ok) => {
       if (ok) {
         wipeAllData()
@@ -321,7 +321,7 @@ function aiSection(ai: AiConfig): string {
                 : 'Customizado — edite à vontade.'}
             </div>
           </div>
-          <button class="btn btn--text" data-ia-restaurar type="button" title="Volta pro prompt canônico">
+          <button class="btn btn--text" data-ai-restore type="button" title="Volta pro prompt canônico">
             <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Restaurar padrão
           </button>
         </div>
@@ -341,7 +341,7 @@ function installAIHandlers(root: HTMLElement): void {
   const modelEl = root.querySelector<HTMLSelectElement>('[data-ia-modelo]')
   const keyEl = root.querySelector<HTMLInputElement>('[data-ia-chave]')
   const promptEl = root.querySelector<HTMLTextAreaElement>('[data-ia-prompt]')
-  const restoreEl = root.querySelector<HTMLButtonElement>('[data-ia-restaurar]')
+  const restoreEl = root.querySelector<HTMLButtonElement>('[data-ai-restore]')
   const testEl = root.querySelector<HTMLButtonElement>('[data-ia-testar]')
   const statusEl = root.querySelector<HTMLElement>('[data-ia-status]')
 
@@ -445,9 +445,9 @@ function accountSection(): string {
         ${session ? `<span class="settings-label settings-account-email">${escapeHtml(session.user.email)}</span>` : ''}
       </div>
       <div class="settings-actions">
-        ${session ? '' : '<button class="btn" data-entrar><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Entrar / criar conta</button>'}
-        ${session ? '<button class="btn" data-sair-conta><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Sair</button>' : ''}
-        <button class="btn" data-sincronizar ${session ? '' : 'disabled'} title="${session ? 'Envia e puxa os dados agora' : 'Entre para sincronizar'}"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Sincronizar agora</button>
+        ${session ? '' : '<button class="btn" data-login><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Entrar / criar conta</button>'}
+        ${session ? '<button class="btn" data-logout-account><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Sair</button>' : ''}
+        <button class="btn" data-syncnow ${session ? '' : 'disabled'} title="${session ? 'Envia e puxa os dados agora' : 'Entre para sincronizar'}"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Sincronizar agora</button>
       </div>
     </div>
   `
@@ -463,18 +463,18 @@ function installAccountHandlers(root: HTMLElement): void {
     if (statusEl) statusEl.textContent = STATE_LABEL[state]
   })
 
-  root.querySelector('[data-entrar]')?.addEventListener('click', () => {
+  root.querySelector('[data-login]')?.addEventListener('click', () => {
     openLoginModal()
   })
 
-  root.querySelector('[data-sair-conta]')?.addEventListener('click', async () => {
+  root.querySelector('[data-logout-account]')?.addEventListener('click', async () => {
     const { logout } = await import('../../sync/auth')
     await logout()
     onSessionChange()
     notify('Sessão encerrada — seus dados seguem neste dispositivo.')
   })
 
-  root.querySelector('[data-sincronizar]')?.addEventListener('click', () => {
+  root.querySelector('[data-syncnow]')?.addEventListener('click', () => {
     void syncNow()
   })
 }

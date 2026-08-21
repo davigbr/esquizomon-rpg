@@ -183,10 +183,10 @@ function render(): void {
           <button class="btn btn-icon" data-fabula-renomear title="Renomear conversa" aria-label="Renomear conversa" ${conversation ? '' : 'disabled'}>
             <i class="fa-solid fa-pen" aria-hidden="true"></i>
           </button>
-          <button class="btn btn-icon" data-fabula-excluir title="Apagar conversa" aria-label="Apagar conversa" ${conversation ? '' : 'disabled'}>
+          <button class="btn btn-icon" data-fable-delete title="Apagar conversa" aria-label="Apagar conversa" ${conversation ? '' : 'disabled'}>
             <i class="fa-solid fa-trash" aria-hidden="true"></i>
           </button>
-          <button class="btn btn-icon" data-fabula-fechar aria-label="Fechar chat" title="Fechar">
+          <button class="btn btn-icon" data-fable-close aria-label="Fechar chat" title="Fechar">
             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
         </div>
@@ -233,7 +233,7 @@ function cacheRefs(): void {
 
 function installHandlers(conversation: Conversation | undefined): void {
   if (!panel) return
-  panel.querySelector('[data-fabula-fechar]')!.addEventListener('click', () => toggleChat(false))
+  panel.querySelector('[data-fable-close]')!.addEventListener('click', () => toggleChat(false))
   panel.querySelector('[data-fabula-nova]')!.addEventListener('click', () => newConversation())
   const renameBtn = panel.querySelector<HTMLButtonElement>('[data-fabula-renomear]')
   if (renameBtn && conversation) {
@@ -283,7 +283,7 @@ function installHandlers(conversation: Conversation | undefined): void {
     })
     titleInput.addEventListener('blur', finishRenaming)
   }
-  const deleteBtn = panel.querySelector('[data-fabula-excluir]') as HTMLButtonElement | null
+  const deleteBtn = panel.querySelector('[data-fable-delete]') as HTMLButtonElement | null
   if (deleteBtn && conversation) {
     deleteBtn.addEventListener('click', () => void deleteCurrentConversation())
   }

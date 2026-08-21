@@ -144,7 +144,7 @@ body {
   border-radius: 4px;
 }
 
-.navbar-logo-sufixo {
+.navbar-logo-suffix {
   color: var(--accent-gold);
   font-weight: 900;
   font-size: 12px;
@@ -160,7 +160,7 @@ body {
   gap: 4px;
 }
 
-.navbar-links-lista {
+.navbar-links-list {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1187,13 +1187,13 @@ select.field {
   margin-bottom: 6px;
 }
 
-.toast-cartas {
+.toast-cards {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.toast-carta {
+.toast-card {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1201,14 +1201,14 @@ select.field {
   width: 52px;
 }
 
-.toast-carta img {
+.toast-card img {
   width: 52px;
   border-radius: 5px;
   border: 1px solid var(--border-gold);
   box-shadow: 0 2px 8px var(--shadow-color);
 }
 
-.toast-carta em {
+.toast-card em {
   font-style: normal;
   font-size: 10px;
   color: var(--text-secondary);
@@ -2375,14 +2375,14 @@ select.field {
   }
 
   /* só a lista de links rola; os botões (Fábula/conta/tema) ficam fixos */
-  .navbar-links-lista {
+  .navbar-links-list {
     flex: 1 1 auto;
     min-width: 0;
     overflow-x: auto;
     scrollbar-width: none;
   }
 
-  .navbar-links-lista::-webkit-scrollbar {
+  .navbar-links-list::-webkit-scrollbar {
     display: none;
   }
 

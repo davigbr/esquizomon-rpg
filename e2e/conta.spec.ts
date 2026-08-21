@@ -13,28 +13,28 @@ test('config: seção conta mostra aviso de dados locais e status offline', asyn
 
   // sem login: status offline e botão de entrar habilitado, sincronizar desabilitado
   await expect(page.locator('[data-sync-status]')).toHaveText('Offline — dados só neste dispositivo')
-  await expect(page.locator('[data-entrar]')).toBeVisible()
-  await expect(page.locator('[data-sincronizar]')).toBeDisabled()
+  await expect(page.locator('[data-login]')).toBeVisible()
+  await expect(page.locator('[data-syncnow]')).toBeDisabled()
 })
 
 test('config: modal de login abre com abas e falha graciosamente offline', async ({ page }) => {
   await page.goto('/#/config')
-  await page.locator('[data-entrar]').click()
+  await page.locator('[data-login]').click()
 
   const modal = page.locator('#modal')
   await expect(modal).toBeVisible()
   await expect(page.locator('.login-tab')).toHaveCount(2)
-  await expect(page.locator('[data-form="entrar"]')).toBeVisible()
-  await expect(page.locator('[data-form="criar"]')).toBeHidden()
+  await expect(page.locator('[data-form="login"]')).toBeVisible()
+  await expect(page.locator('[data-form="signup"]')).toBeHidden()
 
   // troca para a aba de criar conta
-  await page.locator('.login-tab[data-modo="criar"]').click()
-  await expect(page.locator('[data-form="criar"]')).toBeVisible()
+  await page.locator('.login-tab[data-mode="signup"]').click()
+  await expect(page.locator('[data-form="signup"]')).toBeVisible()
 
   // submit do login sem servidor → mensagem de erro amigável (não trava)
-  await page.locator('.login-tab[data-modo="entrar"]').click()
-  await page.locator('[data-form="entrar"] input[name="email"]').fill('teste@teste.com')
-  await page.locator('[data-form="entrar"] input[name="senha"]').fill('senha123')
-  await page.locator('[data-form="entrar"] button[type="submit"]').click()
+  await page.locator('.login-tab[data-mode="login"]').click()
+  await page.locator('[data-form="login"] input[name="email"]').fill('teste@teste.com')
+  await page.locator('[data-form="login"] input[name="password"]').fill('senha123')
+  await page.locator('[data-form="login"] button[type="submit"]').click()
   await expect(page.locator('[data-status]')).toContainText('Falha na autenticação')
 })

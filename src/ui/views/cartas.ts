@@ -45,10 +45,10 @@ export async function mountCards(root: HTMLElement, data: AppData): Promise<void
     </header>
 
     <div class="filters">
-      <button class="filter-chip${filterType === '' ? ' active' : ''}" data-filtro-tipo="">Todas</button>
-      <button class="filter-chip${filterType === 'monstro' ? ' active' : ''}" data-filtro-tipo="monstro">Monstros</button>
-      <button class="filter-chip${filterType === 'captura' ? ' active' : ''}" data-filtro-tipo="captura">Capturas</button>
-      <button class="filter-chip${filterType === 'alianca' ? ' active' : ''}" data-filtro-tipo="alianca">Alianças</button>
+      <button class="filter-chip${filterType === '' ? ' active' : ''}" data-filter-type="">Todas</button>
+      <button class="filter-chip${filterType === 'monstro' ? ' active' : ''}" data-filter-type="monstro">Monstros</button>
+      <button class="filter-chip${filterType === 'captura' ? ' active' : ''}" data-filter-type="captura">Capturas</button>
+      <button class="filter-chip${filterType === 'alianca' ? ' active' : ''}" data-filter-type="alianca">Alianças</button>
     </div>
 
     <div class="cards-grid">
@@ -56,9 +56,9 @@ export async function mountCards(root: HTMLElement, data: AppData): Promise<void
     </div>
   `
 
-  root.querySelectorAll('[data-filtro-tipo]').forEach((chip) => {
+  root.querySelectorAll('[data-filter-type]').forEach((chip) => {
     chip.addEventListener('click', () => {
-      filterType = (chip.getAttribute('data-filtro-tipo') ?? '') as CardType | ''
+      filterType = (chip.getAttribute('data-filter-type') ?? '') as CardType | ''
       void mountCards(root, appStore.get())
     })
   })
@@ -109,7 +109,7 @@ export function openCardModal(id: string): void {
 
   openModal(`
     <div class="card-modal">
-      <button class="card-modal-arrow" data-modal-anterior aria-label="Carta anterior" ${prev ? '' : 'disabled'}>
+      <button class="card-modal-arrow" data-modal-prev aria-label="Carta anterior" ${prev ? '' : 'disabled'}>
         <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
       </button>
       <div class="card-modal-center">
@@ -121,16 +121,16 @@ export function openCardModal(id: string): void {
           <p class="settings-hint">Invocação pelo chat: peça à Fábula para invocar esta carta — ela desconta a mana e te dá o apoio dela.</p>
         </div>
       </div>
-      <button class="card-modal-arrow" data-modal-proxima aria-label="Próxima carta" ${next ? '' : 'disabled'}>
+      <button class="card-modal-arrow" data-modal-next aria-label="Próxima carta" ${next ? '' : 'disabled'}>
         <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
       </button>
     </div>
   `)
 
-  modalBody.querySelector('[data-modal-anterior]')?.addEventListener('click', () => {
+  modalBody.querySelector('[data-modal-prev]')?.addEventListener('click', () => {
     if (prev) openCardModal(prev.id)
   })
-  modalBody.querySelector('[data-modal-proxima]')?.addEventListener('click', () => {
+  modalBody.querySelector('[data-modal-next]')?.addEventListener('click', () => {
     if (next) openCardModal(next.id)
   })
 }

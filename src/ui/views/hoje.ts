@@ -58,9 +58,9 @@ export function mountToday(root: HTMLElement, data: AppData): void {
   root.innerHTML = `
     <header class="view-header">
       <div class="view-header-navigation">
-        <button class="btn btn-icon" data-dia-anterior aria-label="Dia anterior"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-prev-day aria-label="Dia anterior"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
         <h1>${escapeHtml(label)}</h1>
-        <button class="btn btn-icon" data-dia-seguinte aria-label="Dia seguinte" ${isToday ? 'disabled' : ''}><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-next-day aria-label="Dia seguinte" ${isToday ? 'disabled' : ''}><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
       </div>
       <p class="view-sub">${escapeHtml(formatLongDate(visibleDate))}</p>
     </header>
@@ -70,17 +70,17 @@ export function mountToday(root: HTMLElement, data: AppData): void {
     <div class="filters">
       ${tags.length > 0
         ? `<span class="filters-label">Tag:</span>${tags
-            .map((tag) => `<button class="filter-chip${filterTag === tag ? ' active' : ''}" data-filtro-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`)
+            .map((tag) => `<button class="filter-chip${filterTag === tag ? ' active' : ''}" data-filter-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`)
             .join('')}`
         : ''}
-      <select class="filter-select" data-filtro-dificuldade>
+      <select class="filter-select" data-filter-difficulty>
         <option value="">Todas as dificuldades</option>
         ${(['facil', 'media', 'dificil', 'extrema'] as Difficulty[])
           .map((d) => `<option value="${d}" ${filterDifficulty === d ? 'selected' : ''}>${difficultyMeta(d).label}</option>`)
           .join('')}
       </select>
-      <button class="filter-chip${showDone ? ' active' : ''}" data-filtro-concluidas><i class="fa-solid fa-check" aria-hidden="true"></i> Concluídas</button>
-      ${filterActive ? '<button class="btn btn-icon" data-limpar-filtros aria-label="Limpar filtros"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>' : ''}
+      <button class="filter-chip${showDone ? ' active' : ''}" data-filter-done><i class="fa-solid fa-check" aria-hidden="true"></i> Concluídas</button>
+      ${filterActive ? '<button class="btn btn-icon" data-clear-filters aria-label="Limpar filtros"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>' : ''}
     </div>
 
     <div class="columns">
@@ -88,7 +88,7 @@ export function mountToday(root: HTMLElement, data: AppData): void {
         <header class="column-header">
           <h2>Hábitos</h2>
           <span class="column-count">${habits.length}</span>
-          <button class="btn btn-icon column-add" data-novo-tipo="habito" aria-label="Novo hábito"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+          <button class="btn btn-icon column-add" data-new-type="habito" aria-label="Novo hábito"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
         </header>
         <div class="column-cards">
           ${habits.length === 0 ? emptyColumn('Nada aqui. Use + para adicionar.') : habits.map((t) => habitCard(t, isToday, isYesterday)).join('')}
@@ -99,7 +99,7 @@ export function mountToday(root: HTMLElement, data: AppData): void {
         <header class="column-header">
           <h2>Recorrentes</h2>
           <span class="column-count">${recurring.length}</span>
-          <button class="btn btn-icon column-add" data-novo-tipo="recorrente" aria-label="Nova recorrente"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+          <button class="btn btn-icon column-add" data-new-type="recorrente" aria-label="Nova recorrente"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
         </header>
         <div class="column-cards">
           ${recurring.length === 0 ? emptyColumn('Nada marcado para este dia.') : recurring.map((t) => recurringCard(t, visibleDate)).join('')}
@@ -110,7 +110,7 @@ export function mountToday(root: HTMLElement, data: AppData): void {
         <header class="column-header">
           <h2>Tarefas</h2>
           <span class="column-count">${pending.length}</span>
-          <button class="btn btn-icon column-add" data-novo-tipo="unica" aria-label="Nova tarefa"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+          <button class="btn btn-icon column-add" data-new-type="unica" aria-label="Nova tarefa"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
         </header>
         <div class="column-cards">
           ${pending.length === 0 && done.length === 0 ? emptyColumn('Nada aqui. Use + para adicionar.') : ''}
@@ -122,11 +122,11 @@ export function mountToday(root: HTMLElement, data: AppData): void {
   `
 
   /* ---------- date navigation ---------- */
-  root.querySelector('[data-dia-anterior]')!.addEventListener('click', () => {
+  root.querySelector('[data-prev-day]')!.addEventListener('click', () => {
     visibleDate = addDays(visibleDate, -1)
     mountToday(root, appStore.get())
   })
-  root.querySelector('[data-dia-seguinte]')!.addEventListener('click', () => {
+  root.querySelector('[data-next-day]')!.addEventListener('click', () => {
     if (visibleDate < todayReal) {
       visibleDate = addDays(visibleDate, 1)
       mountToday(root, appStore.get())
@@ -134,29 +134,29 @@ export function mountToday(root: HTMLElement, data: AppData): void {
   })
 
   /* ---------- add per column ---------- */
-  root.querySelectorAll('[data-novo-tipo]').forEach((el) => {
+  root.querySelectorAll('[data-new-type]').forEach((el) => {
     el.addEventListener('click', () => {
-      openTaskForm(undefined, el.getAttribute('data-novo-tipo') as TaskType)
+      openTaskForm(undefined, el.getAttribute('data-new-type') as TaskType)
     })
   })
 
   /* ---------- filters ---------- */
-  root.querySelectorAll('[data-filtro-tag]').forEach((chip) => {
+  root.querySelectorAll('[data-filter-tag]').forEach((chip) => {
     chip.addEventListener('click', () => {
-      const tag = chip.getAttribute('data-filtro-tag')!
+      const tag = chip.getAttribute('data-filter-tag')!
       filterTag = filterTag === tag ? null : tag
       mountToday(root, appStore.get())
     })
   })
-  root.querySelector('[data-filtro-dificuldade]')?.addEventListener('change', (e) => {
+  root.querySelector('[data-filter-difficulty]')?.addEventListener('change', (e) => {
     filterDifficulty = (e.target as HTMLSelectElement).value as Difficulty | ''
     mountToday(root, appStore.get())
   })
-  root.querySelector('[data-filtro-concluidas]')?.addEventListener('click', () => {
+  root.querySelector('[data-filter-done]')?.addEventListener('click', () => {
     showDone = !showDone
     mountToday(root, appStore.get())
   })
-  root.querySelector('[data-limpar-filtros]')?.addEventListener('click', () => {
+  root.querySelector('[data-clear-filters]')?.addEventListener('click', () => {
     filterTag = null
     filterDifficulty = ''
     showDone = false
@@ -213,33 +213,33 @@ export function mountToday(root: HTMLElement, data: AppData): void {
   if (clickHandler) root.removeEventListener('click', clickHandler)
   clickHandler = (e: Event) => {
     const target = e.target as HTMLElement
-    const action = target.closest<HTMLElement>('[data-alternar-rec],[data-alternar-unica],[data-habito],[data-editar],[data-excluir]')
+    const action = target.closest<HTMLElement>('[data-toggle-rec],[data-toggle-once],[data-habit],[data-edit],[data-delete]')
     if (!action) return
     const id = action.dataset.id!
 
-    if (action.dataset.alternarRec !== undefined) {
+    if (action.dataset.toggleRec !== undefined) {
       const newCards = toggleRecurringToday(id, visibleDate)
       if (newCards.length > 0) void notifyCards(newCards, `🔓 Subiu de nível! ${newCards.length} carta${newCards.length > 1 ? 's' : ''} nova${newCards.length > 1 ? 's' : ''} no baralho`)
       return
     }
-    if (action.dataset.alternarUnica !== undefined) {
+    if (action.dataset.toggleOnce !== undefined) {
       const newCards = toggleOneOff(id, visibleDate)
       if (newCards.length > 0) void notifyCards(newCards, `🔓 Subiu de nível! ${newCards.length} carta${newCards.length > 1 ? 's' : ''} nova${newCards.length > 1 ? 's' : ''} no baralho`)
       return
     }
-    if (action.dataset.habito) {
-      const newCards = recordHabit(id, action.dataset.habito as 'positivo' | 'negativo', visibleDate)
+    if (action.dataset.habit) {
+      const newCards = recordHabit(id, action.dataset.habit as 'positivo' | 'negativo', visibleDate)
       if (newCards.length > 0) void notifyCards(newCards, `🔓 Subiu de nível! ${newCards.length} carta${newCards.length > 1 ? 's' : ''} nova${newCards.length > 1 ? 's' : ''} no baralho`)
-      if (action.dataset.habito === 'positivo') notify('Repetição registrada.')
+      if (action.dataset.habit === 'positivo') notify('Repetição registrada.')
       else notify('Marcado como negativo.')
       return
     }
-    if (action.dataset.editar !== undefined) {
+    if (action.dataset.edit !== undefined) {
       const t = data.tasks.find((x) => x.id === id)
       if (t) openTaskForm(t)
       return
     }
-    if (action.dataset.excluir !== undefined) {
+    if (action.dataset.delete !== undefined) {
       const t = data.tasks.find((x) => x.id === id)
       if (t) {
         void confirm(`Excluir "${t.title}"?`, 'Excluir').then((ok) => {
@@ -281,7 +281,7 @@ function habitCard(t: Task, isToday: boolean, isYesterday: boolean): string {
   const dayLabel = isToday ? ' hoje' : ' no dia referido'
   return `
     <div class="task-card habit-card${oldClass}" draggable="true" data-id="${t.id}">
-      <button class="habit-side habit-side--neg${negActive ? ' active' : ''}" data-habito="negativo" data-id="${t.id}" aria-label="Repetição negativa" title="${negActive ? `Negativo${dayLabel} (${todayNeg}×)` : 'Repetição negativa'}" ${!canNegative ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
+      <button class="habit-side habit-side--neg${negActive ? ' active' : ''}" data-habit="negativo" data-id="${t.id}" aria-label="Repetição negativa" title="${negActive ? `Negativo${dayLabel} (${todayNeg}×)` : 'Repetição negativa'}" ${!canNegative ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
       <div class="task-body">
         <p class="task-title">${escapeHtml(t.title)}</p>
         ${t.notes ? `<p class="task-notes">${renderNotes(t.notes)}</p>` : ''}
@@ -295,10 +295,10 @@ function habitCard(t: Task, isToday: boolean, isYesterday: boolean): string {
         </div>
       </div>
       <div class="task-actions">
-        <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
-        <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-edit data-id="${t.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-delete data-id="${t.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       </div>
-      <button class="habit-side habit-side--pos${posActive ? ' active' : ''}" data-habito="positivo" data-id="${t.id}" aria-label="Repetição positiva" title="${posActive ? `Positivo${dayLabel} (${todayPos}×)` : 'Repetição positiva'}" ${!canPositive ? 'disabled' : ''}><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+      <button class="habit-side habit-side--pos${posActive ? ' active' : ''}" data-habit="positivo" data-id="${t.id}" aria-label="Repetição positiva" title="${posActive ? `Positivo${dayLabel} (${todayPos}×)` : 'Repetição positiva'}" ${!canPositive ? 'disabled' : ''}><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
     </div>
   `
 }
@@ -310,7 +310,7 @@ function recurringCard(t: Task, date: string): string {
   const oldClass = ageClass(t)
   return `
     <div class="task-card${done ? ' done' : ''}${oldClass}" draggable="true" data-id="${t.id}">
-      <button class="task-check${done ? ' marked' : ''}" data-alternar-rec data-id="${t.id}" aria-label="Concluir neste dia"><i class="fa-solid fa-check" aria-hidden="true"></i></button>
+      <button class="task-check${done ? ' marked' : ''}" data-toggle-rec data-id="${t.id}" aria-label="Concluir neste dia"><i class="fa-solid fa-check" aria-hidden="true"></i></button>
       <div class="task-body">
         <p class="task-title">${escapeHtml(t.title)}</p>
         ${t.notes ? `<p class="task-notes">${renderNotes(t.notes)}</p>` : ''}
@@ -322,8 +322,8 @@ function recurringCard(t: Task, date: string): string {
         </div>
       </div>
       <div class="task-actions">
-        <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
-        <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-edit data-id="${t.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-delete data-id="${t.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       </div>
     </div>
   `
@@ -335,7 +335,7 @@ function oneOffCard(t: Task, done: boolean): string {
   const due = dueDateBadge(t)
   return `
     <div class="task-card${done ? ' done' : ''}${oldClass}" draggable="true" data-id="${t.id}">
-      <button class="task-check${done ? ' marked' : ''}" data-alternar-unica data-id="${t.id}" aria-label="${done ? 'Reabrir' : 'Concluir'}"><i class="fa-solid ${done ? 'fa-rotate-left' : 'fa-check'}" aria-hidden="true"></i></button>
+      <button class="task-check${done ? ' marked' : ''}" data-toggle-once data-id="${t.id}" aria-label="${done ? 'Reabrir' : 'Concluir'}"><i class="fa-solid ${done ? 'fa-rotate-left' : 'fa-check'}" aria-hidden="true"></i></button>
       <div class="task-body">
         <p class="task-title">${escapeHtml(t.title)}</p>
         ${t.notes ? `<p class="task-notes">${renderNotes(t.notes)}</p>` : ''}
@@ -347,8 +347,8 @@ function oneOffCard(t: Task, done: boolean): string {
         </div>
       </div>
       <div class="task-actions">
-        <button class="btn btn-icon" data-editar data-id="${t.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
-        <button class="btn btn-icon" data-excluir data-id="${t.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-edit data-id="${t.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-delete data-id="${t.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       </div>
     </div>
   `
