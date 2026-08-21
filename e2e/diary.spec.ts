@@ -15,7 +15,7 @@ const hoje = dataLocal()
 const ontem = dataLocal(-1)
 
 test('diário: cria entrada, digita markdown, autosave, Ver (preview) e reload', async ({ page }) => {
-  await page.goto('/#/diario')
+  await page.goto('/#/diary')
   await page.locator('[data-dayry-new]').click()
 
   const editor = page.locator('[data-dayry-editor]')
@@ -51,7 +51,7 @@ test('diário: cria entrada, digita markdown, autosave, Ver (preview) e reload',
 })
 
 test('diário: excluir entrada com confirmação', async ({ page }) => {
-  await page.goto('/#/diario')
+  await page.goto('/#/diary')
   await page.locator('[data-dayry-new]').click()
   await page.locator('[data-dayry-editor]').fill('conteúdo que será excluído')
   await expect
@@ -72,7 +72,7 @@ test('diário: excluir entrada com confirmação', async ({ page }) => {
 })
 
 test('diário: importa crônicas em massa via markdown (e pula dias que já existem)', async ({ page }) => {
-  await page.goto('/#/diario')
+  await page.goto('/#/diary')
 
   // abre o modal de importação e cola markdown com 2 entradas
   await page.locator('[data-dayry-import]').click()

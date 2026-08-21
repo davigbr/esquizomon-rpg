@@ -38,7 +38,7 @@ async function semearPendentes(page: import('@playwright/test').Page): Promise<v
 
 test('check-in: tudo vem desmarcado; marcar um item conclui em ontem e o resto sofre dano', async ({ page }) => {
   await semearPendentes(page)
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
 
   // modal "Tarefas de ontem" com as 2 pendentes DESMARCADAS
   await expect(page.locator('.checkin-item')).toHaveCount(2)
@@ -60,7 +60,7 @@ test('check-in: tudo vem desmarcado; marcar um item conclui em ontem e o resto s
 
 test('check-in: confirmar sem marcar nada equivale a pular (dano em todas)', async ({ page }) => {
   await semearPendentes(page)
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
 
   await expect(page.locator('.checkin-item')).toHaveCount(2)
   await page.locator('[data-checkin-confirm]').click()
@@ -73,7 +73,7 @@ test('check-in: confirmar sem marcar nada equivale a pular (dano em todas)', asy
 })
 
 test('sem pendentes: nenhum modal aparece no novo dia', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await expect(page.locator('#modal')).toBeHidden()
   await expect(page.locator('.checkin-item')).toHaveCount(0)
 })

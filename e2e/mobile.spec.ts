@@ -4,14 +4,14 @@ import { test, expect } from '@playwright/test'
 test.use({ viewport: { width: 390, height: 844 } })
 
 test('mobile: navbar vira menu somente de ícones (rótulos escondidos)', async ({ page }) => {
-  await page.goto('/#/hoje')
-  const rotulo = page.locator('[data-rota="hoje"] .nav-text')
+  await page.goto('/#/today')
+  const rotulo = page.locator('[data-rota="today"] .nav-text')
   await expect(rotulo).toBeHidden()
-  await expect(page.locator('[data-rota="hoje"] i')).toBeVisible()
+  await expect(page.locator('[data-rota="today"] i')).toBeVisible()
 })
 
 test('mobile: Fábula abre como página fullscreen (cobre a tela toda)', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await expect(page.locator('#fabula-panel')).toHaveClass(/open/)
   // espera a transição de abertura (0.28s) terminar antes de medir
@@ -45,7 +45,7 @@ test('mobile: nome monstruoso fica ACIMA do nível, tudo centralizado verticalme
       }),
     )
   })
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   // nome monstruoso VISÍVEL, ACIMA do nível (mesma column à direita da foto)
   await expect(page.locator('.status-name')).toBeVisible()
   const nome = await page.locator('.status-name').boundingBox()
@@ -61,7 +61,7 @@ test('mobile: nome monstruoso fica ACIMA do nível, tudo centralizado verticalme
 })
 
 test('mobile: status bar empilha as barras (vida → XP → mana) com nível à esquerda', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   const hp = await page.locator('.status-item--hp').boundingBox()
   const xp = await page.locator('.status-item--xp').boundingBox()
   const mana = await page.locator('.status-item--mana').boundingBox()
@@ -78,7 +78,7 @@ test('mobile: status bar empilha as barras (vida → XP → mana) com nível à 
 })
 
 test('mobile: seletor de conversas vira faixa horizontal no topo', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   const lateral = await page.locator('.fable-side').boundingBox()
   expect(lateral).not.toBeNull()

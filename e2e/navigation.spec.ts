@@ -2,15 +2,15 @@
 import { test, expect } from '@playwright/test'
 
 test('navegação: todas as rotas abrem com conteúdo', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await expect(page.locator('main h1')).toBeVisible()
 
   const rotas: Array<[string, RegExp]> = [
-    ['ficha', /Jogo/],
-    ['cartas', /Cartas/],
-    ['historico', /Hist[óo]rico/],
-    ['diario', /Di[áa]rio/],
-    ['config', /Config/],
+    ['sheet', /Jogo/],
+    ['cards', /Cartas/],
+    ['history', /Hist[óo]rico/],
+    ['diary', /Di[áa]rio/],
+    ['settings', /Config/],
   ]
   for (const [rota, titulo] of rotas) {
     await page.locator(`[data-rota="${rota}"]`).click()
@@ -18,12 +18,12 @@ test('navegação: todas as rotas abrem com conteúdo', async ({ page }) => {
     await expect(page.locator('main h1')).toHaveText(titulo)
   }
   // volta pra Hoje
-  await page.locator('[data-rota="hoje"]').click()
-  await expect(page).toHaveURL(/#\/hoje$/)
+  await page.locator('[data-rota="today"]').click()
+  await expect(page).toHaveURL(/\/#\/today$/)
 })
 
 test('barra de status global mostra nível, HP, XP e mana', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await expect(page.locator('[data-s-nivel]')).toHaveText('Nv 1')
   await expect(page.locator('[data-s-hp]')).toHaveText('50/50')
   await expect(page.locator('[data-s-xp]')).toHaveText('XP 0/80')

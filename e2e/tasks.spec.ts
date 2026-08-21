@@ -2,7 +2,7 @@
 import { test, expect } from '@playwright/test'
 
 test('criar tarefa única, marcar (XP sobe) e desmarcar (XP reverte)', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await expect(page.locator('[data-s-xp]')).toHaveText('XP 0/80')
 
   // cria tarefa fácil (1× → +10 XP)
@@ -28,7 +28,7 @@ test('criar tarefa única, marcar (XP sobe) e desmarcar (XP reverte)', async ({ 
 })
 
 test('hábito: repetição positiva dá XP e registra no histórico', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await expect(page.locator('[data-s-xp]')).toHaveText('XP 0/80')
 
   await page.locator('[data-new-type="habito"]').click()
@@ -45,7 +45,7 @@ test('hábito: repetição positiva dá XP e registra no histórico', async ({ p
 })
 
 test('recorrente: marca o dia no histórico e desmarca', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
 
   await page.locator('[data-new-type="recorrente"]').click()
   await page.locator('input[name="title"]').fill('Diária E2E')
@@ -68,7 +68,7 @@ test('recorrente: marca o dia no histórico e desmarca', async ({ page }) => {
 })
 
 test('hábito: repetição negativa EXTREMA tira 12 de vida (dano escala com a dificuldade)', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await expect(page.locator('[data-s-hp]')).toHaveText('50/50')
 
   // cria hábito de dificuldade extrema (×2.5 → danoDe = 12)
@@ -92,7 +92,7 @@ test('hábito: repetição negativa EXTREMA tira 12 de vida (dano escala com a d
 })
 
 test('hábito: negativo marcado em ontem persiste e aparece ativo ao voltar para aquele dia', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
 
   // cria hábito com sinais ambos
   await page.locator('[data-new-type="habito"]').click()

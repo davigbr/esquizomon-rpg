@@ -91,6 +91,8 @@ const MESSAGES: Cat = {
     'hoje.posHoje': 'Positivos hoje',
     'hoje.negHoje': 'Negativos hoje',
     'hoje.seq': 'Dias seguidos com repetição positiva',
+    'hoje.hoje': 'Hoje',
+    'hoje.ontem': 'Ontem',
     'hoje.diaHoje': ' hoje',
     'hoje.diaReferido': ' no dia referido',
     'hoje.repNegativa': 'Repetição negativa',
@@ -540,7 +542,10 @@ const MESSAGES: Cat = {
     'hoje.posHoje': 'Positive today',
     'hoje.negHoje': 'Negative today',
     'hoje.seq': 'Consecutive days with positive repetition',
+    'hoje.hoje': 'Today',
+    'hoje.ontem': 'Yesterday',
     'hoje.diaHoje': ' today',
+
     'hoje.diaReferido': ' on the referenced day',
     'hoje.repNegativa': 'Negative repetition',
     'hoje.repPositiva': 'Positive repetition',
@@ -957,7 +962,13 @@ export function t(key: string, vars?: Record<string, string | number>): string {
   return fill(val, vars)
 }
 
-/** Sets a data attribute on <html> so CSS/i18n-ready selectors can react. */
+/** Sets a data attribute on <html> so CSS/i18n-ready selectors can react, and
+ *  fills `[data-i18n]` elements (static HTML like the nav labels) with the
+ *  active-language text. */
 export function applyLangAttr(): void {
   document.documentElement.dataset.lang = getLang()
+  document.querySelectorAll<HTMLElement>('[data-i18n]').forEach((el) => {
+    const key = el.dataset.i18n
+    if (key) el.textContent = t(key)
+  })
 }

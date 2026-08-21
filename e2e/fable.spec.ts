@@ -40,7 +40,7 @@ async function semear(page: import('@playwright/test').Page): Promise<void> {
 
 test('config: efeitos sonoros têm toggle persistente (padrão ligado)', async ({ page }) => {
   await semear(page)
-  await page.goto('/#/config')
+  await page.goto('/#/settings')
   const sel = page.locator('[data-sons]')
   await expect(sel).toHaveValue('on') // padrão ligado
   await sel.selectOption('off')
@@ -54,7 +54,7 @@ test('config: efeitos sonoros têm toggle persistente (padrão ligado)', async (
 })
 
 test('config: tema tem opção "sistema" como padrão e persiste a escolha', async ({ page }) => {
-  await page.goto('/#/config') // sem seed: instalação nova
+  await page.goto('/#/settings') // sem seed: instalação nova
   const sel = page.locator('[data-tema]')
   await expect(sel).toHaveValue('sistema') // padrão = segue o SO
   await sel.selectOption('dark')
@@ -66,7 +66,7 @@ test('config: tema tem opção "sistema" como padrão e persiste a escolha', asy
 
 test('config: avatar — upload, corte quadrado, compressão e exibição ao lado do nível', async ({ page }) => {
   await semear(page)
-  await page.goto('/#/config')
+  await page.goto('/#/settings')
   await page.locator('[data-avatar-choose]').click()
   await page.locator('[data-avatar-arquivo]').setInputFiles({
     name: 'avatar.png',
@@ -86,14 +86,14 @@ test('config: avatar — upload, corte quadrado, compressão e exibição ao lad
     )
     .toBe(true)
   // status bar: avatar à esquerda do nível
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   const avatar = await page.locator('.status-avatar').boundingBox()
   const nivel = await page.locator('.status-item--nivel').boundingBox()
   expect(avatar).not.toBeNull()
   expect(nivel).not.toBeNull()
   expect(avatar!.x).toBeLessThan(nivel!.x)
   // remover com confirmação
-  await page.goto('/#/config')
+  await page.goto('/#/settings')
   await page.locator('[data-avatar-remove]').click()
   await page.locator('[data-modal-confirm]').click()
   await expect
@@ -103,7 +103,7 @@ test('config: avatar — upload, corte quadrado, compressão e exibição ao lad
 
 test('config: nome monstruoso salva e aparece em negrito ao lado do avatar', async ({ page }) => {
   await semearChat(page)
-  await page.goto('/#/config')
+  await page.goto('/#/settings')
   await page.locator('[data-monster-name]').fill('Devorador de Segundas')
   await page.locator('[data-monster-name]').blur()
   await expect.poll(() =>
@@ -111,7 +111,7 @@ test('config: nome monstruoso salva e aparece em negrito ao lado do avatar', asy
   ).toBe('Devorador de Segundas')
 
   // status bar: nome bold à direita do avatar
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.evaluate(() => {
     const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
     d.character.avatar = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
@@ -140,7 +140,7 @@ test('config: nome monstruoso salva e aparece em negrito ao lado do avatar', asy
 })
 
 test('config: "Sobre você" salva o resumo e persiste no reload', async ({ page }) => {
-  await page.goto('/#/config')
+  await page.goto('/#/settings')
   const field = page.locator('[data-resumo]')
   await expect(field).toBeVisible()
   await field.fill('Mestrando em psicologia, atendo, escrevo, treino calistenia.')
@@ -158,10 +158,10 @@ test('config: "Sobre você" salva o resumo e persiste no reload', async ({ page 
 
 test('fabula: prompt injeta {resumo}, cartas desbloqueadas e o protocolo de invocação', async ({ page }) => {
   await semear(page)
-  await page.goto('/#/config')
+  await page.goto('/#/settings')
   await page.locator('[data-resumo]').fill('Vivo com a Aline e duas gatas.')
   await page.locator('[data-resumo]').blur()
-  await page.goto('/#/diario')
+  await page.goto('/#/diary')
   await page.locator('[data-dayry-new]').click()
   await page.locator('[data-dayry-editor]').fill('Hoje lembrei do Ninho Enclausurado.')
   await page.keyboard.press('Tab')
@@ -181,7 +181,7 @@ test('fabula: prompt injeta {resumo}, cartas desbloqueadas e o protocolo de invo
 })
 
 test('fabula: marcador [[acao:invocar]] é extraído e removido do texto', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   const res = await page.evaluate(async () => {
     const { extractActions } = await import('/src/ia/acoes')
     return extractActions(
@@ -203,7 +203,7 @@ test('fabula: marcador [[acao:invocar]] é extraído e removido do texto', async
 
 test('fabula: as últimas entradas do diário entram NA ÍNTEGRA no prompt (sem truncar)', async ({ page }) => {
   await semear(page)
-  await page.goto('/#/diario')
+  await page.goto('/#/diary')
   await page.locator('[data-dayry-new]').click()
 
   // entrada longa (bem acima do antigo corte de 600 chars)
@@ -229,7 +229,7 @@ test('fabula: as últimas entradas do diário entram NA ÍNTEGRA no prompt (sem 
 
 test('fabula: invokeCard (via chat) desconta mana e registra', async ({ page }) => {
   await semear(page)
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 20/20')
 
   const res = await page.evaluate(async () => {
@@ -292,7 +292,7 @@ test('fabula: o histórico completo vai pra IA (mensagens anteriores + a atual)'
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('Resposta da Fábula') })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click() // cria a conversa (input desabilita sem ela)
   const input = page.locator('[data-fabula-input]')
@@ -320,7 +320,7 @@ test('fabula: "invoca a carta X" executa no app, desconta mana e mostra a miniat
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('A carta chega.') })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click() // cria a conversa
   await page.locator('[data-fabula-input]').fill('invoca a carta Ninho Enclausurado')
@@ -394,7 +394,7 @@ test('fabula: cada mensagem tem botão copiar (markdown; carta vira nome)', asyn
     }
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
@@ -435,7 +435,7 @@ test('fabula: conversa pode ser renomeada (Enter salva e persiste)', async ({ pa
     localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.click('[data-fabula-renomear]')
 
@@ -465,7 +465,7 @@ test('fabula: mencionar uma carta NÃO invoca (mana intacta; marcador do modelo 
     })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('essa carta Ninho Enclausurado me visitou no diário')
@@ -484,7 +484,7 @@ test('fabula: /invocar com autocomplete escolhe a carta e invoca (mana normal)',
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('A carta chega.') })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   const input = page.locator('[data-fabula-input]')
@@ -528,7 +528,7 @@ test('fabula: /invocar sem nome — a Fábula escolhe a carta (custo premium ×1
     })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('/invocar')
@@ -555,7 +555,7 @@ test('fabula: /analisar desconta 10 de mana e pede análise esquizoanalítica', 
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('Sua máquina do mês...') })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('/analisar')
@@ -576,7 +576,7 @@ test('fabula: /analisar desconta 10 de mana e pede análise esquizoanalítica', 
 
 test('hábito: marcar no dia anterior (ontem) marca retroativo e dá XP', async ({ page }) => {
   await semear(page)
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   // adiciona um hábito positivo ao estado
   await page.evaluate(async () => {
     const mod = await import('/src/stores/app')
@@ -620,7 +620,7 @@ test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async 
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('Que conexão linda...') })
   })
   const hoje = dataLocal()
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.evaluate(
     async (h: string) => {
       const mod = await import('/src/stores/app')
@@ -665,7 +665,7 @@ test('fabula: /capturas desconta 25 de mana e pede a varredura das capturas', as
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('A Câmara dos Ecos está active...') })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   // o seed traz mana 20/max 20 — o /capturas custa 25; subir no STORE (o app
   // normaliza o storage no boot e o addInitScript extra não sobrevive)
   await page.evaluate(async () => {
@@ -706,7 +706,7 @@ test('fabula: /capturas sem mana — a Fábula explica no chat (mana intacta)', 
     localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('/capturas')
@@ -730,7 +730,7 @@ test('fabula: /analisar sem mana — a Fábula explica no chat (mana intacta)', 
     localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('/analisar')
@@ -753,7 +753,7 @@ test('fabula: resposta vazia do modelo vira erro visível (sem bolha vazia)', as
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: 'data: [DONE]\n' })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('olá')
@@ -772,7 +772,7 @@ test('fabula: resposta em markdown renderiza negrito, lista, tabela e itálico n
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake(markdown) })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('escreva markdown')
@@ -799,7 +799,7 @@ test('fabula: resposta em markdown renderiza negrito, lista, tabela e itálico n
 test('fabula: sem conversas — o chat inicia uma automaticamente ao abrir', async ({ page }) => {
   await semear(page) // conversations: []
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
 
   // uma conversa foi criada, com o título padrão de DATA/HORA, e o input habilitado
@@ -816,7 +816,7 @@ test('fabula: sem conversas — o chat inicia uma automaticamente ao abrir', asy
 
 test('config: rerolar baralho pede confirmação e mantém o total de cartas', async ({ page }) => {
   await semear(page)
-  await page.goto('/#/config')
+  await page.goto('/#/settings')
   const antes = await page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.character?.cards?.length ?? 0))
   expect(antes).toBeGreaterThan(0)
   await page.locator('[data-reshuffle-cards]').click()

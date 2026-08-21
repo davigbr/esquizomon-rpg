@@ -3,7 +3,7 @@
 import { test, expect } from '@playwright/test'
 
 test('config: seção conta mostra aviso de dados locais e status offline', async ({ page }) => {
-  await page.goto('/#/config')
+  await page.goto('/#/settings')
 
   // seção presente com o aviso honesto sobre dados locais
   await expect(page.locator('h3', { hasText: 'Conta e sincronização' })).toBeVisible()
@@ -18,7 +18,7 @@ test('config: seção conta mostra aviso de dados locais e status offline', asyn
 })
 
 test('config: modal de login abre com abas e falha graciosamente offline', async ({ page }) => {
-  await page.goto('/#/config')
+  await page.goto('/#/settings')
   await page.locator('[data-login]').click()
 
   const modal = page.locator('#modal')

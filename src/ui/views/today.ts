@@ -36,7 +36,7 @@ export function mountToday(root: HTMLElement, data: AppData): void {
   const todayReal = todayISO()
   const isToday = visibleDate === todayReal
   const isYesterday = visibleDate === addDays(todayReal, -1)
-  const label = isToday ? 'Hoje' : isYesterday ? 'Ontem' : formatWeekday(visibleDate)
+  const label = isToday ? t('hoje.hoje') : isYesterday ? t('hoje.ontem') : formatWeekday(visibleDate)
   const weekday = dayOfWeek(new Date(visibleDate + 'T12:00:00'))
   const dayOfMonthNum = dayOfMonth(new Date(visibleDate + 'T12:00:00'))
   const tags = tagsInUse(data)

@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 /* Per-entity merge core (sync path "E"). */
 
 test('sync: mergeData mescla criações dos dois lados (nada se perde)', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   const r = await page.evaluate(async () => {
     const { mergeData } = await import('/src/core/syncMerge')
     const t = (id: string, title: string, updatedAt: string) => ({
@@ -21,7 +21,7 @@ test('sync: mergeData mescla criações dos dois lados (nada se perde)', async (
 })
 
 test('sync: exclusão não é revertida pelo merge (tombstone)', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   const r = await page.evaluate(async () => {
     const { mergeData } = await import('/src/core/syncMerge')
     const t = (id: string, title: string, updatedAt: string) => ({
@@ -39,7 +39,7 @@ test('sync: exclusão não é revertida pelo merge (tombstone)', async ({ page }
 })
 
 test('sync: conflito na mesma tarefa vence a mais recente', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   const r = await page.evaluate(async () => {
     const { mergeData } = await import('/src/core/syncMerge')
     const t = (title: string, updatedAt: string) => ({
@@ -107,7 +107,7 @@ test('sync ponta a ponta: dois dispositivos convergem sem perder criações', as
     localStorage.setItem('esquizomon-rpg:auth', JSON.stringify({ accessToken: 'tok', refreshToken: 'rt', expiresAt: 4102444800000, user: { id: 'u1', email: 'x@y.z' } }))
   }, ['a', 'local-a'])
   await rotaSync(pageA)
-  await pageA.goto(base + '/#/hoje')
+  await pageA.goto(base + '/#/today')
   await pageA.waitForTimeout(3000) // boot: GET (empty) → PUT
   expect((nuvem.dados as { tasks?: Array<{ title: string }> })?.tasks?.map((t) => t.title).sort()).toEqual(['local-a'])
 
@@ -127,7 +127,7 @@ test('sync ponta a ponta: dois dispositivos convergem sem perder criações', as
     localStorage.setItem('esquizomon-rpg:auth', JSON.stringify({ accessToken: 'tok', refreshToken: 'rt', expiresAt: 4102444800000, user: { id: 'u1', email: 'x@y.z' } }))
   }, ['b', 'local-b'])
   await rotaSync(pageB)
-  await pageB.goto(base + '/#/hoje')
+  await pageB.goto(base + '/#/today')
   await pageB.waitForTimeout(3000) // boot: GET (local-a) → merge → apply a+b → PUT
   expect(await verificar(pageB)).toEqual(['local-a', 'local-b']) // NADA se perde
   expect((nuvem.dados as { tasks?: Array<{ title: string }> })?.tasks?.map((t) => t.title).sort()).toEqual(['local-a', 'local-b'])
@@ -143,7 +143,7 @@ test('sync ponta a ponta: dois dispositivos convergem sem perder criações', as
     localStorage.setItem('esquizomon-rpg:auth', JSON.stringify({ accessToken: 'tok', refreshToken: 'rt', expiresAt: 4102444800000, user: { id: 'u1', email: 'x@y.z' } }))
   })
   await rotaSync(pageA2)
-  await pageA2.goto(base + '/#/hoje')
+  await pageA2.goto(base + '/#/today')
   await pageA2.waitForTimeout(3000)
   expect(await verificar(pageA2)).toEqual(['local-a', 'local-b'])
   await ctxA2.close()

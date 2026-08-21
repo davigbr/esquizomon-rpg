@@ -23,33 +23,33 @@ import { applyLangAttr, t, LOCALE, getLang } from './i18n'
 const root = document.getElementById('app')!
 const navLinks = document.querySelectorAll<HTMLAnchorElement>('[data-rota]')
 
-type Route = 'hoje' | 'ficha' | 'cartas' | 'historico' | 'diario' | 'config'
+type Route = 'today' | 'sheet' | 'cards' | 'history' | 'diary' | 'settings'
 
 function currentRoute(): Route {
   const hash = location.hash.replace(/^#\/?/, '')
-  if (hash === 'ficha' || hash === 'cartas' || hash === 'historico' || hash === 'diario' || hash === 'config') return hash
-  return 'hoje'
+  if (hash === 'sheet' || hash === 'cards' || hash === 'history' || hash === 'diary' || hash === 'settings') return hash
+  return 'today'
 }
 
 function mountRoute(route: Route): void {
   const data = appStore.get()
   switch (route) {
-    case 'hoje':
+    case 'today':
       mountToday(root, data)
       break
-    case 'ficha':
+    case 'sheet':
       mountSheet(root, data)
       break
-    case 'cartas':
+    case 'cards':
       mountCards(root, data)
       break
-    case 'historico':
+    case 'history':
       mountHistory(root, data)
       break
-    case 'diario':
+    case 'diary':
       mountDiary(root, data)
       break
-    case 'config':
+    case 'settings':
       mountSettings(root, data)
       break
   }

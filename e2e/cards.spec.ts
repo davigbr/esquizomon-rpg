@@ -3,7 +3,7 @@
 import { test, expect } from '@playwright/test'
 
 test('cartas: galeria mostra cartas iniciais desbloqueadas e bloqueadas', async ({ page }) => {
-  await page.goto('/#/cartas')
+  await page.goto('/#/cards')
 
   // o deck carrega (import estático agora) — espera as iniciais aparecerem
   const desbloqueadas = page.locator('.card-item:not(.card-item--blocked)')
@@ -14,7 +14,7 @@ test('cartas: galeria mostra cartas iniciais desbloqueadas e bloqueadas', async 
 })
 
 test('cartas: modal não tem mais botão Invocar — invocação é pelo chat', async ({ page }) => {
-  await page.goto('/#/cartas')
+  await page.goto('/#/cards')
 
   const primeira = page.locator('.card-item:not(.card-item--blocked)').first()
   await expect(primeira).toBeVisible({ timeout: 15_000 })
