@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 /** Generic promised modal — Escape/backdrop close; focus returned to the opener. */
 
 const overlay = document.getElementById('modal')!
@@ -27,7 +28,7 @@ document.addEventListener('keydown', (e) => {
 })
 
 /** Promised confirmation — resolves true only if the user confirms. */
-export function confirm(msg: string, label = 'Confirmar'): Promise<boolean> {
+export function confirm(msg: string, label = t('comum.confirmar')): Promise<boolean> {
   return new Promise((resolve) => {
     const onClose = () => {
       closeModal()
@@ -38,10 +39,10 @@ export function confirm(msg: string, label = 'Confirmar'): Promise<boolean> {
       if (e.key === 'Escape') onClose()
     }
     openModal(`
-      <h2>Confirmar</h2>
+      <h2>${t('comum.confirmar')}</h2>
       <p style="color:var(--text-secondary);font-size:14px;margin:0 0 20px">${msg}</p>
       <div class="form-actions">
-        <button class="btn" data-modal-cancel>Cancelar</button>
+        <button class="btn" data-modal-cancel>${t('comum.cancelar')}</button>
         <button class="btn btn-primary" data-modal-confirm>${label}</button>
       </div>
     `)

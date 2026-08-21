@@ -236,17 +236,17 @@ export function mountToday(root: HTMLElement, data: AppData): void {
       return
     }
     if (action.dataset.edit !== undefined) {
-      const t = data.tasks.find((x) => x.id === id)
-      if (t) openTaskForm(t)
+      const task = data.tasks.find((x) => x.id === id)
+      if (task) openTaskForm(task)
       return
     }
     if (action.dataset.delete !== undefined) {
-      const t = data.tasks.find((x) => x.id === id)
-      if (t) {
-        void confirm(`Excluir "${t.title}"?`, 'Excluir').then((ok) => {
+      const task = data.tasks.find((x) => x.id === id)
+      if (task) {
+        void confirm(t('hoje.excluirMsg', { titulo: task.title }), t('hoje.excluir')).then((ok) => {
           if (ok) {
             deleteTask(id)
-            notify('Excluído.')
+            notify(t('hoje.excluido'))
           }
         })
       }
@@ -260,18 +260,18 @@ function appliesToday(t: Task, weekday: number, dayOfMonthNum: number): boolean 
   return !t.agenda || t.agenda.days.length === 0 || t.agenda.days.includes(weekday)
 }
 
-function habitCard(t: Task, isToday: boolean, isYesterday: boolean): string {
-  const d = difficultyMeta(t.difficulty)
-  const streak = calcStreak(t.history, visibleDate)
+function habitCard(h: Task, isToday: boolean, isYesterday: boolean): string {
+  const d = difficultyMeta(h.difficulty)
+  const streak = calcStreak(h.history, visibleDate)
   // past day: shows if it was marked on it (derived from history);
   // today: uses the day counter
-  const negHist = t.negativeHistory ?? []
+  const negHist = h.negativeHistory ?? []
   const negativeThisDay = !isToday && negHist.includes(visibleDate)
-  const markedThisDay = !isToday && t.history.includes(visibleDate)
-  const todayPos = isToday ? (t.counter?.today ?? 0) : markedThisDay ? 1 : 0
-  const todayNeg = isToday ? (t.counter?.todayNeg ?? 0) : negativeThisDay ? 1 : 0
-  const sign = t.sign ?? 'positivo'
-  const oldClass = ageClass(t)
+  const markedThisDay = !isToday && h.history.includes(visibleDate)
+  const todayPos = isToday ? (h.counter?.today ?? 0) : markedThisDay ? 1 : 0
+  const todayNeg = isToday ? (h.counter?.todayNeg ?? 0) : negativeThisDay ? 1 : 0
+  const sign = h.sign ?? 'positivo'
+  const oldClass = ageClass(h)
   // allows marking on TODAY and YESTERDAY (retroactive — adjusts streak/XP); never further back
   const canMark = isToday || isYesterday
   const canPositive = (sign === 'positivo' || sign === 'ambos') && canMark
@@ -281,25 +281,25 @@ function habitCard(t: Task, isToday: boolean, isYesterday: boolean): string {
   const negActive = todayNeg > 0
   const dayLabel = isToday ? ' hoje' : ' no dia referido'
   return `
-    <div class="task-card habit-card${oldClass}" draggable="true" data-id="${t.id}">
-      <button class="habit-side habit-side--neg${negActive ? ' active' : ''}" data-habit="negativo" data-id="${t.id}" aria-label="Repetição negativa" title="${negActive ? `Negativo${dayLabel} (${todayNeg}×)` : 'Repetição negativa'}" ${!canNegative ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
+    <div class="task-card habit-card${oldClass}" draggable="true" data-id="${h.id}">
+      <button class="habit-side habit-side--neg${negActive ? ' active' : ''}" data-habit="negativo" data-id="${h.id}" aria-label="Repetição negativa" title="${negActive ? `Negativo${dayLabel} (${todayNeg}×)` : 'Repetição negativa'}" ${!canNegative ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
       <div class="task-body">
-        <p class="task-title">${escapeHtml(t.title)}</p>
-        ${t.notes ? `<p class="task-notes">${renderNotes(t.notes)}</p>` : ''}
+        <p class="task-title">${escapeHtml(h.title)}</p>
+        ${h.notes ? `<p class="task-notes">${renderNotes(h.notes)}</p>` : ''}
         <div class="task-meta">
-          <span class="badge badge--${t.difficulty}">${d.label}</span>
-          <span class="badge badge--hab-pos" title="Positivos hoje">+${todayPos}</span>
-          <span class="badge badge--hab-neg" title="Negativos hoje">−${todayNeg}</span>
-          <span class="badge" title="Dias seguidos com repetição positiva">seq ${streak}</span>
-          ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapeHtml(tag)}</span>`).join('')}
-          ${ageBadge(t)}
+          <span class="badge badge--${h.difficulty}">${d.label}</span>
+          <span class="badge badge--hab-pos" title="${t('hoje.posHoje')}">+${todayPos}</span>
+          <span class="badge badge--hab-neg" title="${t('hoje.negHoje')}">−${todayNeg}</span>
+          <span class="badge" title="${t('hoje.seq')}">seq ${streak}</span>
+          ${h.tags.map((tag) => `<span class="badge badge--tag">#${escapeHtml(tag)}</span>`).join('')}
+          ${ageBadge(h)}
         </div>
       </div>
       <div class="task-actions">
-        <button class="btn btn-icon" data-edit data-id="${t.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
-        <button class="btn btn-icon" data-delete data-id="${t.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-edit data-id="${h.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-delete data-id="${h.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       </div>
-      <button class="habit-side habit-side--pos${posActive ? ' active' : ''}" data-habit="positivo" data-id="${t.id}" aria-label="Repetição positiva" title="${posActive ? `Positivo${dayLabel} (${todayPos}×)` : 'Repetição positiva'}" ${!canPositive ? 'disabled' : ''}><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+      <button class="habit-side habit-side--pos${posActive ? ' active' : ''}" data-habit="positivo" data-id="${h.id}" aria-label="Repetição positiva" title="${posActive ? `Positivo${dayLabel} (${todayPos}×)` : 'Repetição positiva'}" ${!canPositive ? 'disabled' : ''}><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
     </div>
   `
 }

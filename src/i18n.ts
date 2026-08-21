@@ -432,6 +432,10 @@ const MESSAGES: Cat = {
     'form.atualizada': 'Tarefa atualizada.',
     'form.criada': 'Tarefa criada.',
 
+    // ---- hoje (adicionais) ----
+    'hoje.excluirMsg': 'Excluir "{titulo}"?',
+    'hoje.excluido': 'Excluído.',
+
     // ---- ficha ----
     'ficha.titulo': 'Jogo',
     'ficha.sub': 'Regras, coleção e progressão.',
@@ -504,6 +508,8 @@ const MESSAGES: Cat = {
     'hoje.jaMarcado': 'Already marked on this day.',
     'hoje.editar': 'Edit',
     'hoje.excluir': 'Delete',
+    'hoje.excluirMsg': 'Delete "{titulo}"?',
+    'hoje.excluido': 'Deleted.',
     'hoje.ordemAtualizada': 'Order updated.',
     'hoje.concluir': 'Complete',
     'hoje.reabrir': 'Reopen',
