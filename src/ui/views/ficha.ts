@@ -1,7 +1,7 @@
 /** Game view — how the game works, progression and deck progress. */
 
 import type { AppData } from '../../core/tipos'
-import { damageFor, DIFFICULTIES, fullDeckLevel, hpMaxFor, manaMaxFor, xpFor, xpNextFor } from '../../core/jogo'
+import { damageFor, DIFFICULTIES, difficultyMeta, fullDeckLevel, hpMaxFor, manaMaxFor, xpFor, xpNextFor } from '../../core/jogo'
 import { progressionChart } from '../graficos'
 
 /** Levels shown in the charts (up to the full deck). */
@@ -53,7 +53,7 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
           <tbody>
             ${DIFFICULTIES.map((d) => `
               <tr>
-                <th scope="row">${d.label}</th>
+                <th scope="row">${difficultyMeta(d.id).label}</th>
                 <td>×${d.multiplier}</td>
                 <td><b>+${xpFor(d.id)}</b></td>
               </tr>
@@ -78,13 +78,13 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
             ${DIFFICULTIES.map((d) => `
               <tr>
                 <th scope="row">Recorrente perdida</th>
-                <td>${d.label}</td>
+                <td>${difficultyMeta(d.id).label}</td>
                 <td><b>−${damageFor(d.id)}</b></td>
               </tr>
             `).join('')}
             <tr>
               <th scope="row">Hábito negativo</th>
-              <td>${DIFFICULTIES[0].label} a ${DIFFICULTIES[DIFFICULTIES.length - 1].label}</td>
+              <td>${difficultyMeta(DIFFICULTIES[0].id).label} a ${difficultyMeta(DIFFICULTIES[DIFFICULTIES.length - 1].id).label}</td>
               <td><b>−${damageFor(DIFFICULTIES[0].id)} a −${damageFor(DIFFICULTIES[DIFFICULTIES.length - 1].id)}</b></td>
             </tr>
           </tbody>

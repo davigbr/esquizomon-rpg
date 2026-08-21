@@ -1,20 +1,21 @@
 /** Game constants — difficulty, multipliers (Habitica reference) and dates. */
 
 import type { Difficulty } from './tipos'
+import { t, LOCALE, getLang } from '../i18n'
 
 export const DIFFICULTIES: ReadonlyArray<{
   id: Difficulty
-  label: string
   multiplier: number
 }> = [
-  { id: 'facil', label: 'Fácil', multiplier: 1 },
-  { id: 'media', label: 'Média', multiplier: 1.5 },
-  { id: 'dificil', label: 'Difícil', multiplier: 2 },
-  { id: 'extrema', label: 'Extrema', multiplier: 2.5 },
+  { id: 'facil', multiplier: 1 },
+  { id: 'media', multiplier: 1.5 },
+  { id: 'dificil', multiplier: 2 },
+  { id: 'extrema', multiplier: 2.5 },
 ]
 
 export function difficultyMeta(id: Difficulty) {
-  return DIFFICULTIES.find((d) => d.id === id) ?? DIFFICULTIES[1]
+  const d = DIFFICULTIES.find((x) => x.id === id) ?? DIFFICULTIES[1]
+  return { ...d, label: t(`dif.${d.id}`) }
 }
 
 /** XP granted per completion, by difficulty (base 10 × multiplier). */
@@ -155,15 +156,15 @@ export function todayISO(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-/** ISO date spelled out in pt-BR (without the weekday), e.g. "3 de agosto de 2026". */
+/** ISO date spelled out in the active locale, e.g. "3 de agosto de 2026" / "August 3, 2026". */
 export function formatLongDate(iso: string): string {
   const d = new Date(iso + 'T12:00:00')
-  return d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
+  return d.toLocaleDateString(LOCALE[getLang()], { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-/** Weekday name spelled out (capitalized), e.g. "Segunda-feira". */
+/** Weekday name spelled out (capitalized), e.g. "Segunda-feira" / "Monday". */
 export function formatWeekday(iso: string): string {
-  const name = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })
+  const name = new Date(iso + 'T12:00:00').toLocaleDateString(LOCALE[getLang()], { weekday: 'long' })
   return name.charAt(0).toUpperCase() + name.slice(1)
 }
 

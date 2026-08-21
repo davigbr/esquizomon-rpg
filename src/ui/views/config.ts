@@ -13,6 +13,7 @@ import { currentSession } from '../../sync/auth'
 import { getBackups, onSessionChange, restoreBackup, subscribeSync, syncNow } from '../../sync/sync'
 import type { SyncState } from '../../sync/sync'
 import { openLoginModal } from '../loginModal'
+import { getLang, setLang } from '../../i18n'
 
 const DEFAULT_AI: AiConfig = {
   provider: 'nenhum',
@@ -72,6 +73,21 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
           <option value="sistema" ${theme === 'sistema' ? 'selected' : ''}>Sistema</option>
           <option value="dark" ${theme === 'dark' ? 'selected' : ''}>Escuro</option>
           <option value="light" ${theme === 'light' ? 'selected' : ''}>Claro</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3>Idioma</h3>
+      <p>O idioma da interface vale para este dispositivo.</p>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Idioma</div>
+          <div class="settings-hint">Português (padrão) ou English</div>
+        </div>
+        <select class="filter-select" data-lang-select>
+          <option value="pt" ${getLang() === 'pt' ? 'selected' : ''}>Português</option>
+          <option value="en" ${getLang() === 'en' ? 'selected' : ''}>English</option>
         </select>
       </div>
     </div>
@@ -149,6 +165,11 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
     const enabled = (e.target as HTMLSelectElement).value === 'on'
     setSettings({ sound: enabled })
     notify(enabled ? 'Efeitos sonoros ligados.' : 'Efeitos sonoros desligados.')
+  })
+
+  root.querySelector('[data-lang-select]')!.addEventListener('change', (e) => {
+    const value = (e.target as HTMLSelectElement).value === 'en' ? 'en' : 'pt'
+    setLang(value)
   })
 
   // avatar: choose file → crop editor; remove with confirmation

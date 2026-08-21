@@ -18,6 +18,7 @@ import { mountAccountButton } from './ui/headerConta'
 import { loadDeck } from './core/baralho'
 import { onPersistFailure, initialTheme } from './db/storage'
 import { notify } from './ui/toast'
+import { applyLangAttr, t, LOCALE, getLang } from './i18n'
 
 const root = document.getElementById('app')!
 const navLinks = document.querySelectorAll<HTMLAnchorElement>('[data-rota]')
@@ -242,15 +243,15 @@ checkDaily()
 function updateSyncStatus(): void {
   const el = document.querySelector<HTMLElement>('[data-s-sync]')
   if (!el) return
-  const t = getLastSync()
-  if (t) {
-    const d = new Date(t)
-    const hour = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const lastTs = getLastSync()
+  if (lastTs) {
+    const d = new Date(lastTs)
+    const hour = d.toLocaleTimeString(LOCALE[getLang()], { hour: '2-digit', minute: '2-digit' })
     el.innerHTML = `<i class="fa-solid fa-cloud" aria-hidden="true"></i><span>${hour}</span>`
-    el.title = `Última sincronização em ${d.toLocaleString('pt-BR')}`
+    el.title = `${t('sync.ultima')}: ${d.toLocaleString(LOCALE[getLang()])}`
   } else {
     el.innerHTML = '<i class="fa-solid fa-cloud" aria-hidden="true"></i><span>—</span>'
-    el.title = 'Ainda não sincronizado'
+    el.title = t('sync.nunca')
   }
 }
 
@@ -277,6 +278,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 }
 
 applyInitialTheme()
+applyLangAttr()
 mountStatusBar()
 subscribeSync(updateSyncStatus)
 updateSyncStatus()

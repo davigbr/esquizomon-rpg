@@ -20,6 +20,7 @@ import {
 import { appStore, deleteTask, recordHabit, reorderTasks, tagsInUse, toggleOneOff, toggleRecurringToday } from '../../stores/app'
 import { openTaskForm } from '../formTarefa'
 import { escapeHtml } from '../util'
+import { t } from '../../i18n'
 import { renderNotes } from '../notas'
 import { confirm } from '../modal'
 import { notify, notifyCards } from '../toast'
@@ -58,62 +59,62 @@ export function mountToday(root: HTMLElement, data: AppData): void {
   root.innerHTML = `
     <header class="view-header">
       <div class="view-header-navigation">
-        <button class="btn btn-icon" data-prev-day aria-label="Dia anterior"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-prev-day aria-label="${t('hoje.prevDay')}"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
         <h1>${escapeHtml(label)}</h1>
-        <button class="btn btn-icon" data-next-day aria-label="Dia seguinte" ${isToday ? 'disabled' : ''}><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-next-day aria-label="${t('hoje.nextDay')}" ${isToday ? 'disabled' : ''}><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
       </div>
       <p class="view-sub">${escapeHtml(formatLongDate(visibleDate))}</p>
     </header>
 
-    ${char.exhausted ? '<div class="sheet-depleted"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Esgotado — sem regeneração de mana até o próximo dia. Conclua tarefas para se recuperar.</div>' : ''}
+    ${char.exhausted ? `<div class="sheet-depleted"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> ${t('hoje.exhausted')}</div>` : ''}
 
     <div class="filters">
       ${tags.length > 0
-        ? `<span class="filters-label">Tag:</span>${tags
+        ? `<span class="filters-label">${t('hoje.tag')}</span>${tags
             .map((tag) => `<button class="filter-chip${filterTag === tag ? ' active' : ''}" data-filter-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`)
             .join('')}`
         : ''}
       <select class="filter-select" data-filter-difficulty>
-        <option value="">Todas as dificuldades</option>
+        <option value="">${t('hoje.todasDif')}</option>
         ${(['facil', 'media', 'dificil', 'extrema'] as Difficulty[])
           .map((d) => `<option value="${d}" ${filterDifficulty === d ? 'selected' : ''}>${difficultyMeta(d).label}</option>`)
           .join('')}
       </select>
-      <button class="filter-chip${showDone ? ' active' : ''}" data-filter-done><i class="fa-solid fa-check" aria-hidden="true"></i> Concluídas</button>
-      ${filterActive ? '<button class="btn btn-icon" data-clear-filters aria-label="Limpar filtros"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>' : ''}
+      <button class="filter-chip${showDone ? ' active' : ''}" data-filter-done><i class="fa-solid fa-check" aria-hidden="true"></i> ${t('hoje.concluidas')}</button>
+      ${filterActive ? `<button class="btn btn-icon" data-clear-filters aria-label="${t('hoje.limpar')}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>` : ''}
     </div>
 
     <div class="columns">
       <section class="column">
         <header class="column-header">
-          <h2>Hábitos</h2>
+          <h2>${t('hoje.colHabitual')}</h2>
           <span class="column-count">${habits.length}</span>
-          <button class="btn btn-icon column-add" data-new-type="habito" aria-label="Novo hábito"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+          <button class="btn btn-icon column-add" data-new-type="habito" aria-label="${t('hoje.novoHabito')}"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
         </header>
         <div class="column-cards">
-          ${habits.length === 0 ? emptyColumn('Nada aqui. Use + para adicionar.') : habits.map((t) => habitCard(t, isToday, isYesterday)).join('')}
+          ${habits.length === 0 ? emptyColumn(t('hoje.emptyHabit')) : habits.map((t) => habitCard(t, isToday, isYesterday)).join('')}
         </div>
       </section>
 
       <section class="column">
         <header class="column-header">
-          <h2>Recorrentes</h2>
+          <h2>${t('hoje.colRecorrentes')}</h2>
           <span class="column-count">${recurring.length}</span>
-          <button class="btn btn-icon column-add" data-new-type="recorrente" aria-label="Nova recorrente"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+          <button class="btn btn-icon column-add" data-new-type="recorrente" aria-label="${t('hoje.novaRecorrente')}"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
         </header>
         <div class="column-cards">
-          ${recurring.length === 0 ? emptyColumn('Nada marcado para este dia.') : recurring.map((t) => recurringCard(t, visibleDate)).join('')}
+          ${recurring.length === 0 ? emptyColumn(t('hoje.emptyRec')) : recurring.map((t) => recurringCard(t, visibleDate)).join('')}
         </div>
       </section>
 
       <section class="column">
         <header class="column-header">
-          <h2>Tarefas</h2>
+          <h2>${t('hoje.colTarefas')}</h2>
           <span class="column-count">${pending.length}</span>
-          <button class="btn btn-icon column-add" data-new-type="unica" aria-label="Nova tarefa"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+          <button class="btn btn-icon column-add" data-new-type="unica" aria-label="${t('hoje.novaTarefa')}"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
         </header>
         <div class="column-cards">
-          ${pending.length === 0 && done.length === 0 ? emptyColumn('Nada aqui. Use + para adicionar.') : ''}
+          ${pending.length === 0 && done.length === 0 ? emptyColumn(t('hoje.emptyHabit')) : ''}
           ${pending.map((t) => oneOffCard(t, false)).join('')}
           ${done.length > 0 ? `<div class="column-sub">Concluídas · ${done.length}</div>${done.map((t) => oneOffCard(t, true)).join('')}` : ''}
         </div>
