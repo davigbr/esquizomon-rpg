@@ -3,16 +3,17 @@
 import type { AppData, LogEvent, LogType } from '../../core/tipos'
 import { appStore } from '../../stores/app'
 import { escapeHtml } from '../util'
+import { t } from '../../i18n'
 
 /** FA icon and label per event type. */
 const TYPES: Record<LogType, { icon: string; label: string }> = {
-  tarefa: { icon: 'fa-list-check', label: 'Tarefas' },
-  habito: { icon: 'fa-repeat', label: 'Hábitos' },
-  invocacao: { icon: 'fa-wand-magic-sparkles', label: 'Invocações' },
-  carta: { icon: 'fa-layer-group', label: 'Cartas' },
-  nivel: { icon: 'fa-arrow-trend-up', label: 'Nível' },
-  dano: { icon: 'fa-heart-crack', label: 'Dano' },
-  sistema: { icon: 'fa-gear', label: 'Sistema' },
+  tarefa: { icon: 'fa-list-check', label: t('historico.tarefas') },
+  habito: { icon: 'fa-repeat', label: t('historico.habitos') },
+  invocacao: { icon: 'fa-wand-magic-sparkles', label: t('historico.invocacoes') },
+  carta: { icon: 'fa-layer-group', label: t('historico.cartas') },
+  nivel: { icon: 'fa-arrow-trend-up', label: t('historico.nivel') },
+  dano: { icon: 'fa-heart-crack', label: t('historico.dano') },
+  sistema: { icon: 'fa-gear', label: t('historico.sistema') },
 }
 
 let filterType: LogType | '' = ''
@@ -53,16 +54,16 @@ export function mountHistory(root: HTMLElement, data: AppData): void {
 
   root.innerHTML = `
     <header class="view-header">
-      <h1>Histórico</h1>
-      <p class="view-sub">${data.log.length} evento${data.log.length === 1 ? '' : 's'} registrados · as últimas ações do seu território</p>
+      <h1>${t('historico.titulo')}</h1>
+      <p class="view-sub">${data.log.length === 1 ? t('historico.sub1', {n: data.log.length}) : t('historico.subN', {n: data.log.length})}</p>
     </header>
 
     <div class="filters history-filters">
-      <button class="filter-chip${filterType === '' ? ' active' : ''}" data-filter-type="">Tudo (${data.log.length})</button>
+      <button class="filter-chip${filterType === '' ? ' active' : ''}" data-filter-type="">${t('historico.tudo')} (${data.log.length})</button>
       ${(Object.keys(TYPES) as LogType[]).map((t) => `<button class="filter-chip${filterType === t ? ' active' : ''}" data-filter-type="${t}">${TYPES[t].label} (${counts[t] ?? 0})</button>`).join('')}
     </div>
 
-    ${days.length === 0 ? '<div class="empty"><strong>Nenhum evento ainda.</strong><p>Conclua tarefas, invoque cartas e suba de nível — tudo fica registrado aqui.</p></div>' : ''}
+    ${days.length === 0 ? `<div class="empty"><strong>${t('historico.empty')}</strong><p>${t('historico.emptySub')}</p></div>` : ''}
 
     ${days
       .map(

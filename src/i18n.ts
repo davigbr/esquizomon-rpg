@@ -366,6 +366,21 @@ const MESSAGES: Cat = {
     'diario.apagar': 'Apagar crônica',
     'diario.apagada': 'Crônica apagada.',
     'diario.movida': 'Crônica movida para {date}.',
+
+    // ---- historico ----
+    'historico.titulo': 'Histórico',
+    'historico.tarefas': 'Tarefas',
+    'historico.habitos': 'Hábitos',
+    'historico.invocacoes': 'Invocações',
+    'historico.cartas': 'Cartas',
+    'historico.nivel': 'Nível',
+    'historico.dano': 'Dano',
+    'historico.sistema': 'Sistema',
+    'historico.sub1': '{n} evento registrado · as últimas ações do seu território',
+    'historico.subN': '{n} eventos registrados · as últimas ações do seu território',
+    'historico.tudo': 'Tudo',
+    'historico.empty': 'Nenhum evento ainda.',
+    'historico.emptySub': 'Conclua tarefas, invoque cartas e suba de nível — tudo fica registrado aqui.',
   },
 
   en: {
@@ -679,6 +694,21 @@ const MESSAGES: Cat = {
     'diario.apagar': 'Delete chronicle',
     'diario.apagada': 'Chronicle deleted.',
     'diario.movida': 'Chronicle moved to {date}.',
+
+    // ---- historico ----
+    'historico.titulo': 'History',
+    'historico.tarefas': 'Tasks',
+    'historico.habitos': 'Habits',
+    'historico.invocacoes': 'Invocations',
+    'historico.cartas': 'Cards',
+    'historico.nivel': 'Level',
+    'historico.dano': 'Damage',
+    'historico.sistema': 'System',
+    'historico.sub1': '{n} event recorded · the latest actions of your territory',
+    'historico.subN': '{n} events recorded · the latest actions of your territory',
+    'historico.tudo': 'All',
+    'historico.empty': 'No events yet.',
+    'historico.emptySub': 'Complete tasks, invoke cards and level up — it all gets recorded here.',
   },
 }
 
