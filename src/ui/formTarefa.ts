@@ -7,12 +7,21 @@ import { appStore, updateTask, createTask, tagsInUse } from '../stores/app'
 import { openModal } from './modal'
 import { notify } from './toast'
 import { escapeHtml as escape } from './util'
+import { t } from '../i18n'
 
-const TASK_TYPES: ReadonlyArray<{ id: TaskType; name: string; desc: string }> = [
-  { id: 'recorrente', name: 'Recorrente', desc: 'Se repete em dias' },
-  { id: 'unica', name: 'Única', desc: 'Feita uma vez e finalizada' },
-  { id: 'habito', name: 'Hábito', desc: 'Repetível, positivo ou negativo' },
+const TASK_TYPES: ReadonlyArray<{ id: TaskType }> = [
+  { id: 'recorrente' },
+  { id: 'unica' },
+  { id: 'habito' },
 ]
+/** Labels/descriptions of the task types (resolved at render so they follow the language). */
+const taskTypeInfo = (id: TaskType): { name: string; desc: string } => {
+  switch (id) {
+    case 'unica': return { name: t('form.tipoUnica'), desc: t('form.tipoUnicaDesc') }
+    case 'habito': return { name: t('form.tipoHabito'), desc: t('form.tipoHabitoDesc') }
+    default: return { name: t('form.tipoRecorrente'), desc: t('form.tipoRecorrenteDesc') }
+  }
+}
 
 function initialAgenda(t?: Task): { days: number[]; daysOfMonth?: number[] } {
   return {
@@ -36,21 +45,21 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
         : 'todos'
 
   openModal(`
-    <h2>${task ? 'Editar tarefa' : 'Nova tarefa'}</h2>
+    <h2>${task ? t('form.editarTarefa') : t('form.novaTarefa')}</h2>
     <form data-task-form>
       <div class="form-group">
-        <label>O que é? <span class="required">*</span></label>
-        <input class="field" name="title" value="${escape(task?.title ?? '')}" placeholder="Ex.: revisar fichas do mestrado" autofocus required />
+        <label>${t('form.oQueEh')} <span class="required">*</span></label>
+        <input class="field" name="title" value="${escape(task?.title ?? '')}" placeholder="${t('form.exTitulo')}" autofocus required />
       </div>
 
       <div class="form-group">
-        <label>Tipo de tarefa</label>
+        <label>${t('form.tipoTarefa')}</label>
         <div class="options-type" data-type-options>
           ${TASK_TYPES.map(
-            (t) => `
-            <div class="option-type${t.id === type ? ' selected' : ''}" data-type="${t.id}" role="button" tabindex="0">
-              <strong>${t.name}</strong>
-              <span>${t.desc}</span>
+            (tp) => `
+            <div class="option-type${tp.id === type ? ' selected' : ''}" data-type="${tp.id}" role="button" tabindex="0">
+              <strong>${taskTypeInfo(tp.id).name}</strong>
+              <span>${taskTypeInfo(tp.id).desc}</span>
             </div>`,
           ).join('')}
         </div>
@@ -58,19 +67,19 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
       </div>
 
       <div class="form-group">
-        <label>Dificuldade</label>
+        <label>${t('form.dificuldade')}</label>
         <select class="field" name="difficulty">
           ${DIFFICULTY_OPTIONS(difficulty)}
         </select>
-        <small>Quanto mais difícil, mais XP a tarefa vale (e mais dano causa se falhar).</small>
+        <small>${t('form.dificuldadeHint')}</small>
       </div>
 
       <div class="form-group" data-field-agenda>
-        <label>Repetição</label>
+        <label>${t('form.repeticao')}</label>
         <select class="field" name="repeat" data-repeat-select>
-          <option value="todos" ${repeat === 'todos' ? 'selected' : ''}>Todos os dias</option>
-          <option value="semana" ${repeat === 'semana' ? 'selected' : ''}>Dias da semana</option>
-          <option value="mes" ${repeat === 'mes' ? 'selected' : ''}>Dias do mês</option>
+          <option value="todos" ${repeat === 'todos' ? 'selected' : ''}>${t('form.todosDias')}</option>
+          <option value="semana" ${repeat === 'semana' ? 'selected' : ''}>${t('form.diasSemana')}</option>
+          <option value="mes" ${repeat === 'mes' ? 'selected' : ''}>${t('form.diasMes')}</option>
         </select>
         <div class="chips" data-days-chips ${repeat === 'semana' ? '' : 'hidden'}>
           ${WEEKDAYS.map((d, i) => {
@@ -78,48 +87,48 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
             return `<button type="button" class="chip${active ? ' active' : ''}" data-day="${i}">${d}</button>`
           }).join('')}
         </div>
-        <input class="field" name="days-month" data-days-month placeholder="Ex.: 1, 15, 30" value="${escape((agenda.daysOfMonth ?? []).join(', '))}" ${repeat === 'mes' ? '' : 'hidden'} />
-        <small data-agenda-dica>${repeat === 'mes' ? 'Dias do mês separados por vírgula.' : 'Recorrente sem dia marcado vale todos os dias.'}</small>
+        <input class="field" name="days-month" data-days-month placeholder="${t('form.exDiasMes')}" value="${escape((agenda.daysOfMonth ?? []).join(', '))}" ${repeat === 'mes' ? '' : 'hidden'} />
+        <small data-agenda-dica>${repeat === 'mes' ? t('form.diasMesDica') : t('form.semDiaDica')}</small>
       </div>
 
       <div class="form-group" data-field-sign hidden>
-        <label>Sinal do hábito</label>
+        <label>${t('form.sinalHabito')}</label>
         <select class="field" name="sign">
-          <option value="positivo" ${task?.sign === 'positivo' || !task?.sign ? 'selected' : ''}>Positivo (somar)</option>
-          <option value="negativo" ${task?.sign === 'negativo' ? 'selected' : ''}>Negativo (evitar)</option>
-          <option value="ambos" ${task?.sign === 'ambos' ? 'selected' : ''}>Ambos</option>
+          <option value="positivo" ${task?.sign === 'positivo' || !task?.sign ? 'selected' : ''}>${t('tipo.positivo')}</option>
+          <option value="negativo" ${task?.sign === 'negativo' ? 'selected' : ''}>${t('tipo.negativo')}</option>
+          <option value="ambos" ${task?.sign === 'ambos' ? 'selected' : ''}>${t('tipo.ambos')}</option>
         </select>
       </div>
 
       <div class="form-group" data-field-due hidden>
-        <label>Vence em</label>
+        <label>${t('form.venceEm')}</label>
         <input type="date" class="field" name="due-date" value="${escape(task?.dueDate ?? '')}" />
-        <small>A cor do card muda conforme a data se aproxima.</small>
+        <small>${t('form.dataDica')}</small>
       </div>
 
       <div class="form-group">
-        <label>Tags</label>
+        <label>${t('form.tags')}</label>
         <div class="tag-list" data-tags-chips>
           ${tags.map((t) => `<button type="button" class="tag-row${currentTags.includes(t) ? ' active' : ''}" data-tag="${escape(t)}"><span class="tag-row-check">✓</span><span class="tag-row-name">#${escape(t)}</span></button>`).join('')}
           ${currentTags.filter((t) => !tags.includes(t)).map((t) => `<button type="button" class="tag-row active" data-tag="${escape(t)}"><span class="tag-row-check">✓</span><span class="tag-row-name">#${escape(t)}</span></button>`).join('')}
         </div>
         <div class="tag-input">
-          <input class="field" name="new-tag" placeholder="Nova tag (Enter para adicionar)" list="tags-sugeridas" />
+          <input class="field" name="new-tag" placeholder="${t('form.novaTagPlaceholder')}" list="tags-sugeridas" />
           <datalist id="tags-sugeridas">${tags.map((t) => `<option value="${escape(t)}"></option>`).join('')}</datalist>
           <button type="button" class="btn" data-add-tag>+</button>
         </div>
-        <small>Clique para marcar; Enter no campo adiciona a tag.</small>
+        <small>${t('form.tagsDica')}</small>
       </div>
 
       <div class="form-group">
-        <label>Notas</label>
-        <textarea class="field" name="notes" placeholder="Detalhes, contexto, anotações…">${escape(task?.notes ?? '')}</textarea>
-        <small>Aceita **negrito**, *itálico* e links (https://…).</small>
+        <label>${t('form.notas')}</label>
+        <textarea class="field" name="notes" placeholder="${t('form.notasPlaceholder')}">${escape(task?.notes ?? '')}</textarea>
+        <small>${t('form.markdownDica')}</small>
       </div>
 
       <div class="form-actions">
-        <button type="button" class="btn" data-cancel>Cancelar</button>
-        <button type="submit" class="btn btn-primary">${task ? 'Salvar' : 'Criar'}</button>
+        <button type="button" class="btn" data-cancel>${t('comum.cancelar')}</button>
+        <button type="submit" class="btn btn-primary">${task ? t('form.salvar') : t('form.criar')}</button>
       </div>
     </form>
   `)
@@ -157,7 +166,7 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
   function applyRepeat(r: 'todos' | 'semana' | 'mes'): void {
     dayChips.hidden = r !== 'semana'
     monthDays.hidden = r !== 'mes'
-    agendaHint.textContent = r === 'mes' ? 'Dias do mês separados por vírgula.' : 'Recorrente sem dia marcado vale todos os dias.'
+    agendaHint.textContent = r === 'mes' ? t('form.diasMesDica') : t('form.semDiaDica')
   }
   repeatSelect.addEventListener('change', () => {
     applyRepeat(repeatSelect.value as 'todos' | 'semana' | 'mes')
@@ -212,7 +221,7 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
     e.preventDefault()
     const title = (form.querySelector<HTMLInputElement>('input[name="title"]')!.value ?? '').trim()
     if (!title) {
-      notify('Dê um nome para a tarefa.', 'erro')
+      notify(t('form.darNome'), 'erro')
       return
     }
     const currentType = typeInput.value as TaskType
@@ -247,11 +256,11 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
       ? updateTask(task.id, { title, type: currentType, difficulty, tags, notes, dueDate, agenda, sign })
       : createTask({ title, type: currentType, difficulty, tags, notes, dueDate, agenda, sign })
     if (!result.ok) {
-      notify(result.reason ?? 'Não deu para salvar.', 'erro')
+      notify(result.reason ?? t('form.naoSalvar'), 'erro')
       return
     }
     document.getElementById('modal-close')?.click()
-    notify(task ? 'Tarefa atualizada.' : 'Tarefa criada.')
+    notify(task ? t('form.atualizada') : t('form.criada'))
   })
 }
 
