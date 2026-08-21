@@ -271,6 +271,7 @@ export function recordHabit(id: string, sign: 'positivo' | 'negativo', date: str
       ...t,
       updatedAt: new Date().toISOString(),
       counter: { ...counter, todayNeg: counter.todayNeg + 1, totalNegative: counter.totalNegative + 1 },
+      negativeHistory: t.negativeHistory?.includes(date) ? t.negativeHistory : [...(t.negativeHistory ?? []), date],
     }
   })
   appStore.set({ ...appStore.get(), tasks })

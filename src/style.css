@@ -59,6 +59,7 @@
 }
 
 [data-theme='light'] {
+  color-scheme: light;
   --bg-primary: #f5f2ed;
   --bg-secondary: #ece8e0;
   --bg-tertiary: #e3ddd3;
@@ -1070,7 +1071,7 @@ select.field {
   color: var(--text-muted);
 }
 
-.checkin-item:has(.checkin-check:not(:checked)) .checkin-title {
+.checkin-item:has(.checkin-check:checked) .checkin-title {
   color: var(--text-muted);
   text-decoration: line-through;
 }

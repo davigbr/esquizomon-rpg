@@ -262,11 +262,13 @@ function appliesToday(t: Task, weekday: number, dayOfMonthNum: number): boolean 
 function habitCard(t: Task, isToday: boolean, isYesterday: boolean): string {
   const d = difficultyMeta(t.difficulty)
   const streak = calcStreak(t.history, visibleDate)
-  // past day: shows if it was marked positive on it (derived from history);
+  // past day: shows if it was marked on it (derived from history);
   // today: uses the day counter
+  const negHist = t.negativeHistory ?? []
+  const negativeThisDay = !isToday && negHist.includes(visibleDate)
   const markedThisDay = !isToday && t.history.includes(visibleDate)
   const todayPos = isToday ? (t.counter?.today ?? 0) : markedThisDay ? 1 : 0
-  const todayNeg = isToday ? (t.counter?.todayNeg ?? 0) : 0
+  const todayNeg = isToday ? (t.counter?.todayNeg ?? 0) : negativeThisDay ? 1 : 0
   const sign = t.sign ?? 'positivo'
   const oldClass = ageClass(t)
   // allows marking on TODAY and YESTERDAY (retroactive — adjusts streak/XP); never further back

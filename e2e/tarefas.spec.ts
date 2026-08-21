@@ -90,3 +90,48 @@ test('hábito: repetição negativa EXTREMA tira 12 de vida (dano escala com a d
     )
     .toContain('(−12 vida)')
 })
+
+test('hábito: negativo marcado em ontem persiste e aparece ativo ao voltar para aquele dia', async ({ page }) => {
+  await page.goto('/#/hoje')
+
+  // cria hábito com sinais ambos
+  await page.locator('[data-novo-tipo="habito"]').click()
+  await page.locator('input[name="titulo"]').fill('Hábito ontem E2E')
+  await page.locator('select[name="dificuldade"]').selectOption('facil')
+  await page.locator('select[name="sinal"]').selectOption('ambos')
+  await page.locator('button[type="submit"]').click()
+
+  // volta para ontem (navega o seletor de dia)
+  await page.locator('[data-dia-anterior]').click()
+  const card = page.locator('.habit-card', { hasText: 'Hábito ontem E2E' })
+  await expect(card).toBeVisible()
+  const negBtn = card.locator('[data-habito="negativo"]')
+  // nada marcado em ontem → botão negativo NÃO ativo
+  await expect(negBtn).not.toHaveClass(/active/)
+
+  // marca negativo em ontem (retroativo) → botão fica ativo
+  await negBtn.click()
+  await expect(negBtn).toHaveClass(/active/)
+
+  // o dado foi persistido (negativeHistory) com a data de ONTEM
+  const yesterday = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })()
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const data = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
+        const t = (data.tasks ?? []).find((x: { title?: string }) => x.title === 'Hábito ontem E2E')
+        return t?.negativeHistory ?? []
+      }),
+    )
+    .toEqual(expect.arrayContaining([yesterday]))
+
+  // volta pra hoje e retorna a ontem: o estado negativo DEVE continuar ativo
+  await page.locator('[data-dia-seguinte]').click()
+  await page.locator('[data-dia-anterior]').click()
+  const cardVolta = page.locator('.habit-card', { hasText: 'Hábito ontem E2E' })
+  await expect(cardVolta.locator('[data-habito="negativo"]')).toHaveClass(/active/)
+})

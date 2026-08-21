@@ -42,7 +42,7 @@ const ptBlob = {
       editadaEm: '2026-08-19T10:00:00.000Z',
     },
     { id: 't2', tipo: 'unica', titulo: 'Enviar email', dificuldade: 'facil', tags: [], concluida: true, historico: ['2026-08-20'], criadaEm: '2026-08-20T09:00:00.000Z' },
-    { id: 't3', tipo: 'habito', titulo: 'Meditar', dificuldade: 'facil', tags: [], sinal: 'positivo', contador: { hoje: 1, hojeNeg: 0, totalPositivo: 5, totalNegativo: 2 }, historico: ['2026-08-20'], criadaEm: '2026-08-01T00:00:00.000Z' },
+    { id: 't3', tipo: 'habito', titulo: 'Meditar', dificuldade: 'facil', tags: [], sinal: 'positivo', contador: { hoje: 1, hojeNeg: 0, totalPositivo: 5, totalNegativo: 2 }, historico: ['2026-08-20'], historicoNegativo: ['2026-08-19'], criadaEm: '2026-08-01T00:00:00.000Z' },
   ],
   personagem: {
     nivel: 2,
@@ -119,6 +119,7 @@ assert(rew?.hpMaxBefore === 50, 'reward.hpMaxBefore (de hpMaxAntes)')
 const hab = out.tasks[2]
 assert(hab.counter?.today === 1 && hab.counter.totalPositive === 5, 'habit.counter today/totalPositive EN')
 assert(hab.sign === 'positivo', 'habit.sign valor PT')
+assert(hab.negativeHistory?.includes('2026-08-19'), 'habit.negativeHistory (de historicoNegativo)')
 
 const unica = out.tasks[1]
 assert(unica.done === true, 'unica.done true (de concluida)')

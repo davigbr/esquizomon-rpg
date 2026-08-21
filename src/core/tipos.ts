@@ -67,6 +67,9 @@ export interface Task {
   done?: boolean
   /** ISO dates (YYYY-MM-DD) of completions — recurring: completed days; habits: positive-repetition days. */
   history: string[]
+  /** ISO dates (YYYY-MM-DD) of NEGATIVE habit repetitions — lets the UI show a
+   *  negative habit as active on a past day when navigating the date selector. */
+  negativeHistory?: string[]
   /** Rewards granted per completion date (to revert when unchecking). */
   rewards?: Record<string, CompletionReward>
   createdAt: string

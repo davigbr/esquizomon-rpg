@@ -176,7 +176,10 @@ function normalizeTask(v: unknown): Task | null {
     sign,
     counter,
     done: field(t, 'done', 'concluida') === true,
-    history: (field(t, 'history', 'historico') as unknown[]).filter((x): x is string => typeof x === 'string'),
+    history: Array.isArray(field(t, 'history', 'historico')) ? (field(t, 'history', 'historico') as unknown[]).filter((x): x is string => typeof x === 'string') : [],
+    negativeHistory: Array.isArray(field(t, 'negativeHistory', 'historicoNegativo'))
+      ? (field(t, 'negativeHistory', 'historicoNegativo') as unknown[]).filter((x): x is string => typeof x === 'string')
+      : [],
     rewards,
     createdAt: str(t, 'createdAt', 'criadaEm') ?? new Date().toISOString(),
     updatedAt: str(t, 'updatedAt', 'editadaEm') ?? str(t, 'createdAt', 'criadaEm'),
