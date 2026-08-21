@@ -6,6 +6,7 @@
 import { closeModal, modalBody, openModal } from './modal'
 import { setAvatar } from '../stores/app'
 import { notify } from './toast'
+import { t } from '../i18n'
 
 const WINDOW = 240 // px — size of the crop window (CSS)
 /** Side of the square inscribed in the crop circle (what gets saved). */
@@ -20,7 +21,7 @@ export function editAvatar(file: File): void {
   img.onload = () => openCrop(img, url)
   img.onerror = () => {
     URL.revokeObjectURL(url)
-    notify('Imagem inválida — escolha outra.', 'erro')
+    notify(t('avatar.invalida'), 'erro')
   }
   img.src = url
 }
@@ -42,20 +43,20 @@ function openCrop(img: HTMLImageElement, url: string): void {
   let dy = 0
 
   openModal(`
-    <h2>Recortar avatar</h2>
-    <p class="avatar-hint">Arraste para posicionar · use o zoom para ajustar. O corte é sempre circular.</p>
+    <h2>${t('avatar.recortar')}</h2>
+    <p class="avatar-hint">${t('avatar.hint')}</p>
     <div class="avatar-window" data-avatar-janela>
-      <img src="${url}" alt="Imagem a recortar" data-avatar-img />
+      <img src="${url}" alt="${t('avatar.imagemCortar')}" data-avatar-img />
       <div class="avatar-mask" aria-hidden="true"></div>
     </div>
     <div class="avatar-zoom">
       <i class="fa-solid fa-minus" aria-hidden="true"></i>
-      <input type="range" min="${sMin.toFixed(2)}" max="${sMax.toFixed(2)}" step="0.01" value="${sMin.toFixed(2)}" data-avatar-zoom aria-label="Zoom do corte" />
+      <input type="range" min="${sMin.toFixed(2)}" max="${sMax.toFixed(2)}" step="0.01" value="${sMin.toFixed(2)}" data-avatar-zoom aria-label="${t('avatar.zoom')}" />
       <i class="fa-solid fa-plus" aria-hidden="true"></i>
     </div>
     <div class="form-actions">
-      <button class="btn" data-avatar-cancel>Cancelar</button>
-      <button class="btn btn-primary" data-avatar-save>Salvar avatar</button>
+      <button class="btn" data-avatar-cancel>${t('comum.cancelar')}</button>
+      <button class="btn btn-primary" data-avatar-save>${t('avatar.salvar')}</button>
     </div>
   `)
 
@@ -139,7 +140,7 @@ function openCrop(img: HTMLImageElement, url: string): void {
     if (!g) {
       cleanup()
       closeModal()
-      notify('Não consegui processar a imagem.', 'erro')
+      notify(t('avatar.falhaProcessar'), 'erro')
       return
     }
     g.drawImage(img, sx, sy, sw, sh, 0, 0, OUTPUT, OUTPUT)
@@ -147,6 +148,6 @@ function openCrop(img: HTMLImageElement, url: string): void {
     cleanup()
     closeModal()
     setAvatar(dataUrl)
-    notify('Avatar salvo!')
+    notify(t('avatar.salvo'))
   })
 }

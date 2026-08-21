@@ -120,15 +120,15 @@ function mountStatusBar(): void {
       <div class="status-identity">
         <div class="status-identity-info">
           <span class="status-name"></span>
-          <div class="status-item status-item--nivel" title="Nível"><i class="fa-solid fa-arrow-trend-up" aria-hidden="true"></i><span data-s-nivel></span></div>
+          <div class="status-item status-item--nivel" title="${t('status.nivel')}"><i class="fa-solid fa-arrow-trend-up" aria-hidden="true"></i><span data-s-nivel></span></div>
         </div>
       </div>
       <div class="status-barras">
-        <div class="status-item status-item--hp" title="Vida"><i class="fa-solid fa-heart" aria-hidden="true"></i><span data-s-hp></span><div class="status-track"><div class="status-fill status-fill--hp" data-b-hp></div></div></div>
-        <div class="status-item status-item--xp" title="Experiência"><i class="fa-solid fa-star" aria-hidden="true"></i><span data-s-xp></span><div class="status-track"><div class="status-fill status-fill--xp" data-b-xp></div></div></div>
-        <div class="status-item status-item--mana" title="Mana"><i class="fa-solid fa-droplet" aria-hidden="true"></i><span data-s-mana></span><div class="status-track"><div class="status-fill status-fill--mana" data-b-mana></div></div></div>
+        <div class="status-item status-item--hp" title="${t('status.vida')}"><i class="fa-solid fa-heart" aria-hidden="true"></i><span data-s-hp></span><div class="status-track"><div class="status-fill status-fill--hp" data-b-hp></div></div></div>
+        <div class="status-item status-item--xp" title="${t('status.xp')}"><i class="fa-solid fa-star" aria-hidden="true"></i><span data-s-xp></span><div class="status-track"><div class="status-fill status-fill--xp" data-b-xp></div></div></div>
+        <div class="status-item status-item--mana" title="${t('status.mana')}"><i class="fa-solid fa-droplet" aria-hidden="true"></i><span data-s-mana></span><div class="status-track"><div class="status-fill status-fill--mana" data-b-mana></div></div></div>
       </div>
-      <div class="status-item status-item--depleted" title="Esgotado" data-s-esgotado style="display:none"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>Esgotado</span></div>
+      <div class="status-item status-item--depleted" title="${t('status.esgotado')}" data-s-esgotado style="display:none"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i><span>${t('status.esgotado')}</span></div>
       <div class="status-item status-item--sync" data-s-sync title="Última sincronização"></div>
     `
     const q = (s: string) => statusBar.querySelector<HTMLElement>(s)!
@@ -172,7 +172,7 @@ function mountStatusBar(): void {
   if (currentAvatar && !avatarEl) {
     const img = document.createElement('img')
     img.className = 'status-avatar' 
-    img.alt = 'Avatar'
+    img.alt = t('status.avatar')
     img.src = currentAvatar
     // inserts BEFORE the top (level) — inline, to the left; order via flex `order`
     identity?.insertBefore(img, infoEl)
@@ -197,7 +197,7 @@ const deathContinue = document.getElementById('morte-continuar')!
 function showDeath(cardId: string, cardName: string): void {
   deathCard.innerHTML = cardId
     ? `<img src="/images/cards/${cardId}.png" alt="${cardName}" /><span>${cardName}</span>`
-    : '<span>Carta perdida</span>'
+    : `<span>${t('status.cartaPerdida')}</span>`
   deathOverlay.hidden = false
   deathContinue.focus()
 }

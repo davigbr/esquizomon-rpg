@@ -6,6 +6,7 @@
 import { currentSession, subscribeSession } from '../sync/auth'
 import { openLoginModal } from './loginModal'
 import { escapeHtml } from './util'
+import { t } from '../i18n'
 
 export function mountAccountButton(): void {
   const btn = document.getElementById('conta-toggle')
@@ -16,12 +17,12 @@ export function mountAccountButton(): void {
     if (s) {
       btn.innerHTML =
         '<i class="fa-solid fa-circle-user" aria-hidden="true"></i>'
-      btn.title = `Conta: ${s.user.email}`
-      btn.setAttribute('aria-label', `Conta: ${escapeHtml(s.user.email)}`)
+      btn.title = `${t('conta.conta')}: ${s.user.email}`
+      btn.setAttribute('aria-label', `${t('conta.conta')}: ${escapeHtml(s.user.email)}`)
       btn.classList.add('logged' )
     } else {
       btn.innerHTML = '<i class="fa-solid fa-cloud" aria-hidden="true"></i>'
-      btn.title = 'Entrar / criar conta (sincronização opcional)'
+      btn.title = t('conta.entrarCriar')
       btn.classList.remove('logged' )
     }
   }

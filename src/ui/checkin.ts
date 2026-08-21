@@ -5,15 +5,8 @@
 import { openModal, closeModal } from './modal'
 import { appStore, finishCheckin, pendingCheckin } from '../stores/app'
 import { escapeHtml } from './util'
-import { formatLongDate, xpFor } from '../core/jogo'
-import type { Difficulty } from '../core/tipos'
-
-const DIFFICULTY_LABEL: Record<Difficulty, string> = {
-  facil: 'Fácil',
-  media: 'Média',
-  dificil: 'Difícil',
-  extrema: 'Extrema',
-}
+import { difficultyMeta, formatLongDate, xpFor } from '../core/jogo'
+import { t } from '../i18n'
 
 /** Displays the check-in modal if there are pending items from yesterday. */
 export function checkDaily(): void {
@@ -25,23 +18,23 @@ export function checkDaily(): void {
 
   const items = tasks
     .map(
-      (t) => `
+      (task) => `
       <label class="checkin-item">
-        <input type="checkbox" class="checkin-check" data-checkin-id="${escapeHtml(t.id)}" />
+        <input type="checkbox" class="checkin-check" data-checkin-id="${escapeHtml(task.id)}" />
         <span class="checkin-info">
-          <span class="checkin-title">${escapeHtml(t.title)}</span>
-          <span class="checkin-meta">${t.type === 'unica' ? 'Tarefa' : 'Recorrente'} · ${DIFFICULTY_LABEL[t.difficulty]} · +${xpFor(t.difficulty)} XP</span>
+          <span class="checkin-title">${escapeHtml(task.title)}</span>
+          <span class="checkin-meta">${task.type === 'unica' ? t('tipo.unica') : t('tipo.recorrente')} · ${difficultyMeta(task.difficulty).label} · +${xpFor(task.difficulty)} XP</span>
         </span>
       </label>`,
     )
     .join('')
 
   openModal(`
-    <h2 class="checkin-title-modal">Atividades de ontem</h2>
-    <p class="checkin-sub">Confira as <strong>atividades recorrentes de ${escapeHtml(formatLongDate(pend.date))}</strong> (ontem). Nada vem pré-marcado: marque as que você fez de verdade — <strong>só as recorrentes</strong> não marcadas contam como perdidas e causam dano (tarefas únicas vencidas não dão dano).</p>
+    <h2 class="checkin-title-modal">${t('checkin.ontem')}</h2>
+    <p class="checkin-sub">${t('checkin.sub', {date: formatLongDate(pend.date)})}</p>
     <div class="checkin-list">${items}</div>
     <div class="form-actions">
-      <button class="btn btn-primary" data-checkin-confirm>Check-in</button>
+      <button class="btn btn-primary" data-checkin-confirm>${t('checkin.botao')}</button>
     </div>
   `)
 

@@ -1,6 +1,8 @@
 /** SVG progression charts (XP per level, max HP, max mana) — no dependencies.
  *  Discrete levels: one point per level, with native tooltip (Level N — value). */
 
+import { t } from '../i18n'
+
 export interface ChartSeries {
   label: string
   color: string
@@ -45,7 +47,7 @@ export function progressionChart(series: ChartSeries, currentLevel: number): str
   const slug = series.label.toLowerCase().replace(/\s+/g, '-')
 
   return `
-    <svg class="chart" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-label="Progressão de ${series.label.toLowerCase()} por nível">
+    <svg class="chart" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-label="${t('graficos.progressao', {x: series.label.toLowerCase()})}">
       <defs>
         <linearGradient id="grad-${slug}" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="${color}" stop-opacity="0.35" />
@@ -72,7 +74,7 @@ export function progressionChart(series: ChartSeries, currentLevel: number): str
         .map(
           (v, i) => `
         <circle class="chart-dot${i === idx ? ' chart-dot--current' : ''}" cx="${x(i)}" cy="${y(v)}" r="${i === idx ? 5 : 3.5}" fill="${color}">
-          <title>Nível ${i + 1} — ${series.format(v)}</title>
+          <title>${t('graficos.nivel', {n: i + 1, v: series.format(v)})}</title>
         </circle>`,
         )
         .join('')}

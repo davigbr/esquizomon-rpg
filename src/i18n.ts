@@ -133,6 +133,67 @@ const MESSAGES: Cat = {
     // ---- sync ----
     'sync.ultima': 'Última sincronização',
     'sync.nunca': 'Ainda não sincronizado',
+
+    // ---- checkin ----
+    'checkin.ontem': 'Atividades de ontem',
+    'checkin.sub': 'Confira as <strong>atividades recorrentes de {date}</strong> (ontem). Nada vem pré-marcado: marque as que você fez de verdade — <strong>só as recorrentes</strong> não marcadas contam como perdidas e causam dano (tarefas únicas vencidas não dão dano).',
+    'checkin.botao': 'Check-in',
+
+    // ---- conta / header ----
+    'conta.conta': 'Conta',
+    'conta.entrarCriar': 'Entrar / criar conta (sincronização opcional)',
+
+    // ---- status bar ----
+    'status.nivel': 'Nível',
+    'status.vida': 'Vida',
+    'status.xp': 'Experiência',
+    'status.mana': 'Mana',
+    'status.esgotado': 'Esgotado',
+    'status.avatar': 'Avatar',
+    'status.cartaPerdida': 'Carta perdida',
+
+    // ---- comum ----
+    'comum.cancelar': 'Cancelar',
+
+    // ---- chat render ----
+    'chatRender.copiarMd': 'Copiar mensagem em markdown',
+    'chatRender.raciocinio': 'Raciocínio',
+
+    // ---- avatar ----
+    'avatar.invalida': 'Imagem inválida — escolha outra.',
+    'avatar.recortar': 'Recortar avatar',
+    'avatar.hint': 'Arraste para posicionar · use o zoom para ajustar. O corte é sempre circular.',
+    'avatar.imagemCortar': 'Imagem a recortar',
+    'avatar.zoom': 'Zoom do corte',
+    'avatar.salvar': 'Salvar avatar',
+    'avatar.falhaProcessar': 'Não consegui processar a imagem.',
+    'avatar.salvo': 'Avatar salvo!',
+
+    // ---- graficos ----
+    'graficos.progressao': 'Progressão de {x} por nível',
+    'graficos.nivel': 'Nível {n} — {v}',
+
+    // ---- chat ----
+    'chat.semConversas': 'Sem conversas — comecei uma nova pra você.',
+    'chat.redimensionar': 'Arraste pra redimensionar',
+    'chat.redimensionarPainel': 'Redimensionar painel',
+    'chat.nova': 'Nova conversa',
+    'chat.conversas': 'Conversas',
+    'chat.tituloConversa': 'Título da conversa',
+    'chat.tituloDica': 'Digite o novo título e Enter para salvar',
+    'chat.renomear': 'Renomear conversa',
+    'chat.apagar': 'Apagar conversa',
+    'chat.fecharChat': 'Fechar chat',
+    'chat.fechar': 'Fechar',
+    'chat.crieConversa': 'Crie uma conversa para começar',
+    'chat.enviar': 'Enviar',
+    'chat.cartaBloqueada': 'Carta bloqueada — suba de nível para desbloquear.',
+    'chat.copiada': 'Mensagem copiada em markdown.',
+    'chat.copiaFalhou': 'Não consegui copiar a mensagem.',
+    'chat.confirmarApagar': 'Apagar esta conversa? Isso não pode ser desfeito.',
+    'chat.apagada': 'Conversa apagada.',
+    'chat.configureIa': 'Configure a IA em Config → Fábula antes de conversar.',
+    'chat.semResposta': 'A Fábula não respondeu nada. Tente de novo.',
   },
 
   en: {
@@ -213,6 +274,67 @@ const MESSAGES: Cat = {
     // ---- sync ----
     'sync.ultima': 'Last sync',
     'sync.nunca': 'Not synced yet',
+
+    // ---- checkin ----
+    'checkin.ontem': "Yesterday's activities",
+    'checkin.sub': 'Check the <strong>recurring activities of {date}</strong> (yesterday). Nothing comes pre-checked: mark what you really did — <strong>only recurring</strong> unmarked ones count as missed and deal damage (overdue one-offs don\'t).',
+    'checkin.botao': 'Check-in',
+
+    // ---- conta / header ----
+    'conta.conta': 'Account',
+    'conta.entrarCriar': 'Log in / create account (optional sync)',
+
+    // ---- status bar ----
+    'status.nivel': 'Level',
+    'status.vida': 'Health',
+    'status.xp': 'Experience',
+    'status.mana': 'Mana',
+    'status.esgotado': 'Depleted',
+    'status.avatar': 'Avatar',
+    'status.cartaPerdida': 'Lost card',
+
+    // ---- comum ----
+    'comum.cancelar': 'Cancel',
+
+    // ---- chat render ----
+    'chatRender.copiarMd': 'Copy message as markdown',
+    'chatRender.raciocinio': 'Reasoning',
+
+    // ---- avatar ----
+    'avatar.invalida': 'Invalid image — choose another.',
+    'avatar.recortar': 'Crop avatar',
+    'avatar.hint': 'Drag to position · use zoom to adjust. The crop is always circular.',
+    'avatar.imagemCortar': 'Image to crop',
+    'avatar.zoom': 'Crop zoom',
+    'avatar.salvar': 'Save avatar',
+    'avatar.falhaProcessar': 'Could not process the image.',
+    'avatar.salvo': 'Avatar saved!',
+
+    // ---- graficos ----
+    'graficos.progressao': '{x} progression by level',
+    'graficos.nivel': 'Level {n} — {v}',
+
+    // ---- chat ----
+    'chat.semConversas': 'No conversations — I started a new one for you.',
+    'chat.redimensionar': 'Drag to resize',
+    'chat.redimensionarPainel': 'Resize panel',
+    'chat.nova': 'New conversation',
+    'chat.conversas': 'Conversations',
+    'chat.tituloConversa': 'Conversation title',
+    'chat.tituloDica': 'Type the new title and press Enter to save',
+    'chat.renomear': 'Rename conversation',
+    'chat.apagar': 'Delete conversation',
+    'chat.fecharChat': 'Close chat',
+    'chat.fechar': 'Close',
+    'chat.crieConversa': 'Create a conversation to start',
+    'chat.enviar': 'Send',
+    'chat.cartaBloqueada': 'Card locked — level up to unlock it.',
+    'chat.copiada': 'Message copied as markdown.',
+    'chat.copiaFalhou': 'Could not copy the message.',
+    'chat.confirmarApagar': 'Delete this conversation? This cannot be undone.',
+    'chat.apagada': 'Conversation deleted.',
+    'chat.configureIa': 'Set up the AI in Settings → Fable before chatting.',
+    'chat.semResposta': 'The Fable returned nothing. Try again.',
   },
 }
 
