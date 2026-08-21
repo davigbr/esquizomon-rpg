@@ -31,10 +31,65 @@ let session: Session | null = null
 let refreshCooldownUntil = 0
 const REFRESH_COOLDOWN_MS = 30_000
 
+// Mutex de refresh: garante que nunca existam DOIS POSTs de refresh_token em
+// voo com o mesmo token. O goTrue rotaciona o refresh_token a cada renovação;
+// um segundo POST que chega com o token JÁ rotacionado é tratado como "reuso"
+// (proteção anti-roubo) e REVOGA toda a família de sessões do usuário — foi a
+// causa do logout em massa 2026-08-21 (dois dispositivos caíram juntos). No
+// mobile (iOS Safari/Quick Browser) os handlers de focus/visibility disparam
+// várias syncNow quase ao mesmo tempo, o que tornava a corrida provável.
+let refreshInFlight: Promise<string | null> | null = null
+
 function clearSession(): void {
   session = null
   saveSession(null)
   notifySession()
+}
+
+/** Um único POST de refresh_token até o servidor, SEMPRE serializado. */
+function refreshOnce(): Promise<string | null> {
+  // Se já há um refresh em voo, reaproveita o MESMO resultado — nunca dispara
+  // um segundo POST com o mesmo refresh_token.
+  if (refreshInFlight) return refreshInFlight
+  refreshInFlight = doTokenRefresh().finally(() => {
+    refreshInFlight = null
+  })
+  return refreshInFlight
+}
+
+async function doTokenRefresh(): Promise<string | null> {
+  if (!session?.refreshToken) return null
+  // Cooldown (rate-limit/falha transitória recente): não martela o endpoint.
+  if (Date.now() < refreshCooldownUntil) return session?.accessToken ?? null
+  try {
+    const res = await fetch(`${IDENTITY}/token`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(session.refreshToken)}`,
+    })
+    // 400/401 = refresh_token revogado/inválido de VERDADE → a sessão morreu.
+    // Bug real 2026-08-21: só tratávamos 401; com 400 (token morto) o app entrava
+    // em retry infinito de refresh, martelando o endpoint até dar 429 (rate-limit).
+    if (res.status === 400 || res.status === 401) {
+      clearSession()
+      return null
+    }
+    // Falha transitória (rede, 5xx, rate-limit 429, timeout): NÃO desloga.
+    if (!res.ok) {
+      refreshCooldownUntil = Date.now() + REFRESH_COOLDOWN_MS
+      return session?.accessToken ?? null
+    }
+    const t = await res.json()
+    const tokens = buildTokens({ ...t, refresh_token: t.refresh_token ?? session.refreshToken })
+    session = buildSession(tokens, session.user) // o usuário não muda no refresh
+    saveSession(session)
+    return session.accessToken
+  } catch {
+    // transmissão falhou (timeout/rede): mantém a sessão; devolve o token atual.
+    // bug real 2026-08-17: aqui deslogava o usuário em QUALQUER falha de refresh.
+    refreshCooldownUntil = Date.now() + REFRESH_COOLDOWN_MS
+    return session?.accessToken ?? null
+  }
 }
 
 // ── Inscrição em mudanças de sessão (header/UI reagem ao login/sair) ──
@@ -145,39 +200,7 @@ export async function getValidToken(): Promise<string | null> {
   // Sessão entrou em cooldown (rate-limit/falha transitória recente): evita
   // martelar o endpoint e devolve o token atual de 'última chance'.
   if (Date.now() < refreshCooldownUntil) return session.accessToken
-
-  try {
-    const res = await fetch(`${IDENTITY}/token`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(session.refreshToken)}`,
-    })
-    // 400/401 = refresh_token revogado/inválido de VERDADE → a sessão morreu.
-    // Bug real 2026-08-21: só tratávamos 401; com 400 (token morto) o app entrava
-    // em retry infinito de refresh, martelando o endpoint até dar 429 (rate-limit).
-    if (res.status === 400 || res.status === 401) {
-      clearSession()
-      return null
-    }
-    // Falha transitória (rede, 5xx, rate-limit 429, timeout): NÃO desloga. Entra
-    // em cooldown e devolve o access token atual de "última chance" — se ele
-    // estiver expirado, o servidor responde 401 e o sync renova via renewToken.
-    if (!res.ok) {
-      refreshCooldownUntil = Date.now() + REFRESH_COOLDOWN_MS
-      return session.accessToken
-    }
-    const t = await res.json()
-    const tokens = buildTokens({ ...t, refresh_token: t.refresh_token ?? session.refreshToken })
-    session = buildSession(tokens, session.user) // o usuário não muda no refresh
-    saveSession(session)
-    return session.accessToken
-  } catch {
-    // transmissão falhou (timeout/rede): mantém a sessão; devolve o token atual.
-    // bug real 2026-08-17: aqui deslogava o usuário em QUALQUER falha de refresh
-    // (o token expira a cada ~1h → o app "deslogava sozinho" às vezes).
-    refreshCooldownUntil = Date.now() + REFRESH_COOLDOWN_MS
-    return session?.accessToken ?? null
-  }
+  return refreshOnce()
 }
 
 /**
@@ -188,33 +211,7 @@ export async function getValidToken(): Promise<string | null> {
 export async function renewToken(): Promise<string | null> {
   if (!session?.refreshToken) return null
   if (Date.now() < refreshCooldownUntil) return null
-  try {
-    const res = await fetch(`${IDENTITY}/token`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(session.refreshToken)}`,
-    })
-    // 400/401 = refresh_token revogado/inválido de VERDADE → sessão morta.
-    // Bug real 2026-08-21: idem getValidToken — sem isso, token morto (400)
-    // virava retry/loop infinito de refresh + martelada no endpoint (429).
-    if (res.status === 400 || res.status === 401) {
-      clearSession()
-      return null
-    }
-    if (!res.ok) {
-      // Falha transitória (429 rate-limit, 5xx): cooldown e não desloga.
-      refreshCooldownUntil = Date.now() + REFRESH_COOLDOWN_MS
-      throw new Error(`refresh falhou: HTTP ${res.status}`)
-    }
-    const t = await res.json()
-    const tokens = buildTokens({ ...t, refresh_token: t.refresh_token ?? session.refreshToken })
-    session = buildSession(tokens, session.user)
-    saveSession(session)
-    return session.accessToken
-  } catch (error) {
-    console.error('[auth] renovação forçada do token falhou:', error)
-    return null
-  }
+  return refreshOnce()
 }
 
 export async function login(email: string, password: string): Promise<{ ok: boolean; reason?: string }> {
