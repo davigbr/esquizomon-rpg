@@ -1,4 +1,4 @@
-/** Initial view — 3 columns Habitica-style: Hábitos | Recorrentes | Tarefas.
+/** Initial view — 3 columns Habitica-style: Habits | Recurring | Tasks.
  *  Everything is done from this screen: add (modal with pre-selected type),
  *  toggle, repeat habit, edit, delete and filter.
  *  The visible date can be navigated (◀ ▶, max today) — everything reflects

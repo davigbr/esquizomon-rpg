@@ -7,7 +7,7 @@
  *   is empty or older, sends the local state (first migration).
  * - After: every store change is sent with debounce.
  * - Offline: nothing breaks — data stays in localStorage and the status shows
- *   "Sem conexão".
+ *   "Offline".
  * - Conflict: last-write-wins by timestamp (salvoEm).
  */
 

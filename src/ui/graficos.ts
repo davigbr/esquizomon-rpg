@@ -19,7 +19,7 @@ const MARGIN = { top: 16, right: 14, bottom: 26, left: 48 }
 /**
  * Generates a line chart with discrete points in SVG for the given series.
  * `currentLevel` (1-based) gets a highlighted vertical marker.
- * Each point has a native tooltip: "Nível N — value".
+ * Each point has a native tooltip: "Level N — value".
  */
 export function progressionChart(series: ChartSeries, currentLevel: number): string {
   const { values, color } = series

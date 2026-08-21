@@ -1,6 +1,6 @@
-/** Cliente de IA — BYOK com streaming, fala sempre com /api/ia (Netlify Function
- *  em prod, Vite middleware em dev). Suporta raciocínio do modelo colapsável
- *  (DeepSeek R1, OpenAI o-series, Gemini thinking) via callback onReasoning. */
+/** AI client — BYOK with streaming, always talks to /api/ia (Netlify Function
+ *  in prod, Vite middleware in dev). Supports the collapsible model reasoning
+ *  (DeepSeek R1, OpenAI o-series, Gemini thinking) via the onReasoning callback. */
 
 import type { AiConfig, AiProvider } from '../core/tipos'
 
@@ -14,11 +14,11 @@ export interface StreamOptions {
   onReasoning?: (delta: string) => void
 }
 
-/** Modelo padrão por provider (quando o usuário deixa o campo vazio). */
+/** Default model per provider (when the user leaves the field empty). */
 export function defaultModel(p: AiProvider): string {
   switch (p) {
     case 'deepseek':
-      // R1 distilado: raciocínio real, barata, serve bem como default.
+      // Distilled R1: real reasoning, cheap, works well as the default.
       return 'deepseek-reasoner'
     case 'opencode':
       return 'deepseek-v4-flash'
@@ -27,15 +27,15 @@ export function defaultModel(p: AiProvider): string {
   }
 }
 
-/** Modelos sugeridos na UI (ordenados — o primeiro é o recomendado). */
+/** Models suggested in the UI (ordered — the first is the recommended one). */
 export const MODELS_BY_PROVIDER: Record<AiProvider, string[]> = {
   nenhum: [],
   deepseek: ['deepseek-reasoner', 'deepseek-chat'],
   opencode: ['deepseek-v4-flash'],
 }
 
-/** Timeout da chamada de streaming — sem ele, uma conexão travada deixa o
- *  chat preso em "ocupado" (input desabilitado pra sempre) — bug real 2026-08-12. */
+/** Streaming call timeout — without it, a stuck connection leaves the chat
+ *  stuck in "busy" (input disabled forever) — real bug 2026-08-12. */
 const AI_TIMEOUT_MS = 90_000
 const TEST_TIMEOUT_MS = 30_000
 
@@ -47,16 +47,16 @@ export class AiError extends Error {
 }
 
 interface SseEvent {
-  /** Acumuladores de texto. */
+  /** Text accumulators. */
   content: string
   reasoning: string
   done: boolean
-  /** Erro retornado pelo upstream (status 4xx/5xx chegou no stream). */
+  /** Error returned by the upstream (4xx/5xx status arrived in the stream). */
   error?: string
 }
 
-/** Lê um stream SSE no formato OpenAI-compat (data: {...}).
- *  Acumula `delta.content` e `delta.reasoning_content` separadamente. */
+/** Reads an SSE stream in the OpenAI-compatible format (data: {...}).
+ *  Accumulates `delta.content` and `delta.reasoning_content` separately. */
 async function readSSE(res: Response, opts: StreamOptions): Promise<SseEvent> {
   if (!res.body) return { content: '', reasoning: '', done: true }
   const reader = res.body.getReader()
@@ -83,8 +83,8 @@ async function readSSE(res: Response, opts: StreamOptions): Promise<SseEvent> {
       try {
         const obj = JSON.parse(data)
         const delta = obj.choices?.[0]?.delta ?? {}
-        // Raciocínio: DeepSeek R1 envia `reasoning_content`; OpenAI o-series
-        // envia em `reasoning` (varia por provider). Cobre os dois.
+        // Reasoning: DeepSeek R1 sends `reasoning_content`; OpenAI o-series
+        // sends `reasoning` (varies by provider). Covers both.
         const reasoningDelta =
           typeof delta.reasoning_content === 'string'
             ? delta.reasoning_content
@@ -102,7 +102,7 @@ async function readSSE(res: Response, opts: StreamOptions): Promise<SseEvent> {
         }
         if (obj.error?.message) error = obj.error.message
       } catch {
-        /* chunk não-JSON (keep-alive, etc.) — ignora */
+        /* non-JSON chunk (keep-alive, etc.) — ignore */
       }
     }
   }
@@ -115,12 +115,12 @@ async function errorFrom(res: Response): Promise<AiError> {
     const j = (await res.json()) as { error?: { message?: string } }
     detail = j.error?.message ?? ''
   } catch {
-    /* corpo não-JSON */
+    /* non-JSON body */
   }
   return new AiError(detail || `Falha na chamada (HTTP ${res.status}).`)
 }
 
-/** Envia a conversa e retorna o conteúdo + raciocínio acumulados. */
+/** Sends the conversation and returns the accumulated content + reasoning. */
 export async function sendToAI(
   ia: AiConfig,
   messages: ChatMessage[],
@@ -158,7 +158,7 @@ export async function sendToAI(
   }
 }
 
-/** Mensagem amigável de erro de fetch/abort (timeout do streaming). */
+/** Friendly fetch/abort error message (streaming timeout). */
 function fetchMessage(err: unknown): string {
   if (err instanceof DOMException && err.name === 'AbortError') {
     return 'A resposta demorou demais e foi interrompida. Tente de novo.'
@@ -166,7 +166,7 @@ function fetchMessage(err: unknown): string {
   return `Não consegui contactar a IA (/api/ia). ${err instanceof Error ? err.message : String(err)}`
 }
 
-/** Teste de conexão (chamada bloqueante, sem streaming). */
+/** Connection test (blocking call, no streaming). */
 export async function testConnection(ia: AiConfig): Promise<string> {
   if (ia.provider === 'nenhum') throw new AiError('Escolha um provider.')
   const model = ia.model.trim() || defaultModel(ia.provider)

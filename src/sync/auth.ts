@@ -258,7 +258,7 @@ export async function login(email: string, password: string): Promise<{ ok: bool
   }
 }
 
-/** Cria a conta. Com verificação de email habilitada, retorna needsConfirm. */
+/** Creates the account. With email verification enabled, returns needsConfirm. */
 export async function createAccount(email: string, password: string): Promise<{ ok: boolean; needsConfirm?: boolean; reason?: string }> {
   try {
     const res = await fetch(`${IDENTITY}/signup`, {

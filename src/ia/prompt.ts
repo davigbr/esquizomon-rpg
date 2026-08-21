@@ -1,15 +1,15 @@
-/** System prompt canônico da Fábula + montagem do prompt final.
- *  O usuário pode editar o system prompt em Config — vazio = usa este padrão.
- *  Tanto o padrão quanto um prompt customizado podem usar os placeholders
- *  {diario} (últimas entradas do diário) e {resumo} (o campo "Sobre você"). */
+/** Canonical Fable system prompt + assembly of the final prompt.
+ *  The user can edit the system prompt in Settings — empty = uses this default.
+ *  Both the default and a custom prompt can use the placeholders
+ *  {diario} (latest diary entries) and {resumo} (the "About you" field). */
 
 import type { AppData } from '../core/tipos'
 import { buildContext, buildDiaryContext } from './estado'
 
-/** Texto canônico da Fábula (Rizomante) — reescrito 2026-08-12 a partir do
- *  "prompt Esquizoanalista" do vault do usuário (Diário/Prompts/Esquizoanalista.md):
- *  tom de análises, perguntas e conselhos; mapear o funcionamento produtivo em vez
- *  de interpretar; NUNCA lacônica/enigmática. É o que aparece no botão "Restaurar padrão". */
+/** Canonical Fable text (Rizomante) — rewritten 2026-08-12 from the
+ *  "Esquizoanalista prompt" in the user's vault (Diário/Prompts/Esquizoanalista.md):
+ *  tone of analyses, questions and advice; map the productive functioning instead
+ *  of interpreting; NEVER laconic/enigmatic. It's what the "Restore default" button shows. */
 export const DEFAULT_SYSTEM_PROMPT = `Você é FÁBULA, a Rizomante — uma esquizoanalista que escreve. Você acompanha o jogador no Esquizomon RPG e o ajuda oferecendo reflexões na forma de análises, perguntas e conselhos inspirados na filosofia da diferença de Deleuze e Guattari.
 
 QUEM VOCÊ É
@@ -75,8 +75,8 @@ function applyPlaceholders(text: string, data: AppData): string {
     .replaceAll('{resumo}', (data.settings.summary ?? '').trim() || '- (o jogador ainda não escreveu o resumo — você pode perguntar sobre a vida dele com delicadeza)')
 }
 
-/** System prompt final: o que o usuário editou, ou o canônico se vazio + seções
- *  fixas (o que é o jogo + o que a Fábula pode fazer) + estado do jogo. */
+/** Final system prompt: what the user edited, or the canonical if empty + fixed
+ *  sections (what the game is + what the Fable can do) + game state. */
 export function buildSystemPrompt(data: AppData): string {
   const persona = (data.settings.ai?.systemPrompt ?? '').trim() || DEFAULT_SYSTEM_PROMPT
   const withPlaceholders = applyPlaceholders(persona, data)
@@ -111,11 +111,9 @@ ESTADO ATUAL DO JOGO (use como verdade-base; o que não está aqui, pergunte):
 ${buildContext(data)}`
 }
 
-/**
- * Voz PURA do Esquizoanalista (do vault — Diário/Prompts/Esquizoanalista.md),
- * usada no comando /analisar NO LUGAR do pré-prompt da Fábula: só o método e a
- * voz, sem a persona, a mecânica do jogo ou as regras da Fábula.
- */
+/** Voice PURELY of the Esquizoanalista (from the vault — Diário/Prompts/Esquizoanalista.md),
+ * used in the /analisar command INSTEAD OF the Fable pre-prompt: only the method and the
+ * voice, without the persona, the game mechanics or the Fable rules. */
 const SCHIZOANALYST_PROMPT = `Você é um esquizoanalista (Deleuze e Guattari). A tarefa é "descobrir o funcionamento das máquinas desejantes, sem interpretação": não interprete o inconsciente — mapeie COMO o desejo funciona (quais conexões/peças produzem, cortam ou desviam fluxos) a partir do vivido.
 
 Investigue com o vocabulário esquizoanalítico (máquinas desejantes, fluxos e cortes, rizomas e agenciamentos, linhas e segmentaridade, devires, linhas de fuga e desterritorialização), usando apenas o que a vida apresentada tocar.
@@ -124,8 +122,8 @@ Ao responder: analise APENAS o material (diário, tarefas e o que o jogador diss
 
 Fale diretamente com o jogador (trate-o por "você"), em português.`
 
-/** System prompt do /analisar: a voz pura do Esquizoanalista + o material
- *  (estado/diário) para a análise — sem o pré-prompt da Fábula. */
+/** /analisar system prompt: the pure Esquizoanalista voice + the material
+ *  (state/diary) for the analysis — without the Fable pre-prompt. */
 export function buildSchizoanalystSystemPrompt(data: AppData): string {
   return `${SCHIZOANALYST_PROMPT}
 

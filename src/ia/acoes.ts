@@ -1,6 +1,6 @@
-/** Canal de ação Fábula → app: marcadores estruturados no fim da resposta.
- *  A Fábula anexa `[[acao:{"type":"...","card":"<id>"}]]` e o app executa
- *  (desconta mana, valida, registra). O marcador é removido do texto exibido. */
+/** Fable → app action channel: structured markers at the end of the answer.
+ *  The Fable appends `[[acao:{"type":"...","card":"<id>"}]]` and the app executes
+ *  (deducts mana, validates, records). The marker is removed from the shown text. */
 
 export interface InvokeAction {
   type: 'invocar'
@@ -10,18 +10,18 @@ export interface InvokeAction {
 export type AiAction = InvokeAction
 
 /** Comandos do chat (digitados com /). O app converte o comando numa frase
- *  natural antes de enviar à Fábula — o histórico lê como conversa. */
+ *  natural before sending to the Fable — the history reads as a conversation. */
 export interface AiCommand {
   type: 'invocar' | 'analisar' | 'capturas'
   /** invocar com nome: termo digitado (nome ou slug da carta). */
   card?: string
-  /** invocar SEM nome: a Fábula escolhe a carta (custo premium ×1,5). */
+  /** invoke WITHOUT a name: the Fable picks the card (premium cost ×1.5). */
   fableChoice: boolean
 }
 
 const ACTION_RE = /\[\[acao:\s*(\{[\s\S]*?\})\s*\]\]/g
 
-/** Extrai os marcadores do texto e devolve o texto limpo + as ações. */
+/** Extracts the markers from the text and returns the clean text + the actions. */
 export function extractActions(text: string): { text: string; actions: AiAction[] } {
   const actions: AiAction[] = []
   const clean = text.replace(ACTION_RE, (_match, json: string) => {
@@ -42,11 +42,11 @@ export function extractActions(text: string): { text: string; actions: AiAction[
   return { text: clean.replace(/\[\[acao:[\s\S]*?\]\]/g, '').trim(), actions }
 }
 
-/** Detecta um pedido EXPLÍCITO de invocação na mensagem do usuário
- *  ("invoca a carta X", "pode invocar X?", "me invoca a carta ninho...") e
- *  devolve o termo da carta (nome ou id). Null se não for pedido de invocação.
- *  Usado pelo chat pra executar a invocação NO APP (determinístico), sem
- *  depender do modelo emitir o marcador. */
+/** Detects an EXPLICIT invocation request in the user's message
+ *  ("invoca a carta X", "pode invocar X?", "me invoca a carta ninho...") and
+ *  returns the card term (name or id). Null if it's not an invocation request.
+ *  Used by the chat to run the invocation IN THE APP (deterministic), without
+ *  relying on the model emitting the marker. */
 export function detectInvocationRequest(text: string): string | null {
   const t = text.trim()
   const m =
@@ -57,10 +57,10 @@ export function detectInvocationRequest(text: string): string | null {
   return term || null
 }
 
-/** Detecta comandos do chat (digitados com /): `/invocar <carta>` (invocação
- *  normal), `/invocar` sem nome ou `/fabula-invoca` (a FÁBULA escolhe a carta —
- *  custo premium) e `/analisar` (análise esquizoanalítica, 10 mana). Devolve o
- *  comando pra o app converter em frase natural e orquestrar a ação. */
+/** Detects chat commands (typed with /): `/invocar <carta>` (normal
+ *  invocation), `/invocar` without a name or `/fabula-invoca` (the FABLE picks the
+ *  card — premium cost) and `/analisar` (schizoanalytic analysis, 10 mana). Returns
+ *  the command for the app to convert into natural speech and orchestrate the action. */
 export function detectCommand(text: string): AiCommand | null {
   const m = text.trim().match(/^\/([a-z-]+)(?:\s+(.*))?$/i)
   if (!m) return null

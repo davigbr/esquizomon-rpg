@@ -1,10 +1,10 @@
 /**
- * Monta os "avisos de sistema" dos comandos (/) antes de enviar à Fábula.
+ * Builds the system "notices" of the (/) commands before sending to the Fable.
  *
- * Isolado do DOM para ser testável: o chat só precisa aplicar as notas no
- * histórico + usar os flags/desconto retornados. Toda a regra de negócio dos
- * comandos (`/invocar` global, `/analisar`, `/capturas`, recompensa de menções
- * no diário) mora aqui — mexer num comando não toca o fluxo de envio.
+ * Isolated from the DOM so it's testable: the chat only needs to apply the notes
+ * in the history + use the returned flags/discount. All the business rule of the
+ * commands (`/invocar` global, `/analisar`, `/capturas`, diary-mention reward)
+ * lives here — changing a command doesn't touch the send flow.
  */
 import type { AppData } from '../core/tipos'
 import { detectCommand } from './acoes'
@@ -17,19 +17,19 @@ export interface CommandNotes {
   analysisRefused: boolean
   capturesRequested: boolean
   capturesRefused: boolean
-  /** Mana só é descontada quando a resposta chega (falha no retorno não cobra). */
+  /** Mana is only deducted when the answer arrives (a failed return doesn't charge). */
   pendingDiscount: { cost: number; label: string } | null
-  /** Mensagens de `system` a inserir no histórico (ordem correta já garantida). */
+  /** `system` messages to insert into the history (order already guaranteed). */
   system: Array<{ role: 'system'; content: string }>
-  /** Texto do aviso de recompensa por menção no diário (para o chat exibir). */
+  /** Text of the diary-mention reward notice (for the chat to show). */
   mentionsNotice: string | null
 }
 
-/** Constrói as notas de sistema + flags + desconto dos comandos do turno. */
+/** Builds the system notes + flags + discount of the turn's commands. */
 export function collectCommandNotes(text: string, data: AppData): CommandNotes {
   const command = detectCommand(text)
 
-  // Flags e desconto agendado (mana SÓ no sucesso da resposta).
+  // Flags and scheduled discount (mana ONLY on the answer's success).
   let fableChoice = false
   let analysisRequested = false
   let analysisRefused = false
@@ -57,7 +57,7 @@ export function collectCommandNotes(text: string, data: AppData): CommandNotes {
 
   const system: Array<{ role: 'system'; content: string }> = []
 
-  // Recompensa por menção de carta no diário (a Fábula lê o diário na interação).
+  // Card-mention reward in the diary (the Fable reads the diary on interaction).
   let mentionsNotice: string | null = null
   const mentions = processDiaryMentions()
   if (mentions.xp > 0) {

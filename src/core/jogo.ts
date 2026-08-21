@@ -112,7 +112,7 @@ export function invocationIncrement(kind: 'monstro' | 'captura' | 'alianca'): nu
 export const INVOCATION_CAP = 3
 
 /** Current cost of invoking a card, given how many times it was already invoked.
- *  E.g. monstro 4→6→8→10; captura 8→12→16→20; aliança 12→18→24→30. */
+ *  E.g. monster 4→6→8→10; capture 8→12→16→20; alliance 12→18→24→30. */
 export function invocationCost(kind: 'monstro' | 'captura' | 'alianca', invocations: number): number {
   const extras = Math.min(invocations, INVOCATION_CAP)
   return baseInvocationCost(kind) + extras * invocationIncrement(kind)

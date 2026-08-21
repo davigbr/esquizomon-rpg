@@ -1,6 +1,6 @@
-/** Serialização do estado do app para enviar à IA como contexto.
- *  `buildDiaryContext(dados)` alimenta o placeholder `{diario}` (persona);
- *  `buildContext(dados)` é o estado do jogo (sempre injetado após a persona). */
+/** Serialization of the app state to send to the AI as context.
+ *  `buildDiaryContext(dados)` feeds the `{diario}` placeholder (persona);
+ *  `buildContext(dados)` is the game state (always injected after the persona). */
 
 import type { AppData } from '../core/tipos'
 import { listDiary } from '../stores/app'
@@ -8,14 +8,14 @@ import { todayISO } from '../core/jogo'
 import type { Card } from '../core/baralho'
 import deckData from '../data/deck.json'
 
-/** O deck (import estático — síncrono, mesma fonte da galeria). */
+/** The deck (static import — synchronous, same source as the gallery). */
 const deck = deckData as Card[]
 
-/** Quantas entradas recentes do diário entram no placeholder {diario}.
- *  NA ÍNTEGRA (sem truncamento — decisão do usuário: a Fábula lê o diário de verdade). */
+/** How many recent diary entries go into the {diario} placeholder.
+ *  IN FULL (no truncation — the user's decision: the Fable really reads the diary). */
 const RECENT_DIARY_IN_CONTEXT = 5
 
-/** Últimas N entradas do diário em texto (placeholder {diario}) — na íntegra. */
+/** Last N diary entries as text ({diario} placeholder) — in full. */
 export function buildDiaryContext(): string {
   const recentDiary = listDiary({ limit: RECENT_DIARY_IN_CONTEXT })
     .map((e) => {
@@ -29,7 +29,7 @@ export function buildDiaryContext(): string {
 O diário tem mais entradas além das ${RECENT_DIARY_IN_CONTEXT} mostradas acima. Se o jogador perguntar sobre algo que pode estar numa entrada antiga, diga que não viu essa entrada ainda e peça a data ou o tema — ou sugira abrir a página Diário.`
 }
 
-/** Serializa o estado do jogo em texto legível (sempre após a persona). */
+/** Serializes the game state into readable text (always after the persona). */
 export function buildContext(data: AppData): string {
   const today = todayISO()
   const p = data.character
@@ -60,7 +60,7 @@ export function buildContext(data: AppData): string {
     .map((e) => `- ${e.type}: ${e.text}`)
     .join('\n')
 
-  // Cartas desbloqueadas (id → nome) — a Fábula precisa do id pra invocar
+  // Unlocked cards (id → name) — the Fable needs the id to invoke
   // via marcador e do nome pra conversar sobre a carta.
   const unlockedCards = deck
     .filter((c) => p.cards.includes(c.id))
