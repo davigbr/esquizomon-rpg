@@ -83,11 +83,11 @@ export function kindOf(card: Card | undefined): CardType {
 export function typeLabel(type: CardType): string {
   switch (type) {
     case 'monstro':
-      return t('cartas.tipoMonstro')
+      return t('cards.monsterType')
     case 'captura':
-      return t('cartas.tipoCaptura')
+      return t('cards.captureType')
     case 'alianca':
-      return t('cartas.tipoAlianca')
+      return t('cards.allianceType')
   }
 }
 

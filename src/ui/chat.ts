@@ -141,7 +141,7 @@ function render(): void {
     if (created) {
       state.activeConversationId = created.id
       savePanelState(state)
-      notify(t('chat.semConversas'))
+      notify(t('chat.noConversations'))
     }
   }
   // Re-reads from the store: the auto-start above may have just created a
@@ -157,12 +157,12 @@ function render(): void {
   document.body.classList.toggle('fable-open' , state.open)
 
   panel.innerHTML = `
-    <div class="fable-resize" data-fabula-resize title="${t('chat.redimensionar')}" aria-label="${t('chat.redimensionarPainel')}"></div>
+    <div class="fable-resize" data-fabula-resize title="${t('chat.resize')}" aria-label="${t('chat.resizePanel')}"></div>
     <div class="fable-side">
-      <button class="btn btn-icon fable-new" data-fabula-nova title="${t('chat.nova')}" aria-label="${t('chat.nova')}">
+      <button class="btn btn-icon fable-new" data-fabula-nova title="${t('chat.new')}" aria-label="${t('chat.new')}">
         <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
       </button>
-      <div class="fable-list" data-fabula-lista role="list" aria-label="${t('chat.conversas')}">
+      <div class="fable-list" data-fabula-lista role="list" aria-label="${t('chat.conversations')}">
         ${currentConversations.length === 0
           ? '<div class="fable-empty-list">Sem conversas</div>'
           : currentConversations.map(conversationItem).join('')}
@@ -172,7 +172,7 @@ function render(): void {
     <div class="fable-conversation">
       <header class="fable-header">
         ${renaming && conversation
-          ? `<input class="fable-title-input" data-fabula-titulo-input value="${escape(conversation.title ?? '')}" maxlength="60" aria-label="${t('chat.tituloConversa')}" title="${t('chat.tituloDica')}" />`
+          ? `<input class="fable-title-input" data-fabula-titulo-input value="${escape(conversation.title ?? '')}" maxlength="60" aria-label="${t('chat.conversationTitle')}" title="${t('chat.titleHint')}" />`
           : `<div class="fable-title">
           <i class="fa-solid fa-feather" aria-hidden="true"></i>
           <div>
@@ -181,13 +181,13 @@ function render(): void {
           </div>
         </div>`}
         <div class="fable-header-actions">
-          <button class="btn btn-icon" data-fabula-renomear title="${t('chat.renomear')}" aria-label="${t('chat.renomear')}" ${conversation ? '' : 'disabled'}>
+          <button class="btn btn-icon" data-fabula-renomear title="${t('chat.rename')}" aria-label="${t('chat.rename')}" ${conversation ? '' : 'disabled'}>
             <i class="fa-solid fa-pen" aria-hidden="true"></i>
           </button>
-          <button class="btn btn-icon" data-fable-delete title="${t('chat.apagar')}" aria-label="${t('chat.apagar')}" ${conversation ? '' : 'disabled'}>
+          <button class="btn btn-icon" data-fable-delete title="${t('chat.delete')}" aria-label="${t('chat.delete')}" ${conversation ? '' : 'disabled'}>
             <i class="fa-solid fa-trash" aria-hidden="true"></i>
           </button>
-          <button class="btn btn-icon" data-fable-close aria-label="${t('chat.fecharChat')}" title="${t('chat.fechar')}">
+          <button class="btn btn-icon" data-fable-close aria-label="${t('chat.closeChat')}" title="${t('chat.close')}">
             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </button>
         </div>
@@ -203,10 +203,10 @@ function render(): void {
       </div>
 
       <form class="fable-form" data-fabula-form>
-        <textarea class="fable-input" data-fabula-input rows="1" placeholder="${conversation ? '' : t('chat.crieConversa')}" autocomplete="off" ${!conversation || busy ? 'disabled' : ''}></textarea>
-        <button class="btn btn-icon" type="submit" aria-label="${t('chat.enviar')}" ${!conversation || busy ? 'disabled' : ''}><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></button>
+        <textarea class="fable-input" data-fabula-input rows="1" placeholder="${conversation ? '' : t('chat.createConversation')}" autocomplete="off" ${!conversation || busy ? 'disabled' : ''}></textarea>
+        <button class="btn btn-icon" type="submit" aria-label="${t('chat.send')}" ${!conversation || busy ? 'disabled' : ''}><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></button>
       </form>
-      <p class="fable-hint">${t('chat.hintComandos')}</p>
+      <p class="fable-hint">${t('chat.commandsHint')}</p>
     </div>
   `
 
@@ -257,7 +257,7 @@ function installHandlers(conversation: Conversation | undefined): void {
       if (appStore.get().character.cards.includes(id)) {
         openCardModal(id)
       } else {
-        notify(t('chat.cartaBloqueada'))
+        notify(t('chat.cardLocked'))
       }
     }
   })
@@ -481,7 +481,7 @@ function scrollToEnd(): void {
 
 async function copyMessage(m: AiMessage): Promise<void> {
   const ok = await copyToClipboard(messageToMarkdown(m))
-  notify(ok ? t('chat.copiada') : t('chat.copiaFalhou'), ok ? 'ok' : 'erro')
+  notify(ok ? t('chat.copied') : t('chat.copyFailed'), ok ? 'ok' : 'erro')
 }
 
 /** Clipboard API with fallback (textarea + execCommand) for contexts without permission. */
@@ -550,7 +550,7 @@ async function deleteCurrentConversation(): Promise<void> {
   const id = state.activeConversationId
   if (!id) return
   renaming = false
-  const ok = await confirm(t('chat.confirmarApagar'), t('chat.apagar'))
+  const ok = await confirm(t('chat.confirmDelete'), t('chat.delete'))
   if (!ok) return
   deleteConversation(id)
   // Selects the most recent remaining conversation (or none).
@@ -558,7 +558,7 @@ async function deleteCurrentConversation(): Promise<void> {
   state.activeConversationId = remaining[0]?.id ?? null
   savePanelState(state)
   render()
-  notify(t('chat.apagada'))
+  notify(t('chat.deleted'))
 }
 
 function currentConversation(): Conversation | undefined {
@@ -573,7 +573,7 @@ async function send(text: string): Promise<void> {
   const data: AppData = appStore.get()
   const ai = data.settings.ai
   if (!ai || ai.provider === 'nenhum' || !ai.apiKey.trim()) {
-    notify(t('chat.configureIa'), 'erro')
+    notify(t('chat.configureAi'), 'erro')
     return
   }
 
@@ -677,7 +677,7 @@ async function send(text: string): Promise<void> {
     // Empty model response (e.g. only reasoning, or silent refusal): shows an
     // error instead of saving an empty bubble (real bug 2026-08-12).
     if (!response.trim()) {
-      notify(t('chat.semResposta'), 'erro')
+      notify(t('chat.noResponse'), 'erro')
       return
     }
     // 4. executes the Fable's actions (marker [[acao:...]]) and saves the message.

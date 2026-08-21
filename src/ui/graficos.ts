@@ -47,7 +47,7 @@ export function progressionChart(series: ChartSeries, currentLevel: number): str
   const slug = series.label.toLowerCase().replace(/\s+/g, '-')
 
   return `
-    <svg class="chart" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-label="${t('graficos.progressao', {x: series.label.toLowerCase()})}">
+    <svg class="chart" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-label="${t('charts.progression', {x: series.label.toLowerCase()})}">
       <defs>
         <linearGradient id="grad-${slug}" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="${color}" stop-opacity="0.35" />
@@ -74,7 +74,7 @@ export function progressionChart(series: ChartSeries, currentLevel: number): str
         .map(
           (v, i) => `
         <circle class="chart-dot${i === idx ? ' chart-dot--current' : ''}" cx="${x(i)}" cy="${y(v)}" r="${i === idx ? 5 : 3.5}" fill="${color}">
-          <title>${t('graficos.nivel', {n: i + 1, v: series.format(v)})}</title>
+          <title>${t('charts.level', {n: i + 1, v: series.format(v)})}</title>
         </circle>`,
         )
         .join('')}

@@ -17,9 +17,9 @@ const TASK_TYPES: ReadonlyArray<{ id: TaskType }> = [
 /** Labels/descriptions of the task types (resolved at render so they follow the language). */
 const taskTypeInfo = (id: TaskType): { name: string; desc: string } => {
   switch (id) {
-    case 'unica': return { name: t('form.tipoUnica'), desc: t('form.tipoUnicaDesc') }
-    case 'habito': return { name: t('form.tipoHabito'), desc: t('form.tipoHabitoDesc') }
-    default: return { name: t('form.tipoRecorrente'), desc: t('form.tipoRecorrenteDesc') }
+    case 'unica': return { name: t('form.oneOffType'), desc: t('form.oneOffTypeDesc') }
+    case 'habito': return { name: t('form.habitType'), desc: t('form.habitTypeDesc') }
+    default: return { name: t('form.recurringType'), desc: t('form.recurringTypeDesc') }
   }
 }
 
@@ -45,15 +45,15 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
         : 'todos'
 
   openModal(`
-    <h2>${task ? t('form.editarTarefa') : t('form.novaTarefa')}</h2>
+    <h2>${task ? t('form.editTask') : t('form.newTask')}</h2>
     <form data-task-form>
       <div class="form-group">
-        <label>${t('form.oQueEh')} <span class="required">*</span></label>
-        <input class="field" name="title" value="${escape(task?.title ?? '')}" placeholder="${t('form.exTitulo')}" autofocus required />
+        <label>${t('form.whatIsIt')} <span class="required">*</span></label>
+        <input class="field" name="title" value="${escape(task?.title ?? '')}" placeholder="${t('form.titleExample')}" autofocus required />
       </div>
 
       <div class="form-group">
-        <label>${t('form.tipoTarefa')}</label>
+        <label>${t('form.taskType')}</label>
         <div class="options-type" data-type-options>
           ${TASK_TYPES.map(
             (tp) => `
@@ -67,19 +67,19 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
       </div>
 
       <div class="form-group">
-        <label>${t('form.dificuldade')}</label>
+        <label>${t('form.difficulty')}</label>
         <select class="field" name="difficulty">
           ${DIFFICULTY_OPTIONS(difficulty)}
         </select>
-        <small>${t('form.dificuldadeHint')}</small>
+        <small>${t('form.difficultyHint')}</small>
       </div>
 
       <div class="form-group" data-field-agenda>
-        <label>${t('form.repeticao')}</label>
+        <label>${t('form.repetition')}</label>
         <select class="field" name="repeat" data-repeat-select>
-          <option value="todos" ${repeat === 'todos' ? 'selected' : ''}>${t('form.todosDias')}</option>
-          <option value="semana" ${repeat === 'semana' ? 'selected' : ''}>${t('form.diasSemana')}</option>
-          <option value="mes" ${repeat === 'mes' ? 'selected' : ''}>${t('form.diasMes')}</option>
+          <option value="todos" ${repeat === 'todos' ? 'selected' : ''}>${t('form.everyDay')}</option>
+          <option value="semana" ${repeat === 'semana' ? 'selected' : ''}>${t('form.weekDays')}</option>
+          <option value="mes" ${repeat === 'mes' ? 'selected' : ''}>${t('form.monthDays')}</option>
         </select>
         <div class="chips" data-days-chips ${repeat === 'semana' ? '' : 'hidden'}>
           ${WEEKDAYS.map((d, i) => {
@@ -87,23 +87,23 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
             return `<button type="button" class="chip${active ? ' active' : ''}" data-day="${i}">${d}</button>`
           }).join('')}
         </div>
-        <input class="field" name="days-month" data-days-month placeholder="${t('form.exDiasMes')}" value="${escape((agenda.daysOfMonth ?? []).join(', '))}" ${repeat === 'mes' ? '' : 'hidden'} />
-        <small data-agenda-dica>${repeat === 'mes' ? t('form.diasMesDica') : t('form.semDiaDica')}</small>
+        <input class="field" name="days-month" data-days-month placeholder="${t('form.monthDaysExample')}" value="${escape((agenda.daysOfMonth ?? []).join(', '))}" ${repeat === 'mes' ? '' : 'hidden'} />
+        <small data-agenda-dica>${repeat === 'mes' ? t('form.monthDaysHint') : t('form.noDayHint')}</small>
       </div>
 
       <div class="form-group" data-field-sign hidden>
-        <label>${t('form.sinalHabito')}</label>
+        <label>${t('form.habitSign')}</label>
         <select class="field" name="sign">
-          <option value="positivo" ${task?.sign === 'positivo' || !task?.sign ? 'selected' : ''}>${t('tipo.positivo')}</option>
-          <option value="negativo" ${task?.sign === 'negativo' ? 'selected' : ''}>${t('tipo.negativo')}</option>
-          <option value="ambos" ${task?.sign === 'ambos' ? 'selected' : ''}>${t('tipo.ambos')}</option>
+          <option value="positivo" ${task?.sign === 'positivo' || !task?.sign ? 'selected' : ''}>${t('type.positive')}</option>
+          <option value="negativo" ${task?.sign === 'negativo' ? 'selected' : ''}>${t('type.negative')}</option>
+          <option value="ambos" ${task?.sign === 'ambos' ? 'selected' : ''}>${t('type.both')}</option>
         </select>
       </div>
 
       <div class="form-group" data-field-due hidden>
-        <label>${t('form.venceEm')}</label>
+        <label>${t('form.dueOn')}</label>
         <input type="date" class="field" name="due-date" value="${escape(task?.dueDate ?? '')}" />
-        <small>${t('form.dataDica')}</small>
+        <small>${t('form.dateHint')}</small>
       </div>
 
       <div class="form-group">
@@ -113,22 +113,22 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
           ${currentTags.filter((t) => !tags.includes(t)).map((t) => `<button type="button" class="tag-row active" data-tag="${escape(t)}"><span class="tag-row-check">✓</span><span class="tag-row-name">#${escape(t)}</span></button>`).join('')}
         </div>
         <div class="tag-input">
-          <input class="field" name="new-tag" placeholder="${t('form.novaTagPlaceholder')}" list="tags-sugeridas" />
+          <input class="field" name="new-tag" placeholder="${t('form.newTagPlaceholder')}" list="tags-sugeridas" />
           <datalist id="tags-sugeridas">${tags.map((t) => `<option value="${escape(t)}"></option>`).join('')}</datalist>
           <button type="button" class="btn" data-add-tag>+</button>
         </div>
-        <small>${t('form.tagsDica')}</small>
+        <small>${t('form.tagsHint')}</small>
       </div>
 
       <div class="form-group">
-        <label>${t('form.notas')}</label>
-        <textarea class="field" name="notes" placeholder="${t('form.notasPlaceholder')}">${escape(task?.notes ?? '')}</textarea>
-        <small>${t('form.markdownDica')}</small>
+        <label>${t('form.notes')}</label>
+        <textarea class="field" name="notes" placeholder="${t('form.notesPlaceholder')}">${escape(task?.notes ?? '')}</textarea>
+        <small>${t('form.markdownHint')}</small>
       </div>
 
       <div class="form-actions">
-        <button type="button" class="btn" data-cancel>${t('comum.cancelar')}</button>
-        <button type="submit" class="btn btn-primary">${task ? t('form.salvar') : t('form.criar')}</button>
+        <button type="button" class="btn" data-cancel>${t('common.cancel')}</button>
+        <button type="submit" class="btn btn-primary">${task ? t('form.save') : t('form.create')}</button>
       </div>
     </form>
   `)
@@ -166,7 +166,7 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
   function applyRepeat(r: 'todos' | 'semana' | 'mes'): void {
     dayChips.hidden = r !== 'semana'
     monthDays.hidden = r !== 'mes'
-    agendaHint.textContent = r === 'mes' ? t('form.diasMesDica') : t('form.semDiaDica')
+    agendaHint.textContent = r === 'mes' ? t('form.monthDaysHint') : t('form.noDayHint')
   }
   repeatSelect.addEventListener('change', () => {
     applyRepeat(repeatSelect.value as 'todos' | 'semana' | 'mes')
@@ -221,7 +221,7 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
     e.preventDefault()
     const title = (form.querySelector<HTMLInputElement>('input[name="title"]')!.value ?? '').trim()
     if (!title) {
-      notify(t('form.darNome'), 'erro')
+      notify(t('form.giveName'), 'erro')
       return
     }
     const currentType = typeInput.value as TaskType
@@ -256,11 +256,11 @@ export function openTaskForm(task?: Task, initialType?: TaskType): void {
       ? updateTask(task.id, { title, type: currentType, difficulty, tags, notes, dueDate, agenda, sign })
       : createTask({ title, type: currentType, difficulty, tags, notes, dueDate, agenda, sign })
     if (!result.ok) {
-      notify(result.reason ?? t('form.naoSalvar'), 'erro')
+      notify(result.reason ?? t('form.saveFailed'), 'erro')
       return
     }
     document.getElementById('modal-close')?.click()
-    notify(task ? t('form.atualizada') : t('form.criada'))
+    notify(task ? t('form.updated') : t('form.created'))
   })
 }
 

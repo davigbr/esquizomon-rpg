@@ -36,7 +36,7 @@ export function mountToday(root: HTMLElement, data: AppData): void {
   const todayReal = todayISO()
   const isToday = visibleDate === todayReal
   const isYesterday = visibleDate === addDays(todayReal, -1)
-  const label = isToday ? t('hoje.hoje') : isYesterday ? t('hoje.ontem') : formatWeekday(visibleDate)
+  const label = isToday ? t('today.today') : isYesterday ? t('today.yesterday') : formatWeekday(visibleDate)
   const weekday = dayOfWeek(new Date(visibleDate + 'T12:00:00'))
   const dayOfMonthNum = dayOfMonth(new Date(visibleDate + 'T12:00:00'))
   const tags = tagsInUse(data)
@@ -59,62 +59,62 @@ export function mountToday(root: HTMLElement, data: AppData): void {
   root.innerHTML = `
     <header class="view-header">
       <div class="view-header-navigation">
-        <button class="btn btn-icon" data-prev-day aria-label="${t('hoje.prevDay')}"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-prev-day aria-label="${t('today.prevDay')}"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
         <h1>${escapeHtml(label)}</h1>
-        <button class="btn btn-icon" data-next-day aria-label="${t('hoje.nextDay')}" ${isToday ? 'disabled' : ''}><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-next-day aria-label="${t('today.nextDay')}" ${isToday ? 'disabled' : ''}><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
       </div>
       <p class="view-sub">${escapeHtml(formatLongDate(visibleDate))}</p>
     </header>
 
-    ${char.exhausted ? `<div class="sheet-depleted"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> ${t('hoje.exhausted')}</div>` : ''}
+    ${char.exhausted ? `<div class="sheet-depleted"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> ${t('today.exhausted')}</div>` : ''}
 
     <div class="filters">
       ${tags.length > 0
-        ? `<span class="filters-label">${t('hoje.tag')}</span>${tags
+        ? `<span class="filters-label">${t('today.tag')}</span>${tags
             .map((tag) => `<button class="filter-chip${filterTag === tag ? ' active' : ''}" data-filter-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`)
             .join('')}`
         : ''}
       <select class="filter-select" data-filter-difficulty>
-        <option value="">${t('hoje.todasDif')}</option>
+        <option value="">${t('today.allDifficulties')}</option>
         ${(['facil', 'media', 'dificil', 'extrema'] as Difficulty[])
           .map((d) => `<option value="${d}" ${filterDifficulty === d ? 'selected' : ''}>${difficultyMeta(d).label}</option>`)
           .join('')}
       </select>
-      <button class="filter-chip${showDone ? ' active' : ''}" data-filter-done><i class="fa-solid fa-check" aria-hidden="true"></i> ${t('hoje.concluidas')}</button>
-      ${filterActive ? `<button class="btn btn-icon" data-clear-filters aria-label="${t('hoje.limpar')}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>` : ''}
+      <button class="filter-chip${showDone ? ' active' : ''}" data-filter-done><i class="fa-solid fa-check" aria-hidden="true"></i> ${t('today.done')}</button>
+      ${filterActive ? `<button class="btn btn-icon" data-clear-filters aria-label="${t('today.clear')}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>` : ''}
     </div>
 
     <div class="columns">
       <section class="column">
         <header class="column-header">
-          <h2>${t('hoje.colHabitual')}</h2>
+          <h2>${t('today.habitsColumn')}</h2>
           <span class="column-count">${habits.length}</span>
-          <button class="btn btn-icon column-add" data-new-type="habito" aria-label="${t('hoje.novoHabito')}"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+          <button class="btn btn-icon column-add" data-new-type="habito" aria-label="${t('today.newHabit')}"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
         </header>
         <div class="column-cards">
-          ${habits.length === 0 ? emptyColumn(t('hoje.emptyHabit')) : habits.map((t) => habitCard(t, isToday, isYesterday)).join('')}
+          ${habits.length === 0 ? emptyColumn(t('today.emptyHabit')) : habits.map((t) => habitCard(t, isToday, isYesterday)).join('')}
         </div>
       </section>
 
       <section class="column">
         <header class="column-header">
-          <h2>${t('hoje.colRecorrentes')}</h2>
+          <h2>${t('today.recColumn')}</h2>
           <span class="column-count">${recurring.length}</span>
-          <button class="btn btn-icon column-add" data-new-type="recorrente" aria-label="${t('hoje.novaRecorrente')}"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+          <button class="btn btn-icon column-add" data-new-type="recorrente" aria-label="${t('today.newRecurring')}"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
         </header>
         <div class="column-cards">
-          ${recurring.length === 0 ? emptyColumn(t('hoje.emptyRec')) : recurring.map((t) => recurringCard(t, visibleDate)).join('')}
+          ${recurring.length === 0 ? emptyColumn(t('today.emptyRec')) : recurring.map((t) => recurringCard(t, visibleDate)).join('')}
         </div>
       </section>
 
       <section class="column">
         <header class="column-header">
-          <h2>${t('hoje.colTarefas')}</h2>
+          <h2>${t('today.tasksColumn')}</h2>
           <span class="column-count">${pending.length}</span>
-          <button class="btn btn-icon column-add" data-new-type="unica" aria-label="${t('hoje.novaTarefa')}"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+          <button class="btn btn-icon column-add" data-new-type="unica" aria-label="${t('today.newTask')}"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
         </header>
         <div class="column-cards">
-          ${pending.length === 0 && done.length === 0 ? emptyColumn(t('hoje.emptyHabit')) : ''}
+          ${pending.length === 0 && done.length === 0 ? emptyColumn(t('today.emptyHabit')) : ''}
           ${pending.map((t) => oneOffCard(t, false)).join('')}
           ${done.length > 0 ? `<div class="column-sub">Concluídas · ${done.length}</div>${done.map((t) => oneOffCard(t, true)).join('')}` : ''}
         </div>
@@ -243,10 +243,10 @@ export function mountToday(root: HTMLElement, data: AppData): void {
     if (action.dataset.delete !== undefined) {
       const task = data.tasks.find((x) => x.id === id)
       if (task) {
-        void confirm(t('hoje.excluirMsg', { titulo: task.title }), t('hoje.excluir')).then((ok) => {
+        void confirm(t('today.deleteMsg', { titulo: task.title }), t('today.delete')).then((ok) => {
           if (ok) {
             deleteTask(id)
-            notify(t('hoje.excluido'))
+            notify(t('today.deleted'))
           }
         })
       }
@@ -279,18 +279,18 @@ function habitCard(h: Task, isToday: boolean, isYesterday: boolean): string {
   // visual cue: activated button (today or on the visible day) turns gold
   const posActive = todayPos > 0
   const negActive = todayNeg > 0
-  const dayLabel = isToday ? t('hoje.diaHoje') : t('hoje.diaReferido')
+  const dayLabel = isToday ? t('today.todaySuffix') : t('today.refDaySuffix')
   return `
     <div class="task-card habit-card${oldClass}" draggable="true" data-id="${h.id}">
-      <button class="habit-side habit-side--neg${negActive ? ' active' : ''}" data-habit="negativo" data-id="${h.id}" aria-label="${t('hoje.repNegativa')}" title="${negActive ? t('hoje.negativoDia', {loc: dayLabel, n: todayNeg}) : t('hoje.repNegativa')}" ${!canNegative ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
+      <button class="habit-side habit-side--neg${negActive ? ' active' : ''}" data-habit="negativo" data-id="${h.id}" aria-label="${t('today.negRepeat')}" title="${negActive ? t('today.negativeDay', {loc: dayLabel, n: todayNeg}) : t('today.negRepeat')}" ${!canNegative ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
       <div class="task-body">
         <p class="task-title">${escapeHtml(h.title)}</p>
         ${h.notes ? `<p class="task-notes">${renderNotes(h.notes)}</p>` : ''}
         <div class="task-meta">
           <span class="badge badge--${h.difficulty}">${d.label}</span>
-          <span class="badge badge--hab-pos" title="${t('hoje.posHoje')}">+${todayPos}</span>
-          <span class="badge badge--hab-neg" title="${t('hoje.negHoje')}">−${todayNeg}</span>
-          <span class="badge" title="${t('hoje.seq')}">seq ${streak}</span>
+          <span class="badge badge--hab-pos" title="${t('today.posToday')}">+${todayPos}</span>
+          <span class="badge badge--hab-neg" title="${t('today.negToday')}">−${todayNeg}</span>
+          <span class="badge" title="${t('today.streak')}">seq ${streak}</span>
           ${h.tags.map((tag) => `<span class="badge badge--tag">#${escapeHtml(tag)}</span>`).join('')}
           ${ageBadge(h)}
         </div>
@@ -299,7 +299,7 @@ function habitCard(h: Task, isToday: boolean, isYesterday: boolean): string {
         <button class="btn btn-icon" data-edit data-id="${h.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
         <button class="btn btn-icon" data-delete data-id="${h.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       </div>
-      <button class="habit-side habit-side--pos${posActive ? ' active' : ''}" data-habit="positivo" data-id="${h.id}" aria-label="${t('hoje.repPositiva')}" title="${posActive ? t('hoje.positivoDia', {loc: dayLabel, n: todayPos}) : t('hoje.repPositiva')}" ${!canPositive ? 'disabled' : ''}><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+      <button class="habit-side habit-side--pos${posActive ? ' active' : ''}" data-habit="positivo" data-id="${h.id}" aria-label="${t('today.posRepeat')}" title="${posActive ? t('today.positiveDay', {loc: dayLabel, n: todayPos}) : t('today.posRepeat')}" ${!canPositive ? 'disabled' : ''}><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
     </div>
   `
 }

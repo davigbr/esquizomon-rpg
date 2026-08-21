@@ -28,29 +28,29 @@ function hasLocalData(): boolean {
  *  data AND the account may have others. Recommends exporting. */
 function openSyncChoice(): void {
   openModal(`
-    <h2 class="login-title">${t('login.syncTitulo')}</h2>
+    <h2 class="login-title">${t('login.syncTitle')}</h2>
     <p class="login-sub">${t('login.syncSub')}</p>
-    <p class="login-hint login-hint--notice">${t('login.syncRec')}</p>
+    <p class="login-hint login-hint--notice">${t('login.syncRecomm')}</p>
     <div class="form-actions form-actions--column">
-      <button class="btn btn-primary" data-sync-local>${t('login.syncManter')}</button>
-      <button class="btn" data-sync-cloud>${t('login.syncUsarConta')}</button>
-      <button class="btn btn--text" data-sync-cancel>${t('login.syncCancelar')}</button>
+      <button class="btn btn-primary" data-sync-local>${t('login.syncKeepLocal')}</button>
+      <button class="btn" data-sync-cloud>${t('login.syncUseAccount')}</button>
+      <button class="btn btn--text" data-sync-cancel>${t('login.syncCancel')}</button>
     </div>
   `)
   const body = document.getElementById('modal-body')!
   body.querySelector('[data-sync-local]')?.addEventListener('click', () => {
     onSessionChange('local')
-    notify(t('login.enviadosLocal'))
+    notify(t('login.sentLocal'))
     closeModal()
   })
   body.querySelector('[data-sync-cloud]')?.addEventListener('click', () => {
     onSessionChange('nuvem')
-    notify(t('login.aplicadosConta'))
+    notify(t('login.appliedAccount'))
     closeModal()
   })
   body.querySelector('[data-sync-cancel]')?.addEventListener('click', () => {
     closeModal()
-    notify(t('login.semSync'))
+    notify(t('login.noSync'))
   })
 }
 
@@ -66,43 +66,43 @@ export function openLoginModal(): void {
   const logged = currentSession()
 
   openModal(`
-    <h2 class="login-title">${logged ? t('login.suaConta') : t('login.entrar')}</h2>
+    <h2 class="login-title">${logged ? t('login.yourAccount') : t('login.login')}</h2>
     <p class="login-sub">${t('login.sub')}</p>
 
     ${logged ? '' : `
     <div class="login-tabs" role="tablist">
-      <button type="button" class="login-tab active" data-mode="login">${t('login.entrar')}</button>
-      <button type="button" class="login-tab" data-mode="signup">${t('login.criarConta')}</button>
+      <button type="button" class="login-tab active" data-mode="login">${t('login.login')}</button>
+      <button type="button" class="login-tab" data-mode="signup">${t('login.createAccount')}</button>
     </div>
 
     <form class="login-form" data-form="login">
       ${field(t('login.emailLabel'), 'email', 'email', 'email')}
-      ${field(t('login.senhaLabel'), 'password', 'password', 'current-password')}
-      <button type="button" class="btn btn--text login-recover" data-mode="recover">${t('login.esqueci')}</button>
-      <button type="submit" class="btn btn-primary" data-submit>${t('login.entrar')}</button>
+      ${field(t('login.passwordLabel'), 'password', 'password', 'current-password')}
+      <button type="button" class="btn btn--text login-recover" data-mode="recover">${t('login.forgot')}</button>
+      <button type="submit" class="btn btn-primary" data-submit>${t('login.login')}</button>
     </form>
 
     <form class="login-form" data-form="signup" hidden>
       ${field(t('login.emailLabel'), 'email', 'email', 'email')}
-      ${field(t('login.senhaLabel'), 'password', 'password', 'new-password')}
-      <small class="login-hint">${t('login.senhaHint')}</small>
-      <small class="login-hint login-hint--notice">${t('login.confirmacaoHint')}</small>
-      <button type="submit" class="btn btn-primary" data-submit>${t('login.criarConta')}</button>
+      ${field(t('login.passwordLabel'), 'password', 'password', 'new-password')}
+      <small class="login-hint">${t('login.passwordHint')}</small>
+      <small class="login-hint login-hint--notice">${t('login.confirmHint')}</small>
+      <button type="submit" class="btn btn-primary" data-submit>${t('login.createAccount')}</button>
     </form>
 
     <form class="login-form" data-form="recover" hidden>
-      ${field(t('login.emailContaLabel'), 'email', 'email', 'email')}
-      <button type="submit" class="btn btn-primary" data-submit>${t('login.enviarLink')}</button>
+      ${field(t('login.accountEmailLabel'), 'email', 'email', 'email')}
+      <button type="submit" class="btn btn-primary" data-submit>${t('login.sendLink')}</button>
     </form>
 
     <p class="login-status" data-status></p>
     `}
 
     ${logged ? `
-    <p class="login-account">${t('login.logadoComo')} <strong>${escapeHtml(logged.user.email)}</strong>.</p>
+    <p class="login-account">${t('login.loggedInAs')} <strong>${escapeHtml(logged.user.email)}</strong>.</p>
     <div class="form-actions">
-      <button class="btn btn--perigo" data-logout>${t('login.encerrar')}</button>
-      <button class="btn btn-primary" data-close>${t('login.fechar')}</button>
+      <button class="btn btn--perigo" data-logout>${t('login.endSession')}</button>
+      <button class="btn btn-primary" data-close>${t('login.close')}</button>
     </div>` : ''}
   `)
 
@@ -112,7 +112,7 @@ export function openLoginModal(): void {
     body.querySelector<HTMLButtonElement>('[data-logout]')?.addEventListener('click', async () => {
       await logout()
       onSessionChange()
-      notify(t('login.sessaoEncerrada'))
+      notify(t('login.sessionEnded'))
       closeModal()
     })
     body.querySelector<HTMLButtonElement>('[data-close]')?.addEventListener('click', () => closeModal())
@@ -143,9 +143,9 @@ export function openLoginModal(): void {
 
   // post-email-confirmation notice (link from the mail)
   const notice = consumeConfirmationNotice()
-  if (notice === 'ok') setStatus(t('login.emailConfirmado'))
+  if (notice === 'ok') setStatus(t('login.emailConfirmed'))
   else if (notice === 'falhou')
-    setStatus(t('login.falhaConfirmar'), true)
+    setStatus(t('login.confirmFailed'), true)
 
   const disable = (b: HTMLButtonElement, text: string): void => {
     b.disabled = true
@@ -161,17 +161,17 @@ export function openLoginModal(): void {
     const email = (forms.login.elements.namedItem('email') as HTMLInputElement).value.trim()
     const password = (forms.login.elements.namedItem('password') as HTMLInputElement).value
     const button = forms.login.querySelector<HTMLButtonElement>('[data-submit]')!
-    disable(button, t('login.entrando'))
+    disable(button, t('login.loggingIn'))
     const r = await login(email, password)
-    enable(button, t('login.entrar'))
-    if (!r.ok) return setStatus(r.reason ?? t('login.falhaEntrar'), true)
+    enable(button, t('login.login'))
+    if (!r.ok) return setStatus(r.reason ?? t('login.loginFailed'), true)
     closeModal()
     if (hasLocalData()) {
       // account may already have data + this device has data → ask
       openSyncChoice()
     } else {
       onSessionChange()
-      notify(t('login.syncAtivada'))
+      notify(t('login.syncActivated'))
     }
   })
 
@@ -180,16 +180,16 @@ export function openLoginModal(): void {
     const email = (forms.signup.elements.namedItem('email') as HTMLInputElement).value.trim()
     const password = (forms.signup.elements.namedItem('password') as HTMLInputElement).value
     const button = forms.signup.querySelector<HTMLButtonElement>('[data-submit]')!
-    disable(button, t('login.criando'))
+    disable(button, t('login.creating'))
     const r = await createAccount(email, password)
-    enable(button, t('login.criarConta'))
-    if (!r.ok) return setStatus(r.reason ?? t('login.falhaCriar'), true)
+    enable(button, t('login.createAccount'))
+    if (!r.ok) return setStatus(r.reason ?? t('login.createFailed'), true)
     if (r.needsConfirm) {
       showCreationSuccess(email)
       return
     }
     onSessionChange()
-    notify(t('login.contaCriadaSync'))
+    notify(t('login.accountCreatedSync'))
     closeModal()
   })
 
@@ -197,11 +197,11 @@ export function openLoginModal(): void {
     ev.preventDefault()
     const email = (forms.recover.elements.namedItem('email') as HTMLInputElement).value.trim()
     const button = forms.recover.querySelector<HTMLButtonElement>('[data-submit]')!
-    disable(button, t('login.enviando'))
+    disable(button, t('login.sending'))
     const r = await recoverPassword(email)
-    enable(button, t('login.enviarLink'))
-    if (!r.ok) return setStatus(r.reason ?? t('login.falhaEnviar'), true)
-    setStatus(t('login.linkEnviado'))
+    enable(button, t('login.sendLink'))
+    if (!r.ok) return setStatus(r.reason ?? t('login.sendFailed'), true)
+    setStatus(t('login.linkSent'))
     showForm('login')
   })
 }
@@ -210,11 +210,11 @@ export function openLoginModal(): void {
  *  NOT redirect to login (the user still needs to confirm the email). */
 function showCreationSuccess(email: string): void {
   openModal(`
-    <h2>${t('login.contaCriada')}</h2>
-    <p class="login-hint">${t('login.enviamosLink')} <strong>${escapeHtml(email)}</strong>.</p>
-    <p class="login-hint login-hint--notice">${t('login.cliqueLink')}</p>
+    <h2>${t('login.accountCreated')}</h2>
+    <p class="login-hint">${t('login.weSentLink')} <strong>${escapeHtml(email)}</strong>.</p>
+    <p class="login-hint login-hint--notice">${t('login.clickLink')}</p>
     <div class="form-actions form-actions--column">
-      <button type="button" class="btn btn-primary" data-close-create>${t('login.fechar')}</button>
+      <button type="button" class="btn btn-primary" data-close-create>${t('login.close')}</button>
     </div>
   `)
   modalBody.querySelector<HTMLButtonElement>('[data-close-create]')?.addEventListener('click', () => closeModal())

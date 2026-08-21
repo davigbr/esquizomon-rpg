@@ -58,65 +58,65 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
     const listEl = root.querySelector<HTMLElement>('.diary-files')
     if (listEl) {
       listEl.innerHTML = entries.length === 0
-        ? `<div class="diary-empty">${t('diario.empty')}<br>${t('diario.emptyCta')}</div>`
+        ? `<div class="diary-empty">${t('diary.empty')}<br>${t('diary.emptyCta')}</div>`
         : entries.map((e) => entryHtml(e, e.date === active)).join('')
     }
     const statusEl = root.querySelector<HTMLElement>('[data-dayry-status]')
-    if (statusEl) statusEl.textContent = t('diario.salvando')
+    if (statusEl) statusEl.textContent = t('diary.saving')
     return
   }
 
   root.innerHTML = `
     <header class="view-header">
-      <h1>${t('diario.titulo')}</h1>
+      <h1>${t('diary.title')}</h1>
     </header>
 
     <div class="diary-layout">
-      <aside class="diary-list" aria-label="${t('diario.entradas')}">
+      <aside class="diary-list" aria-label="${t('diary.entries')}">
         <div class="diary-list-header">
-          <span class="diary-list-title">${t('diario.entradas')}</span>
+          <span class="diary-list-title">${t('diary.entries')}</span>
           <div class="diary-list-buttons">
-            <button class="btn btn-icon diary-import" data-dayry-import title="${t('diario.importarTitle')}" aria-label="${t('diario.importarTitle')}">
+            <button class="btn btn-icon diary-import" data-dayry-import title="${t('diary.importTitle')}" aria-label="${t('diary.importTitle')}">
               <i class="fa-solid fa-file-import" aria-hidden="true"></i>
             </button>
-            <button class="btn btn-icon diary-new" data-dayry-new title="${t('diario.novoTitle')}" aria-label="${t('diario.novoTitle')}">
+            <button class="btn btn-icon diary-new" data-dayry-new title="${t('diary.newTitle')}" aria-label="${t('diary.newTitle')}">
               <i class="fa-solid fa-plus" aria-hidden="true"></i>
             </button>
           </div>
         </div>
         <div class="diary-files">
           ${entries.length === 0
-            ? `<div class="diary-empty">${t('diario.empty')}<br>${t('diario.emptyCta')}</div>`
+            ? `<div class="diary-empty">${t('diary.empty')}<br>${t('diary.emptyCta')}</div>`
             : entries.map((e) => entryHtml(e, e.date === active)).join('')}
         </div>
       </aside>
 
-      <section class="diary-editor" aria-label="${t('diario.editorAria')}">
+      <section class="diary-editor" aria-label="${t('diary.editorLabel')}">
         <div class="diary-editor-header">
           <div class="diary-editor-data">
-            ${entry?.date === today ? `<span class="badge badge--hoje">${t('diario.hoje')}</span>` : ''}
+            ${entry?.date === today ? `<span class="badge badge--hoje">${t('diary.today')}</span>` : ''}
             <input type="date" class="diary-data-input" data-dayry-date value="${entry?.date ?? today}"
-              max="${new Date().toISOString().slice(0, 10)}" title="${t('diario.data')}" aria-label="${t('diario.data')}" />
+              max="${new Date().toISOString().slice(0, 10)}" title="${t('diary.date')}" aria-label="${t('diary.date')}" />
           </div>
           <div class="diary-editor-actions">
-            <span class="diary-status" data-dayry-status>${entry ? '' : t('diario.semConteudo')}</span>
+            <span class="diary-status" data-dayry-status>${entry ? '' : t('diary.noContent')}</span>
             ${entry ? `
-              <button class="btn btn-icon" data-dayry-delete="${escapeHtml(entry.id)}" title="${t('diario.excluir')}" aria-label="${t('diario.excluir')}">
+              <button class="btn btn-icon" data-dayry-delete="${escapeHtml(entry.id)}" title="${t('diary.deleteTitle')}" aria-label="${t('diary.deleteTitle')}">
                 <i class="fa-solid fa-trash" aria-hidden="true"></i>
               </button>` : ''}
           </div>
         </div>
 
-        <input class="diary-title" data-dayry-title type="text" placeholder="${t('diario.titulo')}" maxlength="120"
+        <input class="diary-title" data-dayry-title type="text" placeholder="${t('diary.title')}" maxlength="120"
           value="${escapeHtml(entry?.title ?? '')}" autocomplete="off" />
 
         <div class="diary-tools">
-          <button class="btn btn-pequeno" data-dayry-toggle title="${t('diario.alternar')}">${t('diario.ver')}</button>
+          <button class="btn btn-pequeno" data-dayry-toggle title="${t('diary.toggle')}">${t('diary.view')}</button>
         </div>
 
         <div class="diary-editor-area">
-          <textarea class="diary-textarea" data-dayry-editor placeholder="${t('diario.textareaPlaceholder')}"
-            spellcheck="true" aria-label="${t('diario.markdownAria')}">${escapeHtml(entry?.text ?? '')}</textarea>
+          <textarea class="diary-textarea" data-dayry-editor placeholder="${t('diary.textareaPlaceholder')}"
+            spellcheck="true" aria-label="${t('diary.markdownLabel')}">${escapeHtml(entry?.text ?? '')}</textarea>
           <div class="diary-preview" data-dayry-preview hidden></div>
         </div>
         <p class="settings-hint diary-hint">Markdown: <code>## título</code> · <code>- lista</code> · <code>1.</code> · <code>&gt; citação</code> · <code>**negrito**</code> · <code>*itálico*</code> · <code>[link](url)</code> · <code>| tabela |</code></p>
@@ -155,11 +155,11 @@ function applyMode(root: HTMLElement): void {
     preview.innerHTML = renderMarkdown(area.value)
     preview.hidden = false
     area.hidden = true
-    btn.textContent = t('diario.editar')
+    btn.textContent = t('diary.edit')
   } else {
     preview.hidden = true
     area.hidden = false
-    btn.textContent = t('diario.ver')
+    btn.textContent = t('diary.view')
   }
 }
 
@@ -173,20 +173,20 @@ function installDateChange(root: HTMLElement): void {
     if (!id) return
     const result = moveEntry(id, newDate)
     if (!result.ok) {
-      notify(result.reason ?? t('diario.moveFalha'), 'erro')
+      notify(result.reason ?? t('diary.moveFailed'), 'erro')
       // reverts the input to the current date
       const entry = appStore.get().diary?.find((e) => e.id === id)
       input.value = entry?.date ?? todayISO()
       return
     }
     active = newDate
-    notify(t('diario.movida', { date: formatLongDate(newDate) }))
+    notify(t('diary.moved', { date: formatLongDate(newDate) }))
     appStore.set({ ...appStore.get() })
   })
 }
 
 function entryHtml(e: DiaryEntry, activeEntry: boolean): string {
-  const title = e.title.trim() || t('diario.semTitulo')
+  const title = e.title.trim() || t('diary.untitled')
   return `
     <button class="diary-file${activeEntry ? ' diary-file--active' : ''}" data-dayry-open="${escapeHtml(e.date)}" title="${escapeHtml(formatLongDate(e.date))}">
       <span class="diary-file-data">${e.date.slice(8, 10)}/${e.date.slice(5, 7)}/${e.date.slice(0, 4)}</span>
@@ -217,20 +217,20 @@ function installNewEntry(root: HTMLElement): void {
 function installImport(root: HTMLElement): void {
   root.querySelector('[data-dayry-import]')?.addEventListener('click', () => {
     openModal(`
-      <h2>${t('diario.importarModalTitulo')}</h2>
-      <p class="settings-hint">${t('diario.importarHint')}</p>
+      <h2>${t('diary.importModalTitle')}</h2>
+      <p class="settings-hint">${t('diary.importHint')}</p>
       <div class="form-group">
-        <label>${t('diario.escolhaArquivo')}</label>
+        <label>${t('diary.chooseFile')}</label>
         <input type="file" class="filter-input" accept=".md,.markdown,.txt" data-import-file />
       </div>
       <div class="form-group">
         <textarea class="filter-textarea" data-import-text rows="12" spellcheck="false"
-          placeholder="${t('diario.importarPlaceholder')}"></textarea>
+          placeholder="${t('diary.importPlaceholder')}"></textarea>
       </div>
       <p class="settings-hint" data-import-status></p>
       <div class="form-actions">
-        <button class="btn" data-modal-cancel>${t('diario.cancelar')}</button>
-        <button class="btn btn-primary" data-import-run>${t('diario.importarBotao')}</button>
+        <button class="btn" data-modal-cancel>${t('diary.cancel')}</button>
+        <button class="btn btn-primary" data-import-run>${t('diary.importButton')}</button>
       </div>
     `)
     const fileEl = modalBody.querySelector<HTMLInputElement>('[data-import-file]')
@@ -243,7 +243,7 @@ function installImport(root: HTMLElement): void {
       reader.onload = () => {
         if (textEl && typeof reader.result === 'string') {
           textEl.value = reader.result
-          if (statusEl) statusEl.textContent = t('diario.arquivoCarregado', {name: file.name})
+          if (statusEl) statusEl.textContent = t('diary.fileLoaded', {name: file.name})
         }
       }
       reader.readAsText(file, 'utf-8')
@@ -251,13 +251,13 @@ function installImport(root: HTMLElement): void {
     modalBody.querySelector('[data-import-run]')?.addEventListener('click', () => {
       const entries = parseDiaryMarkdown(textEl?.value ?? '')
       if (entries.length === 0) {
-        if (statusEl) statusEl.textContent = t('diario.nenhumaEncontrada')
+        if (statusEl) statusEl.textContent = t('diary.noneFound')
         return
       }
       const res = importDiary(entries)
-      let msg = t('diario.importadas', { n: res.imported })
-      if (res.skipped.length > 0) msg += ' ' + t('diario.puladas', { n: res.skipped.length, lista: res.skipped.join(', ') }) + '.'
-      if (res.invalid.length > 0) msg += ' ' + t('diario.invalidas', { n: res.invalid.length }) + '.'
+      let msg = t('diary.importedCount', { n: res.imported })
+      if (res.skipped.length > 0) msg += ' ' + t('diary.skippedCount', { n: res.skipped.length, lista: res.skipped.join(', ') }) + '.'
+      if (res.invalid.length > 0) msg += ' ' + t('diary.invalidCount', { n: res.invalid.length }) + '.'
       if (res.imported > 0) {
         const mostRecent = entries
           .map((e) => e.date)
@@ -324,7 +324,7 @@ function installEditor(root: HTMLElement, today: string): void {
     autosaveTimers.delete(targetDate)
     if (text.trim() || titleValue) {
       saveEntry(targetDate, { title: titleValue, text })
-      if (statusEl) statusEl.textContent = t('diario.salvo', { hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) })
+      if (statusEl) statusEl.textContent = t('diary.saved', { hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) })
     }
   }
 
@@ -332,7 +332,7 @@ function installEditor(root: HTMLElement, today: string): void {
   function scheduleSave(): void {
     const timer = autosaveTimers.get(targetDate)
     if (timer) clearTimeout(timer)
-    if (statusEl) statusEl.textContent = t('diario.salvando')
+    if (statusEl) statusEl.textContent = t('diary.saving')
     autosaveTimers.set(
       targetDate,
       setTimeout(() => saveNow(), 800),
@@ -368,13 +368,13 @@ function installEditor(root: HTMLElement, today: string): void {
   // Delete
   root.querySelector<HTMLButtonElement>('[data-dayry-delete]')?.addEventListener('click', () => {
     const id = root.querySelector('[data-dayry-delete]')?.getAttribute('data-dayry-delete') ?? ''
-    void confirm(t('diario.apagarMsg'), t('diario.apagar')).then((ok) => {
+    void confirm(t('diary.deleteMsg'), t('diary.delete')).then((ok) => {
       if (!ok) return
       deleteEntry(id)
       active = null // reopens on the most recent
       isPreview = false
       appStore.set({ ...appStore.get() })
-      notify(t('diario.apagada'))
+      notify(t('diary.deleted'))
     })
   })
 }

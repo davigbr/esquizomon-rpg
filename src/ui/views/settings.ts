@@ -37,91 +37,91 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
 
   root.innerHTML = `
     <header class="view-header">
-      <h1>${t('config.titulo')}</h1>
-      <p class="view-sub">${t('config.sub')}</p>
+      <h1>${t('settings.title')}</h1>
+      <p class="view-sub">${t('settings.sub')}</p>
     </header>
 
     <div class="settings-section">
-      <h3>${t('config.avatar')}</h3>
+      <h3>${t('settings.avatar')}</h3>
       <div class="avatar-block">
-        <div class="avatar-current" title="${t('config.seuAvatar')}">
+        <div class="avatar-current" title="${t('settings.yourAvatar')}">
           ${avatar ? `<img src="${escapeHtml(avatar)}" alt="Seu avatar" />` : '<i class="fa-solid fa-user" aria-hidden="true"></i>'}
         </div>
         <div class="settings-actions-row">
-          <button class="btn" data-avatar-choose>${t('config.escolherImagem')}</button>
+          <button class="btn" data-avatar-choose>${t('settings.chooseImage')}</button>
           ${avatar ? '<button class="btn" data-avatar-remove>Remover</button>' : ''}
         </div>
         <div class="settings-field-row">
-          <label class="settings-label" for="nome-monstruoso">${t('config.nomeMonstruoso')}</label>
-          <input id="nome-monstruoso" class="field" data-monster-name value="${escapeHtml(data.character.monsterName ?? '')}" placeholder="${t('config.exNomeMonstruoso')}" maxlength="40" />
-          <p class="settings-hint">${t('config.hintNomeMonstruoso')}</p>
+          <label class="settings-label" for="nome-monstruoso">${t('settings.monsterName')}</label>
+          <input id="nome-monstruoso" class="field" data-monster-name value="${escapeHtml(data.character.monsterName ?? '')}" placeholder="${t('settings.monsterNameExample')}" maxlength="40" />
+          <p class="settings-hint">${t('settings.monsterNameHint')}</p>
         </div>
-        <p class="settings-hint">${t('config.hintAvatar')}</p>
+        <p class="settings-hint">${t('settings.avatarHint')}</p>
       </div>
       <input type="file" accept="image/*" data-avatar-arquivo hidden />
     </div>
 
     <div class="settings-section">
-      <h3>${t('config.aparencia')}</h3>
-      <p>${t('config.temaVale')}</p>
+      <h3>${t('settings.appearance')}</h3>
+      <p>${t('settings.themeApplies')}</p>
       <div class="settings-row">
         <div>
-          <div class="settings-label">${t('config.tema')}</div>
-          <div class="settings-hint">${t('config.temaHint')}</div>
+          <div class="settings-label">${t('settings.theme')}</div>
+          <div class="settings-hint">${t('settings.themeHint')}</div>
         </div>
         <select class="filter-select" data-tema>
-          <option value="sistema" ${theme === 'sistema' ? 'selected' : ''}>${t('config.sistema')}</option>
-          <option value="dark" ${theme === 'dark' ? 'selected' : ''}>${t('config.escuro')}</option>
-          <option value="light" ${theme === 'light' ? 'selected' : ''}>${t('config.claro')}</option>
+          <option value="sistema" ${theme === 'sistema' ? 'selected' : ''}>${t('settings.system')}</option>
+          <option value="dark" ${theme === 'dark' ? 'selected' : ''}>${t('settings.dark')}</option>
+          <option value="light" ${theme === 'light' ? 'selected' : ''}>${t('settings.light')}</option>
         </select>
       </div>
     </div>
 
     <div class="settings-section">
-      <h3>${t('config.idioma')}</h3>
-      <p>${t('config.idiomaVale')}</p>
+      <h3>${t('settings.language')}</h3>
+      <p>${t('settings.languageApplies')}</p>
       <div class="settings-row">
         <div>
-          <div class="settings-label">${t('config.idioma')}</div>
-          <div class="settings-hint">${t('config.idiomaHint')}</div>
+          <div class="settings-label">${t('settings.language')}</div>
+          <div class="settings-hint">${t('settings.languageHint')}</div>
         </div>
         <select class="filter-select" data-lang-select>
-          <option value="pt" ${getLang() === 'pt' ? 'selected' : ''}>${t('config.portugues')}</option>
-          <option value="en" ${getLang() === 'en' ? 'selected' : ''}>${t('config.english')}</option>
+          <option value="pt" ${getLang() === 'pt' ? 'selected' : ''}>${t('settings.portuguese')}</option>
+          <option value="en" ${getLang() === 'en' ? 'selected' : ''}>${t('settings.english')}</option>
         </select>
       </div>
     </div>
 
     <div class="settings-section">
-      <h3>${t('config.jogo')}</h3>
-      <p>${t('config.modoRelaxadoSub')}</p>
+      <h3>${t('settings.game')}</h3>
+      <p>${t('settings.relaxedModeSub')}</p>
       <div class="settings-row">
         <div>
-          <div class="settings-label">${t('config.modoRelaxado')}</div>
-          <div class="settings-hint">${t('config.modoRelaxadoHint')}</div>
+          <div class="settings-label">${t('settings.relaxedMode')}</div>
+          <div class="settings-hint">${t('settings.relaxedModeHint')}</div>
         </div>
         <select class="filter-select" data-relaxed-mode>
-          <option value="off" ${!relaxedMode ? 'selected' : ''}>${t('config.desligado')}</option>
-          <option value="on" ${relaxedMode ? 'selected' : ''}>${t('config.ligado')}</option>
+          <option value="off" ${!relaxedMode ? 'selected' : ''}>${t('settings.off')}</option>
+          <option value="on" ${relaxedMode ? 'selected' : ''}>${t('settings.on')}</option>
         </select>
       </div>
       <div class="settings-row">
         <div>
-          <div class="settings-label">${t('config.efeitosSonoros')}</div>
-          <div class="settings-hint">${t('config.sonsHint')}</div>
+          <div class="settings-label">${t('settings.soundEffects')}</div>
+          <div class="settings-hint">${t('settings.soundsHint')}</div>
         </div>
         <select class="filter-select" data-sons>
-          <option value="on" ${sound !== false ? 'selected' : ''}>${t('config.ligados')}</option>
-          <option value="off" ${sound === false ? 'selected' : ''}>${t('config.desligados')}</option>
+          <option value="on" ${sound !== false ? 'selected' : ''}>${t('settings.onPlural')}</option>
+          <option value="off" ${sound === false ? 'selected' : ''}>${t('settings.offPlural')}</option>
         </select>
       </div>
     </div>
 
     <div class="settings-section">
-      <h3>${t('config.sobreVoce')}</h3>
-      <p>${t('config.resumoSub')}</p>
-      <textarea class="filter-textarea" data-resumo rows="6" spellcheck="false" placeholder="${t('config.resumoPlaceholder')}">${escapeHtml(summary)}</textarea>
-      <div class="settings-hint">${t('config.resumoHint')}</div>
+      <h3>${t('settings.aboutYou')}</h3>
+      <p>${t('settings.summarySub')}</p>
+      <textarea class="filter-textarea" data-resumo rows="6" spellcheck="false" placeholder="${t('settings.summaryPlaceholder')}">${escapeHtml(summary)}</textarea>
+      <div class="settings-hint">${t('settings.summaryHint')}</div>
     </div>
 
     ${aiSection(ai)}
@@ -129,23 +129,23 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
     ${accountSection()}
 
     <div class="settings-section">
-      <h3>${t('config.dados')}</h3>
-      <p>${t('config.dadosSub')}</p>
+      <h3>${t('settings.data')}</h3>
+      <p>${t('settings.dataSub')}</p>
       <div class="settings-actions">
-        <button class="btn" data-export><i class="fa-solid fa-download" aria-hidden="true"></i> ${t('config.exportar')}</button>
-        <button class="btn" data-import><i class="fa-solid fa-upload" aria-hidden="true"></i> ${t('config.importar')}</button>
-        <button class="btn" data-reshuffle-cards title="${t('config.rerolarTitle')}"><i class="fa-solid fa-dice" aria-hidden="true"></i> ${t('config.rerolar')}</button>
+        <button class="btn" data-export><i class="fa-solid fa-download" aria-hidden="true"></i> ${t('settings.export')}</button>
+        <button class="btn" data-import><i class="fa-solid fa-upload" aria-hidden="true"></i> ${t('settings.import')}</button>
+        <button class="btn" data-reshuffle-cards title="${t('settings.reshuffleTitle')}"><i class="fa-solid fa-dice" aria-hidden="true"></i> ${t('settings.reshuffle')}</button>
       </div>
       <div class="settings-hint settings-hint-row">${total} tarefa${total === 1 ? '' : 's'} · nível <b>${data.character.level}</b> · <b>${data.character.cards.length}</b> cartas desbloqueadas</div>
-      <div class="settings-hint settings-hint-row backup-title">${t('config.backupsTitle')}</div>
+      <div class="settings-hint settings-hint-row backup-title">${t('settings.backupsTitle')}</div>
       <div class="settings-backups" data-backups></div>
     </div>
 
     <div class="settings-section">
-      <h3>${t('config.zonaPerigo')}</h3>
-      <p>${t('config.zonaPerigoSub')}</p>
+      <h3>${t('settings.dangerZone')}</h3>
+      <p>${t('settings.dangerZoneSub')}</p>
       <div class="settings-actions">
-        <button class="btn btn--perigo" data-forget><i class="fa-solid fa-trash" aria-hidden="true"></i> ${t('config.apagarTudo')}</button>
+        <button class="btn btn--perigo" data-forget><i class="fa-solid fa-trash" aria-hidden="true"></i> ${t('settings.deleteAll')}</button>
       </div>
     </div>
   `
@@ -158,13 +158,13 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
   root.querySelector('[data-relaxed-mode]')!.addEventListener('change', (e) => {
     const value = (e.target as HTMLSelectElement).value === 'on'
     setSettings({ relaxedMode: value })
-    notify(value ? t('config.relaxadoOn') : t('config.relaxadoOff'))
+    notify(value ? t('settings.relaxedOn') : t('settings.relaxedOff'))
   })
 
   root.querySelector('[data-sons]')!.addEventListener('change', (e) => {
     const enabled = (e.target as HTMLSelectElement).value === 'on'
     setSettings({ sound: enabled })
-    notify(enabled ? t('config.sonsOn') : t('config.sonsOff'))
+    notify(enabled ? t('settings.soundsOn') : t('settings.soundsOff'))
   })
 
   root.querySelector('[data-lang-select]')!.addEventListener('change', (e) => {
@@ -183,10 +183,10 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
     }
   })
   root.querySelector('[data-avatar-remove]')?.addEventListener('click', () => {
-    void confirm(t('config.confirmarRemoverAvatar'), t('config.remover')).then((ok) => {
+    void confirm(t('settings.confirmRemoveAvatar'), t('settings.remove')).then((ok) => {
       if (ok) {
         setAvatar(null)
-        notify(t('config.avatarRemovido'))
+        notify(t('settings.avatarRemoved'))
       }
     })
   })
@@ -198,7 +198,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
   root.querySelector('[data-resumo]')?.addEventListener('change', (e) => {
     const value = (e.target as HTMLTextAreaElement).value.trim()
     setSettings({ summary: value || undefined })
-    notify(value ? t('config.resumoSalvo') : t('config.resumoRemovido'))
+    notify(value ? t('settings.summarySaved') : t('settings.summaryRemoved'))
   })
 
   installAIHandlers(root)
@@ -214,7 +214,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
     a.download = `esquizomon-rpg-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
-    notify(t('config.dadosExportados'))
+    notify(t('settings.dataExported'))
   })
 
   root.querySelector('[data-import]')!.addEventListener('click', () => {
@@ -227,7 +227,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
       const reader = new FileReader()
       reader.onload = () => {
         const result = importJSON(String(reader.result ?? ''))
-        notify(result.ok ? t('config.dadosImportados') : (result.reason ?? t('config.importFalhou')), result.ok ? 'ok' : 'erro')
+        notify(result.ok ? t('settings.dataImported') : (result.reason ?? t('settings.importFailed')), result.ok ? 'ok' : 'erro')
       }
       reader.readAsText(file)
     })
@@ -240,7 +240,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
     if (!backupsArea) return
     const list = getBackups()
     if (list.length === 0) {
-      backupsArea.innerHTML = `<div class="settings-hint">${t('config.semBackups')}</div>`
+      backupsArea.innerHTML = `<div class="settings-hint">${t('settings.noBackups')}</div>`
       return
     }
     backupsArea.innerHTML = list
@@ -253,10 +253,10 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
     backupsArea.querySelectorAll<HTMLButtonElement>('[data-restore]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const ts = btn.dataset.restore
-        void confirm(t('config.confirmarRestaurar'), t('config.restaurarBackup')).then((ok) => {
+        void confirm(t('settings.confirmRestore'), t('settings.restoreBackup')).then((ok) => {
           if (!ok || !ts) return
           const restored = restoreBackup(ts)
-          notify(restored ? t('config.backupRestaurado') : t('config.backupFalhou'), restored ? 'ok' : 'erro')
+          notify(restored ? t('settings.backupRestored') : t('settings.backupFailed'), restored ? 'ok' : 'erro')
         })
       })
     })
@@ -266,19 +266,19 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
   root.querySelector<HTMLButtonElement>('[data-reshuffle-cards]')?.addEventListener('click', () => {
     void confirm(
       'Rerolar re-sorteia TODAS as cartas desbloqueadas, mantendo a mesma quantidade e respeitando as chances (monstros 6×, capturas 2×, alianças 1×). A coleção atual será substituída. Continuar?',
-      t('config.rerolar'),
+      t('settings.reshuffle'),
     ).then((ok) => {
       if (!ok) return
       const result = rerollDeck()
-      notify(t('config.baralhoRerolado', { n: result.before }))
+      notify(t('settings.deckReshuffled', { n: result.before }))
     })
   })
 
   root.querySelector('[data-forget]')!.addEventListener('click', () => {
-    void confirm(t('config.confirmarApagarTudo'), t('config.apagarTudo')).then((ok) => {
+    void confirm(t('settings.confirmDeleteAll'), t('settings.deleteAll')).then((ok) => {
       if (ok) {
         wipeAllData()
-        notify(t('config.tudoApagado'))
+        notify(t('settings.everythingDeleted'))
       }
     })
   })
@@ -286,7 +286,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
 
 function aiSection(ai: AiConfig): string {
   const providerOptions: Array<[AiProvider, string]> = [
-    ['nenhum', t('config.iaDesligado')],
+    ['nenhum', t('settings.aiOff')],
     ['deepseek', 'DeepSeek'],
     ['opencode', 'OpenCode Zen Go'],
   ]
@@ -298,13 +298,13 @@ function aiSection(ai: AiConfig): string {
 
   return `
     <div class="settings-section">
-      <h3><i class="fa-solid fa-feather" aria-hidden="true"></i> ${t('settings.fabula')}</h3>
+      <h3><i class="fa-solid fa-feather" aria-hidden="true"></i> ${t('settings.fable')}</h3>
       <p>${t('settings.byok')}</p>
 
       <div class="settings-row">
         <div>
           <div class="settings-label">Provider</div>
-          <div class="settings-hint">${t('config.quemResponde')}</div>
+          <div class="settings-hint">${t('settings.whoAnswers')}</div>
         </div>
         <select class="filter-select" data-ia-provider>
           ${providerOptions.map(([v, l]) => `<option value="${v}" ${provider === v ? 'selected' : ''}>${l}</option>`).join('')}
@@ -313,21 +313,21 @@ function aiSection(ai: AiConfig): string {
 
       <div class="settings-row">
         <div>
-          <div class="settings-label">${t('config.modelo')}</div>
-          <div class="settings-hint">Vazio = ${provider !== 'nenhum' ? defaultModel(provider) : t('config.escolhaProviderModelo')}</div>
+          <div class="settings-label">${t('settings.model')}</div>
+          <div class="settings-hint">Vazio = ${provider !== 'nenhum' ? defaultModel(provider) : t('settings.chooseProviderModel')}</div>
         </div>
         <select class="filter-select" data-ia-modelo ${provider === 'nenhum' ? 'disabled' : ''}>
-          <option value="" ${ai.model === '' ? 'selected' : ''}>${t('config.padrao')}</option>
+          <option value="" ${ai.model === '' ? 'selected' : ''}>${t('settings.default')}</option>
           ${models.map((m) => `<option value="${m}" ${ai.model === m ? 'selected' : ''}>${m}</option>`).join('')}
         </select>
       </div>
 
       <div class="settings-row settings-row--stacked">
         <div>
-          <div class="settings-label">${t('config.chaveApi')}</div>
+          <div class="settings-label">${t('settings.apiKey')}</div>
           <div class="settings-hint">${provider === 'opencode'
             ? 'Vem de <code>OPENCODE_GO_ESQUIZOMONRPG_TOKEN</code> se setada no ambiente.'
-            : t('config.soVoceVe')}</div>
+            : t('settings.onlyYouSee')}</div>
         </div>
         <input type="password" class="filter-input" data-ia-chave autocomplete="off" spellcheck="false" placeholder="sk-..." value="${ai.apiKey.replace(/"/g, '&quot;')}" ${provider === 'nenhum' ? 'disabled' : ''} />
       </div>
@@ -335,22 +335,22 @@ function aiSection(ai: AiConfig): string {
       <div class="settings-row settings-row--stacked">
         <div class="settings-label-row">
           <div>
-            <div class="settings-label">${t('config.systemPrompt')}</div>
+            <div class="settings-label">${t('settings.systemPrompt')}</div>
             <div class="settings-hint">
               ${isDefault
-                ? t('config.usaPromptCanonico')
+                ? t('settings.usesCanonicalPrompt')
                 : 'Customizado — edite à vontade.'}
             </div>
           </div>
-          <button class="btn btn--text" data-ai-restore type="button" title="${t('config.voltaPrompt')}">
-            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> ${t('config.restaurarPadrao')}
+          <button class="btn btn--text" data-ai-restore type="button" title="${t('settings.backToPrompt')}">
+            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> ${t('settings.restoreDefault')}
           </button>
         </div>
         <textarea class="filter-textarea filter-textarea--prompt" data-ia-prompt rows="14" spellcheck="false">${currentPrompt.replace(/</g, '&lt;')}</textarea>
       </div>
 
       <div class="settings-actions">
-        <button class="btn" data-ia-testar ${provider === 'nenhum' ? 'disabled' : ''}><i class="fa-solid fa-plug" aria-hidden="true"></i> ${t('config.testarConexao')}</button>
+        <button class="btn" data-ia-testar ${provider === 'nenhum' ? 'disabled' : ''}><i class="fa-solid fa-plug" aria-hidden="true"></i> ${t('settings.testConnection')}</button>
         <span class="settings-hint" data-ia-status></span>
       </div>
     </div>
@@ -385,7 +385,7 @@ function installAIHandlers(root: HTMLElement): void {
     const models = MODELS_BY_PROVIDER[provider] ?? []
     const current = modelEl.value
     modelEl.innerHTML =
-      `<option value="" ${current === '' ? 'selected' : ''}>${t('config.padrao')}</option>` +
+      `<option value="" ${current === '' ? 'selected' : ''}>${t('settings.default')}</option>` +
       models.map((m) => `<option value="${m}" ${current === m ? 'selected' : ''}>${m}</option>`).join('')
     modelEl.disabled = provider === 'nenhum'
     if (keyEl) keyEl.disabled = provider === 'nenhum'
@@ -403,33 +403,33 @@ function installAIHandlers(root: HTMLElement): void {
   restoreEl?.addEventListener('click', async () => {
     if (!promptEl) return
     if (promptEl.value.trim() === DEFAULT_SYSTEM_PROMPT) {
-      notify(t('config.promptJaPadrao'))
+      notify(t('settings.promptAlreadyDefault'))
       return
     }
     const ok = await confirm(
       'Restaurar o system prompt canônico da Fábula? Suas edições serão perdidas.',
-      t('config.restaurarPadrao'),
+      t('settings.restoreDefault'),
     )
     if (!ok) return
     promptEl.value = DEFAULT_SYSTEM_PROMPT
     save()
-    notify(t('config.promptRestaurado'))
+    notify(t('settings.promptRestored'))
   })
 
   testEl?.addEventListener('click', async () => {
     const ai = readAI()
     if (ai.provider === 'nenhum' || !ai.apiKey.trim()) {
-      notify(t('config.escolhaProvider'), 'erro')
+      notify(t('settings.chooseProvider'), 'erro')
       return
     }
     if (statusEl) {
-      statusEl.textContent = t('config.testando')
+      statusEl.textContent = t('settings.testing')
       testEl!.disabled = true
     }
     try {
       const resp = await testConnection(ai)
       if (statusEl) statusEl.textContent = `OK — respondeu: "${resp.slice(0, 30)}"`
-      notify(t('config.conexaoOk'), 'ok')
+      notify(t('settings.connectionOk'), 'ok')
     } catch (err) {
       const msg = err instanceof AiError ? err.message : String(err)
       if (statusEl) statusEl.textContent = `Falhou: ${msg.slice(0, 50)}`
@@ -445,10 +445,10 @@ function installAIHandlers(root: HTMLElement): void {
 /* ---------- account and sync ---------- */
 
 const STATE_LABEL: Record<SyncState, string> = {
-  local: t('config.sync.local'),
-  enviando: t('config.sync.enviando'),
-  sincronizado: t('config.sync.sincronizado'),
-  'sem-conexao': t('config.sync.semConexao'),
+  local: t('settings.sync.local'),
+  enviando: t('settings.sync.sending'),
+  sincronizado: t('settings.sync.synced'),
+  'sem-conexao': t('settings.sync.offline'),
 }
 
 /** Account section: honest warning about local data + sync status. */
@@ -457,7 +457,7 @@ function accountSection(): string {
   return `
     <div class="settings-section">
       <h3><i class="fa-solid fa-cloud" aria-hidden="true"></i> Conta e sincronização</h3>
-      <p class="settings-notice">${t('config.sync.notice')}</p>
+      <p class="settings-notice">${t('settings.sync.notice')}</p>
       <div class="settings-row">
         <div>
           <div class="settings-label">Status</div>
@@ -466,9 +466,9 @@ function accountSection(): string {
         ${session ? `<span class="settings-label settings-account-email">${escapeHtml(session.user.email)}</span>` : ''}
       </div>
       <div class="settings-actions">
-        ${session ? '' : `<button class="btn" data-login><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> ${t('config.sync.entrarConta')}</button>`}
-        ${session ? `<button class="btn" data-logout-account><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> ${t('config.sync.sair')}</button>` : ''}
-        <button class="btn" data-syncnow ${session ? '' : 'disabled'} title="${session ? t('config.sync.enviaAgora') : t('config.sync.entre')}"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> ${t('config.sync.sincronizar')}</button>
+        ${session ? '' : `<button class="btn" data-login><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> ${t('settings.sync.loginAccount')}</button>`}
+        ${session ? `<button class="btn" data-logout-account><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> ${t('settings.sync.logout')}</button>` : ''}
+        <button class="btn" data-syncnow ${session ? '' : 'disabled'} title="${session ? t('settings.sync.sendNow') : t('settings.sync.signIn')}"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> ${t('settings.sync.sync')}</button>
       </div>
     </div>
   `
@@ -492,7 +492,7 @@ function installAccountHandlers(root: HTMLElement): void {
     const { logout } = await import('../../sync/auth')
     await logout()
     onSessionChange()
-    notify(t('config.sessaoEncerrada'))
+    notify(t('settings.sessionEnded'))
   })
 
   root.querySelector('[data-syncnow]')?.addEventListener('click', () => {

@@ -23,18 +23,18 @@ export function checkDaily(): void {
         <input type="checkbox" class="checkin-check" data-checkin-id="${escapeHtml(task.id)}" />
         <span class="checkin-info">
           <span class="checkin-title">${escapeHtml(task.title)}</span>
-          <span class="checkin-meta">${task.type === 'unica' ? t('tipo.unica') : t('tipo.recorrente')} · ${difficultyMeta(task.difficulty).label} · +${xpFor(task.difficulty)} XP</span>
+          <span class="checkin-meta">${task.type === 'unica' ? t('type.oneoff') : t('type.recurring')} · ${difficultyMeta(task.difficulty).label} · +${xpFor(task.difficulty)} XP</span>
         </span>
       </label>`,
     )
     .join('')
 
   openModal(`
-    <h2 class="checkin-title-modal">${t('checkin.ontem')}</h2>
+    <h2 class="checkin-title-modal">${t('checkin.yesterday')}</h2>
     <p class="checkin-sub">${t('checkin.sub', {date: formatLongDate(pend.date)})}</p>
     <div class="checkin-list">${items}</div>
     <div class="form-actions">
-      <button class="btn btn-primary" data-checkin-confirm>${t('checkin.botao')}</button>
+      <button class="btn btn-primary" data-checkin-confirm>${t('checkin.button')}</button>
     </div>
   `)
 

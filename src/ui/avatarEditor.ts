@@ -21,7 +21,7 @@ export function editAvatar(file: File): void {
   img.onload = () => openCrop(img, url)
   img.onerror = () => {
     URL.revokeObjectURL(url)
-    notify(t('avatar.invalida'), 'erro')
+    notify(t('avatar.invalid'), 'erro')
   }
   img.src = url
 }
@@ -43,10 +43,10 @@ function openCrop(img: HTMLImageElement, url: string): void {
   let dy = 0
 
   openModal(`
-    <h2>${t('avatar.recortar')}</h2>
+    <h2>${t('avatar.crop')}</h2>
     <p class="avatar-hint">${t('avatar.hint')}</p>
     <div class="avatar-window" data-avatar-janela>
-      <img src="${url}" alt="${t('avatar.imagemCortar')}" data-avatar-img />
+      <img src="${url}" alt="${t('avatar.cropImage')}" data-avatar-img />
       <div class="avatar-mask" aria-hidden="true"></div>
     </div>
     <div class="avatar-zoom">
@@ -55,8 +55,8 @@ function openCrop(img: HTMLImageElement, url: string): void {
       <i class="fa-solid fa-plus" aria-hidden="true"></i>
     </div>
     <div class="form-actions">
-      <button class="btn" data-avatar-cancel>${t('comum.cancelar')}</button>
-      <button class="btn btn-primary" data-avatar-save>${t('avatar.salvar')}</button>
+      <button class="btn" data-avatar-cancel>${t('common.cancel')}</button>
+      <button class="btn btn-primary" data-avatar-save>${t('avatar.save')}</button>
     </div>
   `)
 
@@ -140,7 +140,7 @@ function openCrop(img: HTMLImageElement, url: string): void {
     if (!g) {
       cleanup()
       closeModal()
-      notify(t('avatar.falhaProcessar'), 'erro')
+      notify(t('avatar.processFailed'), 'erro')
       return
     }
     g.drawImage(img, sx, sy, sw, sh, 0, 0, OUTPUT, OUTPUT)
@@ -148,6 +148,6 @@ function openCrop(img: HTMLImageElement, url: string): void {
     cleanup()
     closeModal()
     setAvatar(dataUrl)
-    notify(t('avatar.salvo'))
+    notify(t('avatar.saved'))
   })
 }

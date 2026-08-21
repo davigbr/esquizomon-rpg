@@ -11,13 +11,13 @@ import { t } from '../i18n'
 
 /** The bubble of a message. */
 export function bubble(m: AiMessage, idx: number): string {
-  const copyBtn = `<button type="button" class="fable-copy-msg" data-fabula-copiar-msg="${idx}" title="${t('chatRender.copiarMd')}" aria-label="${t('chatRender.copiarMd')}"><i class="fa-solid fa-copy" aria-hidden="true"></i></button>`
+  const copyBtn = `<button type="button" class="fable-copy-msg" data-fabula-copiar-msg="${idx}" title="${t('chatRender.copyMd')}" aria-label="${t('chatRender.copyMd')}"><i class="fa-solid fa-copy" aria-hidden="true"></i></button>`
   if (m.role === 'user') {
     return `<div class="fable-bubble fable-bubble--user">${copyBtn}<span class="fable-bubble-text">${escape(m.content)}</span></div>`
   }
   const reasoning = m.reasoning
     ? `<details class="fable-reasoning">
-        <summary><i class="fa-solid fa-brain" aria-hidden="true"></i> ${t('chatRender.raciocinio')}</summary>
+        <summary><i class="fa-solid fa-brain" aria-hidden="true"></i> ${t('chatRender.reasoning')}</summary>
         <pre>${escape(m.reasoning)}</pre>
       </details>`
     : ''
