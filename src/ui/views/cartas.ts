@@ -8,6 +8,7 @@ import { appStore } from '../../stores/app'
 import { modalBody, openModal } from '../modal'
 import { notify } from '../toast'
 import { escapeHtml } from '../util'
+import { t } from '../../i18n'
 
 let deckCache: Card[] | null = null
 let filterType: CardType | '' = ''
@@ -20,7 +21,7 @@ export async function mountCards(root: HTMLElement, data: AppData): Promise<void
     try {
       deckCache = await loadDeck()
     } catch {
-      root.innerHTML = '<div class="empty"><strong>Não consegui carregar o baralho.</strong></div>'
+      root.innerHTML = `<div class="empty"><strong>${t('cartas.erroCarregar')}</strong></div>`
       return
     }
     // the deck just arrived — the store may have changed (initial draw) while we waited
@@ -40,15 +41,15 @@ export async function mountCards(root: HTMLElement, data: AppData): Promise<void
 
   root.innerHTML = `
     <header class="view-header">
-      <h1>Cartas</h1>
-      <p class="view-sub">${unlocked.size}/${total} desbloqueadas · nível ${fullDeckLevel()} completa o baralho</p>
+      <h1>${t('cartas.titulo')}</h1>
+      <p class="view-sub">${t('cartas.sub', {n: unlocked.size, total: total, lv: fullDeckLevel()})}</p>
     </header>
 
     <div class="filters">
-      <button class="filter-chip${filterType === '' ? ' active' : ''}" data-filter-type="">Todas</button>
-      <button class="filter-chip${filterType === 'monstro' ? ' active' : ''}" data-filter-type="monstro">Monstros</button>
-      <button class="filter-chip${filterType === 'captura' ? ' active' : ''}" data-filter-type="captura">Capturas</button>
-      <button class="filter-chip${filterType === 'alianca' ? ' active' : ''}" data-filter-type="alianca">Alianças</button>
+      <button class="filter-chip${filterType === '' ? ' active' : ''}" data-filter-type="">${t('cartas.todas')}</button>
+      <button class="filter-chip${filterType === 'monstro' ? ' active' : ''}" data-filter-type="monstro">${t('cartas.monstros')}</button>
+      <button class="filter-chip${filterType === 'captura' ? ' active' : ''}" data-filter-type="captura">${t('cartas.capturas')}</button>
+      <button class="filter-chip${filterType === 'alianca' ? ' active' : ''}" data-filter-type="alianca">${t('cartas.aliancas')}</button>
     </div>
 
     <div class="cards-grid">
@@ -68,7 +69,7 @@ export async function mountCards(root: HTMLElement, data: AppData): Promise<void
       const id = item.getAttribute('data-carta')!
       // locked cards stay hidden — no modal reveals the card
       if (!appStore.get().character.cards.includes(id)) {
-        notify('Carta bloqueada — suba de nível para desbloquear.')
+        notify(t('cartas.bloqueada'))
         return
       }
       openCardModal(id)
@@ -80,13 +81,13 @@ function cardCard(c: Card, unlocked: boolean): string {
   const invocations = appStore.get().character.invocations[c.id] ?? 0
   const cost = invocationCost(kindOf(c), invocations)
   return `
-    <div class="card-item${unlocked ? '' : ' card-item--blocked'}" data-carta="${escapeHtml(c.id)}" title="${unlocked ? `Ver ${c.name}` : `${c.name} — bloqueada`}">
+    <div class="card-item${unlocked ? '' : ' card-item--blocked'}" data-carta="${escapeHtml(c.id)}" title="${unlocked ? `${t('cartas.ver')} ${c.name}` : `${c.name} — ${t('cartas.bloqueada')}`}">
       ${unlocked
-        ? `<div class="card-figure"><img class="card-img" src="/images/cards/${escapeHtml(c.id)}.png" alt="${escapeHtml(c.name)}" loading="lazy" /><span class="card-view"><i class="fa-solid fa-eye" aria-hidden="true"></i> Ver</span></div>`
+        ? `<div class="card-figure"><img class="card-img" src="/images/cards/${escapeHtml(c.id)}.png" alt="${escapeHtml(c.name)}" loading="lazy" /><span class="card-view"><i class="fa-solid fa-eye" aria-hidden="true"></i> ${t('cartas.ver')}</span></div>`
         : `<div class="card-lock"><i class="fa-solid fa-lock" aria-hidden="true"></i><span class="card-lock-name">${escapeHtml(c.name)}</span></div>`}
       <div class="card-footer">
         <span class="badge badge--${c.type}">${typeLabel(c.type)}</span>
-        ${unlocked ? `<span class="card-cost" title="Custo de invocação — peça à Fábula no chat"><i class="fa-solid fa-droplet" aria-hidden="true"></i> ${cost}</span>` : ''}
+        ${unlocked ? `<span class="card-cost" title="${t('cartas.custoInvocacao')}"><i class="fa-solid fa-droplet" aria-hidden="true"></i> ${cost}</span>` : ''}
       </div>
     </div>
   `
@@ -109,7 +110,7 @@ export function openCardModal(id: string): void {
 
   openModal(`
     <div class="card-modal">
-      <button class="card-modal-arrow" data-modal-prev aria-label="Carta anterior" ${prev ? '' : 'disabled'}>
+      <button class="card-modal-arrow" data-modal-prev aria-label="${t('cartas.anterior')}" ${prev ? '' : 'disabled'}>
         <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
       </button>
       <div class="card-modal-center">
@@ -117,11 +118,11 @@ export function openCardModal(id: string): void {
         <div class="card-modal-info">
           <span class="badge badge--${card.type}">${typeLabel(card.type)}</span>
           <h2>${escapeHtml(card.name)}</h2>
-          <p class="card-modal-cost"><i class="fa-solid fa-droplet" aria-hidden="true"></i> ${cost} mana${invocations > 0 ? ` · invocada ${invocations}×` : ''}</p>
-          <p class="settings-hint">Invocação pelo chat: peça à Fábula para invocar esta carta — ela desconta a mana e te dá o apoio dela.</p>
+          <p class="card-modal-cost"><i class="fa-solid fa-droplet" aria-hidden="true"></i> ${cost} ${t('cartas.mana')}${invocations > 0 ? t('cartas.invocada', {n: invocations}) : ''}</p>
+          <p class="settings-hint">${t('cartas.hintInvocacao')}</p>
         </div>
       </div>
-      <button class="card-modal-arrow" data-modal-next aria-label="Próxima carta" ${next ? '' : 'disabled'}>
+      <button class="card-modal-arrow" data-modal-next aria-label="${t('cartas.proxima')}" ${next ? '' : 'disabled'}>
         <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
       </button>
     </div>

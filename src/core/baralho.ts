@@ -2,6 +2,7 @@
  *  source (gallery, IA context, citation detection). */
 
 import deck from '../data/deck.json'
+import { t } from '../i18n'
 
 // Diagnostic hook: exposes the deck to console scripts (data correction
 // in production — 2026-08-12). Harmless.
@@ -82,11 +83,11 @@ export function kindOf(card: Card | undefined): CardType {
 export function typeLabel(type: CardType): string {
   switch (type) {
     case 'monstro':
-      return 'Monstro'
+      return t('cartas.tipoMonstro')
     case 'captura':
-      return 'Captura'
+      return t('cartas.tipoCaptura')
     case 'alianca':
-      return 'Aliança'
+      return t('cartas.tipoAlianca')
   }
 }
 

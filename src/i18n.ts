@@ -381,6 +381,26 @@ const MESSAGES: Cat = {
     'historico.tudo': 'Tudo',
     'historico.empty': 'Nenhum evento ainda.',
     'historico.emptySub': 'Conclua tarefas, invoque cartas e suba de nível — tudo fica registrado aqui.',
+
+    // ---- cartas ----
+    'cartas.titulo': 'Cartas',
+    'cartas.sub': '{n}/{total} desbloqueadas · nível {lv} completa o baralho',
+    'cartas.todas': 'Todas',
+    'cartas.monstros': 'Monstros',
+    'cartas.capturas': 'Capturas',
+    'cartas.aliancas': 'Alianças',
+    'cartas.erroCarregar': 'Não consegui carregar o baralho.',
+    'cartas.bloqueada': 'Carta bloqueada — suba de nível para desbloquear.',
+    'cartas.ver': 'Ver',
+    'cartas.custoInvocacao': 'Custo de invocação — peça à Fábula no chat',
+    'cartas.anterior': 'Carta anterior',
+    'cartas.proxima': 'Próxima carta',
+    'cartas.mana': 'mana',
+    'cartas.invocada': ' · invocada {n}×',
+    'cartas.hintInvocacao': 'Invocação pelo chat: peça à Fábula para invocar esta carta — ela desconta a mana e te dá o apoio dela.',
+    'cartas.tipoMonstro': 'Monstro',
+    'cartas.tipoCaptura': 'Captura',
+    'cartas.tipoAlianca': 'Aliança',
   },
 
   en: {
@@ -709,6 +729,26 @@ const MESSAGES: Cat = {
     'historico.tudo': 'All',
     'historico.empty': 'No events yet.',
     'historico.emptySub': 'Complete tasks, invoke cards and level up — it all gets recorded here.',
+
+    // ---- cartas ----
+    'cartas.titulo': 'Cards',
+    'cartas.sub': '{n}/{total} unlocked · level {lv} completes the deck',
+    'cartas.todas': 'All',
+    'cartas.monstros': 'Monsters',
+    'cartas.capturas': 'Captures',
+    'cartas.aliancas': 'Alliances',
+    'cartas.erroCarregar': 'Could not load the deck.',
+    'cartas.bloqueada': 'Card locked — level up to unlock it.',
+    'cartas.ver': 'View',
+    'cartas.custoInvocacao': 'Invocation cost — ask the Fable in the chat',
+    'cartas.anterior': 'Previous card',
+    'cartas.proxima': 'Next card',
+    'cartas.mana': 'mana',
+    'cartas.invocada': ' · invoked {n}×',
+    'cartas.hintInvocacao': 'Invocation via chat: ask the Fable to invoke this card — it deducts the mana and gives you its support.',
+    'cartas.tipoMonstro': 'Monster',
+    'cartas.tipoCaptura': 'Capture',
+    'cartas.tipoAlianca': 'Alliance',
   },
 }
 
