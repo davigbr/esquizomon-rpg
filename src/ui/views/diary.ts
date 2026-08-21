@@ -225,7 +225,7 @@ function installImport(root: HTMLElement): void {
       </div>
       <div class="form-group">
         <textarea class="filter-textarea" data-import-text rows="12" spellcheck="false"
-          placeholder="## 2026-08-01&#10;**Título opcional**&#10;Corpo da crônica em markdown...&#10;&#10;## 2026-08-02&#10;..."></textarea>
+          placeholder="${t('diario.importarPlaceholder')}"></textarea>
       </div>
       <p class="settings-hint" data-import-status></p>
       <div class="form-actions">

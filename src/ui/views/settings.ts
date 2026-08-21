@@ -298,8 +298,8 @@ function aiSection(ai: AiConfig): string {
 
   return `
     <div class="settings-section">
-      <h3><i class="fa-solid fa-feather" aria-hidden="true"></i> Fábula (IA)</h3>
-      <p>BYOK: a chave fica só no seu dispositivo. O provedor é contactado direto (sem servidor intermediário guardando dados). DeepSeek e OpenCode têm raciocínio visível no chat.</p>
+      <h3><i class="fa-solid fa-feather" aria-hidden="true"></i> ${t('settings.fabula')}</h3>
+      <p>${t('settings.byok')}</p>
 
       <div class="settings-row">
         <div>

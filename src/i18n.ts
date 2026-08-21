@@ -91,6 +91,12 @@ const MESSAGES: Cat = {
     'hoje.posHoje': 'Positivos hoje',
     'hoje.negHoje': 'Negativos hoje',
     'hoje.seq': 'Dias seguidos com repetição positiva',
+    'hoje.diaHoje': ' hoje',
+    'hoje.diaReferido': ' no dia referido',
+    'hoje.repNegativa': 'Repetição negativa',
+    'hoje.repPositiva': 'Repetição positiva',
+    'hoje.negativoDia': 'Negativo{loc} ({n}×)',
+    'hoje.positivoDia': 'Positivo{loc} ({n}×)',
     'hoje.hojeBadge': 'hoje',
     'hoje.noDia': 'no dia referido',
     'hoje.repeticaoRegistrada': 'Repetição registrada.',
@@ -195,6 +201,11 @@ const MESSAGES: Cat = {
     'chat.configureIa': 'Configure a IA em Config → Fábula antes de conversar.',
     'chat.semResposta': 'A Fábula não respondeu nada. Tente de novo.',
 
+    // ---- chat narrativa ----
+    'chat.emptyIntro': 'Comece uma conversa com a Fábula. Ela tem acesso às suas tarefas, hábitos, cartas e personagem — e lembra do que foi dito antes.',
+    'chat.emptyGreeting': 'Senta. Como você chega hoje? — e não vale responder "bem" sem me dizer o que "bem" quer dizer.',
+    'chat.hintComandos': 'Comandos: <b>/invocar &lt;carta&gt;</b> (custa mana) · <b>/invocar</b> sem nome (a Fábula escolhe, custa mais) · <b>/analisar</b> (10 mana, análise esquizoanalítica) · <b>/capturas</b> (25 mana, varredura das capturas desbloqueadas). Ou peça no texto: <b>invoca a carta &lt;nome&gt;</b>.',
+
     // ---- config ----
     'config.titulo': 'Config',
     'config.sub': 'Ajustes do app e dos seus dados.',
@@ -290,6 +301,9 @@ const MESSAGES: Cat = {
     'config.sync.entrarConta': 'Entrar / criar conta',
     'config.sync.sair': 'Sair',
 
+    'settings.fabula': 'Fábula (IA)',
+    'settings.byok': 'BYOK: a chave fica só no seu dispositivo. O provedor é contactado direto (sem servidor intermediário guardando dados). DeepSeek e OpenCode têm raciocínio visível no chat.',
+
     // ---- login ----
     'login.syncTitulo': 'Sincronizar com a conta',
     'login.syncSub': 'Este dispositivo tem dados salvos — e a conta pode ter outros. Qual versão deve ficar?',
@@ -351,6 +365,7 @@ const MESSAGES: Cat = {
     'diario.moveFalha': 'Não deu para mudar a data.',
     'diario.semTitulo': 'Sem título',
     'diario.importarModalTitulo': 'Importar crônicas',
+    'diario.importarPlaceholder': '## 2026-08-01&#10;**Título opcional**&#10;Corpo da crônica em markdown...&#10;&#10;## 2026-08-02&#10;...',
     'diario.importarHint': 'Cole o markdown com uma crônica por dia, cada uma começando com a data: <code>## AAAA-MM-DD</code>. Título opcional na primeira linha em negrito (<code>**Título**</code>). Dias que já existem são pulados.',
     'diario.escolhaArquivo': 'Ou escolha um arquivo .md',
     'diario.cancelar': 'Cancelar',
@@ -461,6 +476,30 @@ const MESSAGES: Cat = {
     'ficha.xpAcumulado': 'XP acumulado até cada nível',
     'ficha.xpAcumuladoCurto': 'XP acumulado',
     'ficha.baralhoTitle': 'Cartas desbloqueadas do baralho',
+
+    // ---- ficha narrativa ----
+    'ficha.regra1': 'Concluir tarefas dá XP conforme a dificuldade (Fácil ×1 · Média ×1,5 · Difícil ×2 · Extrema ×2,5).',
+    'ficha.regra2': 'Subir de nível restaura vida e mana, e aumenta os máximos. Cada dia você também regenera +5% da vida (mín. 1).',
+    'ficha.regra3': 'Recorrentes perdidas causam dano no dia seguinte, proporcional à dificuldade.',
+    'ficha.regra4': 'Hábitos negativos causam dano pequeno; positivos dão XP e recuperam +1 vida.',
+    'ficha.regra5': 'Registrar o diário dá +5 XP (uma vez por dia). Mencionar o nome de uma carta no diário dá +10 XP por menção, quando a Fábula lê o diário (na interação) — vale para qualquer carta da galeria e não se repete para a mesma menção.',
+    'ficha.regra6': 'Invocar é pedir à Fábula no chat — comando <b>/invocar &lt;carta&gt;</b> (ou dizer "invoca a carta X"): o app desconta a mana (monstros 4, capturas 8, alianças 12; reusar encarece até o teto) e a Fábula devolve uma análise extensa dos possíveis efeitos da carta. <b>/invocar</b> sem nome: a Fábula escolhe a carta (custo ×1,5). <b>/analisar</b>: análise esquizoanalítica (10 mana). Mencionar o nome de uma carta não invoca nada — só o pedido explícito conta.',
+    'ficha.regra7': 'Morte não-destrutiva: com vida zerada você fica <b>esgotado</b> — sem regeneração de mana — até o próximo dia. A queda custa uma carta do baralho.',
+    'ficha.modoRelaxado': 'Modo relaxado',
+    'ficha.ativado': ' (ativado)',
+    'ficha.regra8': 'desliga todo dano — o jogo vira só bônus. Alternar em Config.',
+    'ficha.xpGanhoSub': 'Quanto cada conclusão de tarefa adiciona ao seu XP. Recorrentes marcadas, únicas concluídas e hábitos positivos dão o mesmo valor.',
+    'ficha.subirNivelHint': 'Subir de nível restaura vida e mana.',
+    'ficha.danoSub': 'Quanto você perde de vida no reset diário (recorrentes perdidas) ou por repetição negativa de hábito.',
+    'ficha.relaxadoAtivo': 'Modo relaxado ativo: nenhum dano é aplicado.',
+    'ficha.vidaZerada': 'Vida zerada = esgotado e perde uma carta do baralho.',
+    'ficha.progressaoSub': 'A curva até o nível {max} (baralho completo). A linha vertical marca o seu nível atual ({lv}).',
+    'ficha.legXpProximo': 'Cada nível exige mais XP: nível {lv} precisa de {xp} XP para o próximo.',
+    'ficha.legVida': 'Vida máxima cresce 5 por nível: no seu nível é {max}.',
+    'ficha.legMana': 'Mana máxima cresce 2 por nível: no seu nível é {max} — invocar monstros custa 4, capturas 8, alianças 12.',
+    'ficha.legXpAcumulado': 'Total de XP somando todos os níveis até ali: ir do nível 1 ao 30 exige {xp} XP.',
+    'ficha.baralhoSub': 'Coleção desbloqueada conforme você sobe de nível — 1 carta por nível (a partir de 7 iniciais): monstros são 6× mais comuns que alianças, capturas 2×.',
+    'ficha.baralhoHint': 'Nível {lv} completa o baralho. A mana é o recurso de invocação: monstros custam menos, alianças custam mais; reusar a mesma carta encarece até um teto.',
   },
 
   en: {
@@ -501,6 +540,12 @@ const MESSAGES: Cat = {
     'hoje.posHoje': 'Positive today',
     'hoje.negHoje': 'Negative today',
     'hoje.seq': 'Consecutive days with positive repetition',
+    'hoje.diaHoje': ' today',
+    'hoje.diaReferido': ' on the referenced day',
+    'hoje.repNegativa': 'Negative repetition',
+    'hoje.repPositiva': 'Positive repetition',
+    'hoje.negativoDia': 'Negative{loc} ({n}×)',
+    'hoje.positivoDia': 'Positive{loc} ({n}×)',
     'hoje.hojeBadge': 'today',
     'hoje.noDia': 'on the day shown',
     'hoje.repeticaoRegistrada': 'Repetition recorded.',
@@ -605,6 +650,11 @@ const MESSAGES: Cat = {
     'chat.configureIa': 'Set up the AI in Settings → Fable before chatting.',
     'chat.semResposta': 'The Fable returned nothing. Try again.',
 
+    // ---- chat narrativa ----
+    'chat.emptyIntro': 'Start a conversation with the Fable. It has access to your tasks, habits, cards and character — and remembers what was said before.',
+    'chat.emptyGreeting': 'Sit down. How do you arrive today? — and "well" doesn\'t count unless you tell me what "well" means.',
+    'chat.hintComandos': 'Commands: <b>/invocar &lt;carta&gt;</b> (costs mana) · <b>/invocar</b> without a name (the Fable chooses, costs more) · <b>/analisar</b> (10 mana, schizoanalytic analysis) · <b>/capturas</b> (25 mana, scan of unlocked captures). Or ask in plain text: <b>invoca a carta &lt;nome&gt;</b>.',
+
     // ---- config ----
     'config.titulo': 'Settings',
     'config.sub': 'App and data settings.',
@@ -700,6 +750,9 @@ const MESSAGES: Cat = {
     'config.sync.entrarConta': 'Log in / create account',
     'config.sync.sair': 'Log out',
 
+    'settings.fabula': 'Fable (AI)',
+    'settings.byok': 'BYOK: the key stays only on your device. The provider is contacted directly (no intermediate server storing data). DeepSeek and OpenCode have visible reasoning in the chat.',
+
     // ---- login ----
     'login.syncTitulo': 'Sync with account',
     'login.syncSub': 'This device has saved data — and the account may have others. Which version should stay?',
@@ -761,6 +814,7 @@ const MESSAGES: Cat = {
     'diario.moveFalha': 'Could not change the date.',
     'diario.semTitulo': 'Untitled',
     'diario.importarModalTitulo': 'Import chronicles',
+    'diario.importarPlaceholder': '## 2026-08-01&#10;**Optional title**&#10;Chronicle body in markdown...&#10;&#10;## 2026-08-02&#10;...',
     'diario.importarHint': 'Paste the markdown with one chronicle per day, each starting with the date: <code>## AAAA-MM-DD</code>. Optional title on the first bold line (<code>**Title**</code>). Days that already exist are skipped.',
     'diario.escolhaArquivo': 'Or choose a .md file',
     'diario.cancelar': 'Cancel',
@@ -867,6 +921,30 @@ const MESSAGES: Cat = {
     'ficha.xpAcumulado': 'Cumulative XP up to each level',
     'ficha.xpAcumuladoCurto': 'Cumulative XP',
     'ficha.baralhoTitle': 'Unlocked deck cards',
+
+    // ---- ficha narrativa ----
+    'ficha.regra1': 'Completing tasks gives XP by difficulty (Easy ×1 · Medium ×1.5 · Hard ×2 · Extreme ×2.5).',
+    'ficha.regra2': 'Leveling up restores health and mana, and raises the maximums. Each day you also <b>regen +5% health</b> (min. 1).',
+    'ficha.regra3': 'Missed recurring tasks deal damage the next day, proportional to difficulty.',
+    'ficha.regra4': 'Negative habits deal small damage; <b>positive</b> ones give XP and <b>recover +1 health</b>.',
+    'ficha.regra5': 'Writing in the diary gives +5 XP (once a day). <b>Mentioning a card name in the diary</b> gives +10 XP per mention, when the Fable reads the diary (on interaction) — works for any gallery card and doesn\'t repeat for the same mention.',
+    'ficha.regra6': '<b>Invoking</b> is asking the Fable in the chat — command <b>/invocar &lt;carta&gt;</b> (or say "invoca a carta X"): the app deducts the mana (monsters 4, captures 8, alliances 12; reusing gets pricier up to a cap) and the Fable returns an extensive analysis of the card\'s possible effects. <b>/invocar</b> without a name: the Fable picks the card (cost ×1.5). <b>/analisar</b>: schizoanalytic analysis (10 mana). Mentioning a card name invokes nothing — only an explicit request counts.',
+    'ficha.regra7': 'Non-destructive death: with zero health you get <b>depleted</b> — no mana regen — until the next day. The fall costs one deck card.',
+    'ficha.modoRelaxado': 'Relaxed mode',
+    'ficha.ativado': ' (on)',
+    'ficha.regra8': 'turns off all damage — the game becomes only bonuses. Toggle in Settings.',
+    'ficha.xpGanhoSub': 'How much each task completion adds to your XP. Marked recurring, completed one-offs and positive habits give the same value.',
+    'ficha.subirNivelHint': 'Leveling up restores health and mana.',
+    'ficha.danoSub': 'How much health you lose on the daily reset (missed recurring) or from a negative habit repetition.',
+    'ficha.relaxadoAtivo': 'Relaxed mode on: no damage is applied.',
+    'ficha.vidaZerada': 'Zero health = depleted and loses a deck card.',
+    'ficha.progressaoSub': 'The curve up to level {max} (full deck). The vertical line marks your current level ({lv}).',
+    'ficha.legXpProximo': 'Each level demands more XP: level {lv} needs {xp} XP for the next.',
+    'ficha.legVida': 'Max health grows by 5 per level: at yours it is {max}.',
+    'ficha.legMana': 'Max mana grows by 2 per level: at yours it is {max} — invoking monsters costs 4, captures 8, alliances 12.',
+    'ficha.legXpAcumulado': 'Total XP summing all levels up to there: going from level 1 to 30 requires {xp} XP.',
+    'ficha.baralhoSub': 'Collection unlocked as you level up — 1 card per level (from 7 starting): monsters are 6× more common than alliances, captures 2×.',
+    'ficha.baralhoHint': 'Level {lv} completes the deck. Mana is the invocation resource: monsters cost less, alliances cost more; reusing the same card gets pricier up to a cap.',
   },
 }
 

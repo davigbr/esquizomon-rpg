@@ -279,10 +279,10 @@ function habitCard(h: Task, isToday: boolean, isYesterday: boolean): string {
   // visual cue: activated button (today or on the visible day) turns gold
   const posActive = todayPos > 0
   const negActive = todayNeg > 0
-  const dayLabel = isToday ? ' hoje' : ' no dia referido'
+  const dayLabel = isToday ? t('hoje.diaHoje') : t('hoje.diaReferido')
   return `
     <div class="task-card habit-card${oldClass}" draggable="true" data-id="${h.id}">
-      <button class="habit-side habit-side--neg${negActive ? ' active' : ''}" data-habit="negativo" data-id="${h.id}" aria-label="Repetição negativa" title="${negActive ? `Negativo${dayLabel} (${todayNeg}×)` : 'Repetição negativa'}" ${!canNegative ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
+      <button class="habit-side habit-side--neg${negActive ? ' active' : ''}" data-habit="negativo" data-id="${h.id}" aria-label="${t('hoje.repNegativa')}" title="${negActive ? t('hoje.negativoDia', {loc: dayLabel, n: todayNeg}) : t('hoje.repNegativa')}" ${!canNegative ? 'disabled' : ''}><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
       <div class="task-body">
         <p class="task-title">${escapeHtml(h.title)}</p>
         ${h.notes ? `<p class="task-notes">${renderNotes(h.notes)}</p>` : ''}
@@ -299,7 +299,7 @@ function habitCard(h: Task, isToday: boolean, isYesterday: boolean): string {
         <button class="btn btn-icon" data-edit data-id="${h.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
         <button class="btn btn-icon" data-delete data-id="${h.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       </div>
-      <button class="habit-side habit-side--pos${posActive ? ' active' : ''}" data-habit="positivo" data-id="${h.id}" aria-label="Repetição positiva" title="${posActive ? `Positivo${dayLabel} (${todayPos}×)` : 'Repetição positiva'}" ${!canPositive ? 'disabled' : ''}><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+      <button class="habit-side habit-side--pos${posActive ? ' active' : ''}" data-habit="positivo" data-id="${h.id}" aria-label="${t('hoje.repPositiva')}" title="${posActive ? t('hoje.positivoDia', {loc: dayLabel, n: todayPos}) : t('hoje.repPositiva')}" ${!canPositive ? 'disabled' : ''}><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
     </div>
   `
 }

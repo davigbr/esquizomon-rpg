@@ -28,21 +28,21 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
     <div class="settings-section">
       <h3>${t('ficha.comoFunciona')}</h3>
       <ul class="rules-list">
-        <li><b>Concluir tarefas</b> dá XP conforme a dificuldade (Fácil ×1 · Média ×1,5 · Difícil ×2 · Extrema ×2,5).</li>
-        <li><b>Subir de nível</b> restaura vida e mana, e aumenta os máximos. Cada dia você também <b>regenera +5% da vida</b> (mín. 1).</li>
-        <li><b>Recorrentes perdidas</b> causam dano no dia seguinte, proporcional à dificuldade.</li>
-        <li><b>Hábitos negativos</b> causam dano pequeno; <b>positivos</b> dão XP e <b>recuperam +1 vida</b>.</li>
-        <li><b>Registrar o diário</b> dá +5 XP (uma vez por dia). <b>Mencionar o nome de uma carta no diário</b> dá +10 XP por menção, quando a Fábula lê o diário (na interação) — vale para qualquer carta da galeria e não se repete para a mesma menção.</li>
-        <li><b>Invocar</b> é pedir à Fábula no chat — comando <b>/invocar &lt;carta&gt;</b> (ou dizer "invoca a carta X"): o app desconta a mana (monstros 4, capturas 8, alianças 12; reusar encarece até o teto) e a Fábula devolve uma análise extensa dos possíveis efeitos da carta. <b>/invocar</b> sem nome: a Fábula escolhe a carta (custo ×1,5). <b>/analisar</b>: análise esquizoanalítica (10 mana). Mencionar o nome de uma carta não invoca nada — só o pedido explícito conta.</li>
-        <li><b>Morte não-destrutiva:</b> com vida zerada você fica <b>esgotado</b> — sem regeneração de mana — até o próximo dia. A queda custa uma carta do baralho.</li>
-        <li><b>Modo relaxado${relaxedMode ? ' (ativado)' : ''}:</b> desliga todo dano — o jogo vira só bônus. Alternar em Config.</li>
+        <li>${t('ficha.regra1')}</li>
+        <li>${t('ficha.regra2')}</li>
+        <li>${t('ficha.regra3')}</li>
+        <li>${t('ficha.regra4')}</li>
+        <li>${t('ficha.regra5')}</li>
+        <li>${t('ficha.regra6')}</li>
+        <li>${t('ficha.regra7')}</li>
+        <li><b>${t('ficha.modoRelaxado')}${relaxedMode ? t('ficha.ativado') : ''}:</b> ${t('ficha.regra8')}</li>
       </ul>
     </div>
 
     <div class="game-tables-grid">
       <div class="settings-section">
         <h3>${t('ficha.xpGanho')}</h3>
-        <p>Quanto cada conclusão de tarefa adiciona ao seu XP. Recorrentes marcadas, únicas concluídas e hábitos positivos dão o mesmo valor.</p>
+        <p>${t('ficha.xpGanhoSub')}</p>
         <table class="game-table">
           <thead>
             <tr>
@@ -61,12 +61,12 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
             `).join('')}
           </tbody>
         </table>
-        <p class="settings-hint">Subir de nível restaura vida e mana.</p>
+        <p class="settings-hint">${t('ficha.subirNivelHint')}</p>
       </div>
 
       <div class="settings-section">
         <h3>${t('ficha.dano')}</h3>
-        <p>Quanto você perde de vida no reset diário (recorrentes perdidas) ou por repetição negativa de hábito.</p>
+        <p>${t('ficha.danoSub')}</p>
         <table class="game-table">
           <thead>
             <tr>
@@ -90,50 +90,50 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
             </tr>
           </tbody>
         </table>
-        <p class="settings-hint">${relaxedMode ? 'Modo relaxado ativo: nenhum dano é aplicado.' : 'Vida zerada = esgotado e perde uma carta do baralho.'}</p>
+        <p class="settings-hint">${relaxedMode ? t('ficha.relaxadoAtivo') : t('ficha.vidaZerada')}</p>
       </div>
     </div>
 
     <div class="settings-section">
       <h3>${t('ficha.progressao')}</h3>
-      <p>A curva até o nível ${MAX_LEVEL_CHART} (baralho completo). A linha vertical marca o seu nível atual (${char.level}).</p>
+      <p>${t('ficha.progressaoSub', {max: MAX_LEVEL_CHART, lv: char.level})}</p>
 
       <div class="chart-grid">
         <div class="chart-block">
           <div class="chart-title"><span class="chart-dot" style="background:var(--accent-gold)"></span> ${t('ficha.xpPorNivel')}</div>
           ${progressionChart({ label: t('ficha.xp'), color: 'var(--accent-gold)', values: xpPerLevel, format: (v) => `${v}` }, char.level)}
-          <p class="chart-legend">Cada nível exige mais XP: nível ${char.level} precisa de ${xpNextFor(char.level)} XP para o próximo.</p>
+          <p class="chart-legend">${t('ficha.legXpProximo', {lv: char.level, xp: xpNextFor(char.level)})}</p>
         </div>
 
         <div class="chart-block">
           <div class="chart-title"><span class="chart-dot" style="background:#c83030"></span> ${t('ficha.vidaMaxPorNivel')}</div>
           ${progressionChart({ label: t('ficha.vida'), color: '#c83030', values: hpPerLevel, format: (v) => `${v}` }, char.level)}
-          <p class="chart-legend">Vida máxima cresce 5 por nível: no seu nível é ${hpMaxFor(char.level)}.</p>
+          <p class="chart-legend">${t('ficha.legVida', {max: hpMaxFor(char.level)})}</p>
         </div>
 
         <div class="chart-block">
           <div class="chart-title"><span class="chart-dot" style="background:#2868d0"></span> ${t('ficha.manaMaxPorNivel')}</div>
           ${progressionChart({ label: t('ficha.mana'), color: '#2868d0', values: manaPerLevel, format: (v) => `${v}` }, char.level)}
-          <p class="chart-legend">Mana máxima cresce 2 por nível: no seu nível é ${manaMaxFor(char.level)} — invocar monstros custa 4, capturas 8, alianças 12.</p>
+          <p class="chart-legend">${t('ficha.legMana', {max: manaMaxFor(char.level)})}</p>
         </div>
 
         <div class="chart-block">
           <div class="chart-title"><span class="chart-dot" style="background:#9fd17c"></span> ${t('ficha.xpAcumulado')}</div>
           ${progressionChart({ label: t('ficha.xpAcumuladoCurto'), color: '#9fd17c', values: xpCumulative, format: (v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${v}`) }, char.level)}
-          <p class="chart-legend">Total de XP somando todos os níveis até ali: ir do nível 1 ao 30 exige ${xpCumulative.at(-1)} XP.</p>
+          <p class="chart-legend">${t('ficha.legXpAcumulado', { xp: xpCumulative.at(-1) ?? 0 })}</p>
         </div>
       </div>
     </div>
 
     <div class="settings-section">
       <h3>${t('ficha.baralho')}</h3>
-      <p>Coleção desbloqueada conforme você sobe de nível — 1 carta por nível (a partir de 7 iniciais): monstros são 6× mais comuns que alianças, capturas 2×.</p>
+      <p>${t('ficha.baralhoSub')}</p>
       <div class="sheet-bar" title="${t('ficha.baralhoTitle')}">
         <span class="sheet-bar-label">${t('ficha.baralho')}</span>
         <div class="sheet-bar-track"><div class="sheet-bar-fill sheet-bar--xp" style="width:${collectionPct}%"></div></div>
         <span class="sheet-bar-value">${char.cards.length}/65</span>
       </div>
-      <p class="settings-hint">Nível ${fullDeckLevel()} completa o baralho. A mana é o recurso de invocação: monstros custam menos, alianças custam mais; reusar a mesma carta encarece até um teto.</p>
+      <p class="settings-hint">${t('ficha.baralhoHint', {lv: fullDeckLevel()})}</p>
     </div>
   `
 }

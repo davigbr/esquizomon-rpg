@@ -195,9 +195,9 @@ function render(): void {
 
       <div class="fable-messages" data-fabula-mensagens>
         ${!conversation
-          ? '<div class="fable-empty">Comece uma conversa com a Fábula. Ela tem acesso às suas tarefas, hábitos, cartas e personagem — e lembra do que foi dito antes.</div>'
+          ? `<div class="fable-empty">${t('chat.emptyIntro')}</div>`
           : conversation.messages.length === 0
-            ? '<div class="fable-empty">Senta. Como você chega hoje? — e não vale responder "bem" sem me dizer o que "bem" quer dizer.</div>'
+            ? `<div class="fable-empty">${t('chat.emptyGreeting')}</div>`
             : conversation.messages.map((m, i) => bubble(m, i)).join('')}
         ${waiting ? '<div class="fable-bubble fable-bubble--assistant fable-typing"><span></span><span></span><span></span></div>' : ''}
       </div>
@@ -206,7 +206,7 @@ function render(): void {
         <textarea class="fable-input" data-fabula-input rows="1" placeholder="${conversation ? '' : t('chat.crieConversa')}" autocomplete="off" ${!conversation || busy ? 'disabled' : ''}></textarea>
         <button class="btn btn-icon" type="submit" aria-label="${t('chat.enviar')}" ${!conversation || busy ? 'disabled' : ''}><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></button>
       </form>
-      <p class="fable-hint">Comandos: <b>/invocar &lt;carta&gt;</b> (custa mana) · <b>/invocar</b> sem nome (a Fábula escolhe, custa mais) · <b>/analisar</b> (10 mana, análise esquizoanalítica) · <b>/capturas</b> (25 mana, varredura das capturas desbloqueadas). Ou peça no texto: <b>invoca a carta &lt;nome&gt;</b>.</p>
+      <p class="fable-hint">${t('chat.hintComandos')}</p>
     </div>
   `
 
