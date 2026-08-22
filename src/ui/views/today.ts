@@ -17,7 +17,7 @@ import {
   formatWeekday,
   todayISO,
 } from '../../core/jogo'
-import { appStore, deleteTask, recordHabit, reorderTasks, tagsInUse, toggleOneOff, toggleRecurringToday } from '../../stores/app'
+import { appStore, deleteTask, recordHabit, reorderTasks, tagsInUse, toggleOneOff, toggleRecurringToday, healWithMana, HEAL_MANA_COST } from '../../stores/app'
 import { openTaskForm } from '../formTarefa'
 import { escapeHtml } from '../util'
 import { t } from '../../i18n'
@@ -62,6 +62,7 @@ export function mountToday(root: HTMLElement, data: AppData): void {
         <button class="btn btn-icon" data-prev-day aria-label="${t('today.prevDay')}"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
         <h1>${escapeHtml(label)}</h1>
         <button class="btn btn-icon" data-next-day aria-label="${t('today.nextDay')}" ${isToday ? 'disabled' : ''}><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+        <button class="btn btn-heal" data-heal aria-label="${t('today.healLabel', { mana: HEAL_MANA_COST })}" title="${t('today.healTitle', { mana: HEAL_MANA_COST })}" ${char.hp >= char.hpMax || char.mana < HEAL_MANA_COST ? 'disabled' : ''}><i class="fa-solid fa-heart-pulse" aria-hidden="true"></i><span class="heal-cost">${HEAL_MANA_COST}⚡</span></button>
       </div>
       <p class="view-sub">${escapeHtml(formatLongDate(visibleDate))}</p>
     </header>
@@ -214,9 +215,16 @@ export function mountToday(root: HTMLElement, data: AppData): void {
   if (clickHandler) root.removeEventListener('click', clickHandler)
   clickHandler = (e: Event) => {
     const target = e.target as HTMLElement
-    const action = target.closest<HTMLElement>('[data-toggle-rec],[data-toggle-once],[data-habit],[data-edit],[data-delete]')
+    const action = target.closest<HTMLElement>('[data-toggle-rec],[data-toggle-once],[data-habit],[data-edit],[data-delete],[data-heal]')
     if (!action) return
     const id = action.dataset.id!
+
+    if (action.dataset.heal !== undefined) {
+      const res = healWithMana()
+      if (res.ok) notify(t('today.healed', { mana: HEAL_MANA_COST }))
+      else notify(res.reason ?? t('today.healMana'))
+      return
+    }
 
     if (action.dataset.toggleRec !== undefined) {
       const newCards = toggleRecurringToday(id, visibleDate)

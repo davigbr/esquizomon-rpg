@@ -9,7 +9,7 @@
 
 import { appStore } from '../stores/base'
 
-type SoundType = 'tarefa' | 'habito-pos' | 'habito-neg' | 'nivel' | 'invocar' | 'analise'
+type SoundType = 'tarefa' | 'habito-pos' | 'habito-neg' | 'nivel' | 'invocar' | 'analise' | 'curar'
 
 let ctx: AudioContext | null = null
 
@@ -35,6 +35,7 @@ export function playSound(type: SoundType): void {
   else if (type === 'habito-neg') negativeHabit(c, t)
   else if (type === 'nivel') arpeggio(c, t)
   else if (type === 'invocar') shadowyInvocation(c, t)
+  else if (type === 'curar') healWarmth(c, t)
   else contemplativeAnalysis(c, t)
 }
 
@@ -154,6 +155,29 @@ function shadowyInvocation(c: AudioContext, t: number): void {
   drone.stop(t + 2.3)
   tritone.stop(t + 2.3)
   descent.stop(t + 2.3)
+}
+
+/** Healing warmth: soft ascending minor-third (A3→C4) with a gentle tail —
+ *  reassuring, calm, distinct from the alert sounds. */
+function healWarmth(c: AudioContext, t: number): void {
+  const notes = [220.0, 261.63, 329.63] // A3, C4, E4 — gentle rise
+  const master = c.createGain()
+  master.gain.setValueAtTime(0.0001, t)
+  master.gain.exponentialRampToValueAtTime(0.18, t + 0.06)
+  master.gain.exponentialRampToValueAtTime(0.0001, t + 1.2)
+  master.connect(c.destination)
+  for (const [i, freq] of notes.entries()) {
+    const start = t + i * 0.09
+    const o = c.createOscillator()
+    o.type = i === 0 ? 'triangle' : 'sine'
+    o.frequency.value = freq
+    const g = c.createGain()
+    g.gain.value = i === 0 ? 0.45 : 0.28
+    o.connect(g)
+    g.connect(master)
+    o.start(start)
+    o.stop(t + 1.3)
+  }
 }
 
 /** Schizoanalytic analysis: contemplative minor chord (A3–C4–E4) with slow

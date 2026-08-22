@@ -183,6 +183,28 @@ export function heal(amount: number): number {
   return hp - before
 }
 
+/** Mana cost of a single full heal. */
+export const HEAL_MANA_COST = 20
+
+/** Spends mana to fully heal HP. Clears `exhausted` (a full heal always
+ *  leaves the depleted state). Returns whether it succeeded. */
+export function healWithMana(): Result {
+  const data = appStore.get()
+  const p = data.character
+  if (p.hp >= p.hpMax) return { ok: true, reason: 'Já está curado.' }
+  if (p.mana < HEAL_MANA_COST) return { ok: false, reason: `Mana insuficiente — precisa de ${HEAL_MANA_COST}.` }
+  const wasExhausted = p.exhausted
+  const healed = p.hpMax - p.hp
+  appStore.set({
+    ...data,
+    character: { ...p, hp: p.hpMax, exhausted: false, mana: p.mana - HEAL_MANA_COST },
+  })
+  if (wasExhausted) addLog('sistema', 'Curou totalmente a vida — saiu do estado esgotado')
+  else if (healed > 0) addLog('sistema', `Curou +${healed} de vida (−${HEAL_MANA_COST} mana)`)
+  playSound('curar')
+  return { ok: true }
+}
+
 /** Re-draws ALL unlocked cards (same total), respecting each type's odds
  *  (monster 6×, capture 2×, alliance 1×). Destructive — the UI asks for
  *  confirmation before calling. */
