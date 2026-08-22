@@ -1,266 +1,275 @@
-/** Modal de criação/edição de tarefa — compartilhado entre as visões.
- *  `tipoInicial` pré-seleciona o tipo (usado pelos botões "+" de cada coluna). */
+/** Task create/edit modal — shared across views.
+ *  `initialType` pre-selects the type (used by the "+" buttons of each column). */
 
-import type { Agenda, Dificuldade, Tarefa, TipoTarefa } from '../core/tipos'
-import { DIAS_SEMANA, dificuldadeDe } from '../core/jogo'
-import { appStore, atualizarTarefa, criarTarefa, tagsEmUso } from '../stores/app'
-import { abrirModal } from './modal'
-import { notificar } from './toast'
-import { escapar } from './util'
+import type { Agenda, Difficulty, Task, TaskType } from '../core/tipos'
+import { WEEKDAYS, difficultyMeta } from '../core/jogo'
+import { appStore, updateTask, createTask, tagsInUse } from '../stores/app'
+import { openModal } from './modal'
+import { notify } from './toast'
+import { escapeHtml as escape } from './util'
+import { t } from '../i18n'
 
-const TIPOS: ReadonlyArray<{ id: TipoTarefa; nome: string; desc: string }> = [
-  { id: 'recorrente', nome: 'Recorrente', desc: 'Se repete em dias' },
-  { id: 'unica', nome: 'Única', desc: 'Feita uma vez e finalizada' },
-  { id: 'habito', nome: 'Hábito', desc: 'Repetível, positivo ou negativo' },
+const TASK_TYPES: ReadonlyArray<{ id: TaskType }> = [
+  { id: 'recorrente' },
+  { id: 'unica' },
+  { id: 'habito' },
 ]
-
-function agendaInicial(t?: Tarefa): { dias: number[]; diasDoMes?: number[] } {
-  return {
-    dias: t?.agenda?.dias ?? [],
-    diasDoMes: t?.agenda?.diasDoMes,
+/** Labels/descriptions of the task types (resolved at render so they follow the language). */
+const taskTypeInfo = (id: TaskType): { name: string; desc: string } => {
+  switch (id) {
+    case 'unica': return { name: t('form.oneOffType'), desc: t('form.oneOffTypeDesc') }
+    case 'habito': return { name: t('form.habitType'), desc: t('form.habitTypeDesc') }
+    default: return { name: t('form.recurringType'), desc: t('form.recurringTypeDesc') }
   }
 }
 
-export function abrirFormTarefa(tarefa?: Tarefa, tipoInicial?: TipoTarefa): void {
-  const tipo: TipoTarefa = tarefa?.tipo ?? tipoInicial ?? 'recorrente'
-  const dificuldade: Dificuldade = tarefa?.dificuldade ?? 'facil'
-  const tags = tagsEmUso(appStore.get())
-  const tagsAtuais = tarefa?.tags ?? []
-  const agenda = agendaInicial(tarefa)
-  const repeticao: 'todos' | 'semana' | 'mes' = !tarefa
+function initialAgenda(t?: Task): { days: number[]; daysOfMonth?: number[] } {
+  return {
+    days: t?.agenda?.days ?? [],
+    daysOfMonth: t?.agenda?.daysOfMonth,
+  }
+}
+
+export function openTaskForm(task?: Task, initialType?: TaskType): void {
+  const type: TaskType = task?.type ?? initialType ?? 'recorrente'
+  const difficulty: Difficulty = task?.difficulty ?? 'facil'
+  const tags = tagsInUse(appStore.get())
+  const currentTags = task?.tags ?? []
+  const agenda = initialAgenda(task)
+  const repeat: 'todos' | 'semana' | 'mes' = !task
     ? 'semana'
-    : agenda.diasDoMes && agenda.diasDoMes.length > 0
+    : agenda.daysOfMonth && agenda.daysOfMonth.length > 0
       ? 'mes'
-      : agenda.dias.length > 0
+      : agenda.days.length > 0
         ? 'semana'
         : 'todos'
 
-  abrirModal(`
-    <h2>${tarefa ? 'Editar tarefa' : 'Nova tarefa'}</h2>
-    <form data-form-tarefa>
-      <div class="form-grupo">
-        <label>O que é? <span class="obrigatorio">*</span></label>
-        <input class="campo" name="titulo" value="${escapar(tarefa?.titulo ?? '')}" placeholder="Ex.: revisar fichas do mestrado" autofocus required />
+  openModal(`
+    <h2>${task ? t('form.editTask') : t('form.newTask')}</h2>
+    <form data-task-form>
+      <div class="form-group">
+        <label>${t('form.whatIsIt')} <span class="required">*</span></label>
+        <input class="field" name="title" value="${escape(task?.title ?? '')}" placeholder="${t('form.titleExample')}" autofocus required />
       </div>
 
-      <div class="form-grupo">
-        <label>Tipo de tarefa</label>
-        <div class="opcoes-tipo" data-tipo-opcoes>
-          ${TIPOS.map(
-            (t) => `
-            <div class="opcao-tipo${t.id === tipo ? ' selecionada' : ''}" data-tipo="${t.id}" role="button" tabindex="0">
-              <strong>${t.nome}</strong>
-              <span>${t.desc}</span>
+      <div class="form-group">
+        <label>${t('form.taskType')}</label>
+        <div class="options-type" data-type-options>
+          ${TASK_TYPES.map(
+            (tp) => `
+            <div class="option-type${tp.id === type ? ' selected' : ''}" data-type="${tp.id}" role="button" tabindex="0">
+              <strong>${taskTypeInfo(tp.id).name}</strong>
+              <span>${taskTypeInfo(tp.id).desc}</span>
             </div>`,
           ).join('')}
         </div>
-        <input type="hidden" name="tipo" value="${tipo}" />
+        <input type="hidden" name="type" value="${type}" />
       </div>
 
-      <div class="form-grupo">
-        <label>Dificuldade</label>
-        <select class="campo" name="dificuldade">
-          ${DIFICULDADES_OPCOES(dificuldade)}
+      <div class="form-group">
+        <label>${t('form.difficulty')}</label>
+        <select class="field" name="difficulty">
+          ${DIFFICULTY_OPTIONS(difficulty)}
         </select>
-        <small>Quanto mais difícil, mais XP a tarefa vale (e mais dano causa se falhar).</small>
+        <small>${t('form.difficultyHint')}</small>
       </div>
 
-      <div class="form-grupo" data-campo-agenda>
-        <label>Repetição</label>
-        <select class="campo" name="repeticao" data-repeticao-select>
-          <option value="todos" ${repeticao === 'todos' ? 'selected' : ''}>Todos os dias</option>
-          <option value="semana" ${repeticao === 'semana' ? 'selected' : ''}>Dias da semana</option>
-          <option value="mes" ${repeticao === 'mes' ? 'selected' : ''}>Dias do mês</option>
+      <div class="form-group" data-field-agenda>
+        <label>${t('form.repetition')}</label>
+        <select class="field" name="repeat" data-repeat-select>
+          <option value="todos" ${repeat === 'todos' ? 'selected' : ''}>${t('form.everyDay')}</option>
+          <option value="semana" ${repeat === 'semana' ? 'selected' : ''}>${t('form.weekDays')}</option>
+          <option value="mes" ${repeat === 'mes' ? 'selected' : ''}>${t('form.monthDays')}</option>
         </select>
-        <div class="chips" data-dias-chips ${repeticao === 'semana' ? '' : 'hidden'}>
-          ${DIAS_SEMANA.map((d, i) => {
-            const ativo = agenda.dias.includes(i)
-            return `<button type="button" class="chip${ativo ? ' ativo' : ''}" data-dia="${i}">${d}</button>`
+        <div class="chips" data-days-chips ${repeat === 'semana' ? '' : 'hidden'}>
+          ${WEEKDAYS.map((d, i) => {
+            const active = agenda.days.includes(i)
+            return `<button type="button" class="chip${active ? ' active' : ''}" data-day="${i}">${d}</button>`
           }).join('')}
         </div>
-        <input class="campo" name="dias-mes" data-dias-mes placeholder="Ex.: 1, 15, 30" value="${escapar((agenda.diasDoMes ?? []).join(', '))}" ${repeticao === 'mes' ? '' : 'hidden'} />
-        <small data-agenda-dica>${repeticao === 'mes' ? 'Dias do mês separados por vírgula.' : 'Recorrente sem dia marcado vale todos os dias.'}</small>
+        <input class="field" name="days-month" data-days-month placeholder="${t('form.monthDaysExample')}" value="${escape((agenda.daysOfMonth ?? []).join(', '))}" ${repeat === 'mes' ? '' : 'hidden'} />
+        <small data-agenda-dica>${repeat === 'mes' ? t('form.monthDaysHint') : t('form.noDayHint')}</small>
       </div>
 
-      <div class="form-grupo" data-campo-sinal hidden>
-        <label>Sinal do hábito</label>
-        <select class="campo" name="sinal">
-          <option value="positivo" ${tarefa?.sinal === 'positivo' || !tarefa?.sinal ? 'selected' : ''}>Positivo (somar)</option>
-          <option value="negativo" ${tarefa?.sinal === 'negativo' ? 'selected' : ''}>Negativo (evitar)</option>
-          <option value="ambos" ${tarefa?.sinal === 'ambos' ? 'selected' : ''}>Ambos</option>
+      <div class="form-group" data-field-sign hidden>
+        <label>${t('form.habitSign')}</label>
+        <select class="field" name="sign">
+          <option value="positivo" ${task?.sign === 'positivo' || !task?.sign ? 'selected' : ''}>${t('type.positive')}</option>
+          <option value="negativo" ${task?.sign === 'negativo' ? 'selected' : ''}>${t('type.negative')}</option>
+          <option value="ambos" ${task?.sign === 'ambos' ? 'selected' : ''}>${t('type.both')}</option>
         </select>
       </div>
 
-      <div class="form-grupo" data-campo-due hidden>
-        <label>Vence em</label>
-        <input type="date" class="campo" name="due-date" value="${escapar(tarefa?.dueDate ?? '')}" />
-        <small>A cor do card muda conforme a data se aproxima.</small>
+      <div class="form-group" data-field-due hidden>
+        <label>${t('form.dueOn')}</label>
+        <input type="date" class="field" name="due-date" value="${escape(task?.dueDate ?? '')}" />
+        <small>${t('form.dateHint')}</small>
       </div>
 
-      <div class="form-grupo">
-        <label>Tags</label>
-        <div class="tag-lista" data-tags-chips>
-          ${tags.map((t) => `<button type="button" class="tag-linha${tagsAtuais.includes(t) ? ' ativo' : ''}" data-tag="${escapar(t)}"><span class="tag-linha-check">✓</span><span class="tag-linha-nome">#${escapar(t)}</span></button>`).join('')}
-          ${tagsAtuais.filter((t) => !tags.includes(t)).map((t) => `<button type="button" class="tag-linha ativo" data-tag="${escapar(t)}"><span class="tag-linha-check">✓</span><span class="tag-linha-nome">#${escapar(t)}</span></button>`).join('')}
+      <div class="form-group">
+        <label>${t('form.tags')}</label>
+        <div class="tag-list" data-tags-chips>
+          ${tags.map((t) => `<button type="button" class="tag-row${currentTags.includes(t) ? ' active' : ''}" data-tag="${escape(t)}"><span class="tag-row-check">✓</span><span class="tag-row-name">#${escape(t)}</span></button>`).join('')}
+          ${currentTags.filter((t) => !tags.includes(t)).map((t) => `<button type="button" class="tag-row active" data-tag="${escape(t)}"><span class="tag-row-check">✓</span><span class="tag-row-name">#${escape(t)}</span></button>`).join('')}
         </div>
-        <div class="tag-entrada">
-          <input class="campo" name="tag-nova" placeholder="Nova tag (Enter para adicionar)" list="tags-sugeridas" />
-          <datalist id="tags-sugeridas">${tags.map((t) => `<option value="${escapar(t)}"></option>`).join('')}</datalist>
+        <div class="tag-input">
+          <input class="field" name="new-tag" placeholder="${t('form.newTagPlaceholder')}" list="tags-sugeridas" />
+          <datalist id="tags-sugeridas">${tags.map((t) => `<option value="${escape(t)}"></option>`).join('')}</datalist>
           <button type="button" class="btn" data-add-tag>+</button>
         </div>
-        <small>Clique para marcar; Enter no campo adiciona a tag.</small>
+        <small>${t('form.tagsHint')}</small>
       </div>
 
-      <div class="form-grupo">
-        <label>Notas</label>
-        <textarea class="campo" name="notas" placeholder="Detalhes, contexto, anotações…">${escapar(tarefa?.notas ?? '')}</textarea>
-        <small>Aceita **negrito**, *itálico* e links (https://…).</small>
+      <div class="form-group">
+        <label>${t('form.notes')}</label>
+        <textarea class="field" name="notes" placeholder="${t('form.notesPlaceholder')}">${escape(task?.notes ?? '')}</textarea>
+        <small>${t('form.markdownHint')}</small>
       </div>
 
-      <div class="form-acoes">
-        <button type="button" class="btn" data-cancelar>Cancelar</button>
-        <button type="submit" class="btn btn-primary">${tarefa ? 'Salvar' : 'Criar'}</button>
+      <div class="form-actions">
+        <button type="button" class="btn" data-cancel>${t('common.cancel')}</button>
+        <button type="submit" class="btn btn-primary">${task ? t('form.save') : t('form.create')}</button>
       </div>
     </form>
   `)
 
-  const form = document.querySelector('[data-form-tarefa]') as HTMLFormElement
-  const opcoes = form.querySelectorAll('[data-tipo]')
-  const campoAgenda = form.querySelector('[data-campo-agenda]') as HTMLElement
-  const campoSinal = form.querySelector('[data-campo-sinal]') as HTMLElement
-  const campoDue = form.querySelector('[data-campo-due]') as HTMLElement
-  const inputTipo = form.querySelector<HTMLInputElement>('input[name="tipo"]')!
-  const repeticaoSelect = form.querySelector<HTMLSelectElement>('[data-repeticao-select]')!
-  const diasChips = form.querySelector('[data-dias-chips]') as HTMLElement
-  const diasMes = form.querySelector<HTMLInputElement>('[data-dias-mes]')!
-  const agendaDica = form.querySelector<HTMLElement>('[data-agenda-dica]')!
+  const form = document.querySelector('[data-task-form]') as HTMLFormElement
+  const options = form.querySelectorAll('[data-type]')
+  const agendaField = form.querySelector('[data-field-agenda]') as HTMLElement
+  const signField = form.querySelector('[data-field-sign]') as HTMLElement
+  const dueField = form.querySelector('[data-field-due]') as HTMLElement
+  const typeInput = form.querySelector<HTMLInputElement>('input[name="type"]')!
+  const repeatSelect = form.querySelector<HTMLSelectElement>('[data-repeat-select]')!
+  const dayChips = form.querySelector('[data-days-chips]') as HTMLElement
+  const monthDays = form.querySelector<HTMLInputElement>('[data-days-month]')!
+  const agendaHint = form.querySelector<HTMLElement>('[data-agenda-dica]')!
 
-  function aplicarTipo(t: TipoTarefa): void {
-    opcoes.forEach((o) => o.classList.toggle('selecionada', o.getAttribute('data-tipo') === t))
-    inputTipo.value = t
-    campoAgenda.hidden = t !== 'recorrente'
-    campoSinal.hidden = t !== 'habito'
-    campoDue.hidden = t !== 'unica'
+  function applyType(t: TaskType): void {
+    options.forEach((o) => o.classList.toggle('selected' , o.getAttribute('data-type') === t))
+    typeInput.value = t
+    agendaField.hidden = t !== 'recorrente'
+    signField.hidden = t !== 'habito'
+    dueField.hidden = t !== 'unica'
   }
-  aplicarTipo(inputTipo.value as TipoTarefa)
-  opcoes.forEach((o) => {
-    o.addEventListener('click', () => aplicarTipo(o.getAttribute('data-tipo') as TipoTarefa))
+  applyType(typeInput.value as TaskType)
+  options.forEach((o) => {
+    o.addEventListener('click', () => applyType(o.getAttribute('data-type') as TaskType))
     o.addEventListener('keydown', (e) => {
       const ev = e as KeyboardEvent
       if (ev.key === 'Enter' || ev.key === ' ') {
         ev.preventDefault()
-        aplicarTipo(o.getAttribute('data-tipo') as TipoTarefa)
+        applyType(o.getAttribute('data-type') as TaskType)
       }
     })
   })
 
-  function aplicarRepeticao(r: 'todos' | 'semana' | 'mes'): void {
-    diasChips.hidden = r !== 'semana'
-    diasMes.hidden = r !== 'mes'
-    agendaDica.textContent = r === 'mes' ? 'Dias do mês separados por vírgula.' : 'Recorrente sem dia marcado vale todos os dias.'
+  function applyRepeat(r: 'todos' | 'semana' | 'mes'): void {
+    dayChips.hidden = r !== 'semana'
+    monthDays.hidden = r !== 'mes'
+    agendaHint.textContent = r === 'mes' ? t('form.monthDaysHint') : t('form.noDayHint')
   }
-  repeticaoSelect.addEventListener('change', () => {
-    aplicarRepeticao(repeticaoSelect.value as 'todos' | 'semana' | 'mes')
+  repeatSelect.addEventListener('change', () => {
+    applyRepeat(repeatSelect.value as 'todos' | 'semana' | 'mes')
   })
 
   const tagsChips = form.querySelector('[data-tags-chips]') as HTMLElement
-  function tagsSelecionadas(): string[] {
-    return [...tagsChips.querySelectorAll('.tag-linha.ativo')].map((c) => c.getAttribute('data-tag')!)
+  function selectedTags(): string[] {
+    return [...tagsChips.querySelectorAll('.tag-row.active')].map((c) => c.getAttribute('data-tag')!)
   }
-  function adicionarTagChip(nome: string): void {
-    const limpo = nome.trim().replace(/^#/, '')
-    if (!limpo) return
-    if (!tagsChips.querySelector(`[data-tag="${CSS.escape(limpo)}"]`)) {
+  function addTagChip(name: string): void {
+    const clean = name.trim().replace(/^#/, '')
+    if (!clean) return
+    if (!tagsChips.querySelector(`[data-tag="${CSS.escape(clean)}"]`)) {
       const b = document.createElement('button')
       b.type = 'button'
-      b.className = 'tag-linha ativo'
-      b.dataset.tag = limpo
-      b.innerHTML = `<span class="tag-linha-check">✓</span><span class="tag-linha-nome">#${escapar(limpo)}</span>`
+      b.className = 'tag-row active' 
+      b.dataset.tag = clean
+      b.innerHTML = `<span class="tag-row-check">✓</span><span class="tag-row-name">#${escape(clean)}</span>`
       tagsChips.appendChild(b)
     }
   }
   tagsChips.addEventListener('click', (e) => {
-    const linha = (e.target as HTMLElement).closest('[data-tag]') as HTMLElement | null
-    if (linha) linha.classList.toggle('ativo')
+    const row = (e.target as HTMLElement).closest('[data-tag]') as HTMLElement | null
+    if (row) row.classList.toggle('active' )
   })
-  const inputTagNova = form.querySelector<HTMLInputElement>('input[name="tag-nova"]')!
+  const newTagInput = form.querySelector<HTMLInputElement>('input[name="new-tag"]')!
   form.querySelector('[data-add-tag]')!.addEventListener('click', () => {
-    adicionarTagChip(inputTagNova.value)
-    inputTagNova.value = ''
-    inputTagNova.focus()
+    addTagChip(newTagInput.value)
+    newTagInput.value = ''
+    newTagInput.focus()
   })
-  // Enter no campo de tag adiciona a tag em vez de submeter a tarefa
-  inputTagNova.addEventListener('keydown', (e) => {
+  // Enter on the tag field adds the tag instead of submitting the task
+  newTagInput.addEventListener('keydown', (e) => {
     const ev = e as KeyboardEvent
     if (ev.key === 'Enter') {
       ev.preventDefault()
-      adicionarTagChip(inputTagNova.value)
-      inputTagNova.value = ''
+      addTagChip(newTagInput.value)
+      newTagInput.value = ''
     }
   })
 
-  diasChips.addEventListener('click', (e) => {
-    const chip = (e.target as HTMLElement).closest('[data-dia]') as HTMLElement | null
-    if (chip) chip.classList.toggle('ativo')
+  dayChips.addEventListener('click', (e) => {
+    const chip = (e.target as HTMLElement).closest('[data-day]') as HTMLElement | null
+    if (chip) chip.classList.toggle('active' )
   })
 
-  form.querySelector('[data-cancelar]')!.addEventListener('click', () => {
+  form.querySelector('[data-cancel]')!.addEventListener('click', () => {
     document.getElementById('modal-close')?.click()
   })
 
   form.addEventListener('submit', (e) => {
     e.preventDefault()
-    const titulo = (form.querySelector<HTMLInputElement>('input[name="titulo"]')!.value ?? '').trim()
-    if (!titulo) {
-      notificar('Dê um nome para a tarefa.', 'erro')
+    const title = (form.querySelector<HTMLInputElement>('input[name="title"]')!.value ?? '').trim()
+    if (!title) {
+      notify(t('form.giveName'), 'erro')
       return
     }
-    const tipoAtual = inputTipo.value as TipoTarefa
-    const dificuldade = (form.querySelector<HTMLSelectElement>('select[name="dificuldade"]')!.value ?? 'facil') as Dificuldade
-    const notas = (form.querySelector<HTMLTextAreaElement>('textarea[name="notas"]')!.value ?? '').trim()
-    const tags = tagsSelecionadas()
-    const dueDate = tipoAtual === 'unica'
+    const currentType = typeInput.value as TaskType
+    const difficulty = (form.querySelector<HTMLSelectElement>('select[name="difficulty"]')!.value ?? 'facil') as Difficulty
+    const notes = (form.querySelector<HTMLTextAreaElement>('textarea[name="notes"]')!.value ?? '').trim()
+    const tags = selectedTags()
+    const dueDate = currentType === 'unica'
       ? (form.querySelector<HTMLInputElement>('input[name="due-date"]')!.value || undefined)
       : undefined
     let agenda: Agenda | undefined
-    if (tipoAtual === 'recorrente') {
-      const r = repeticaoSelect.value as 'todos' | 'semana' | 'mes'
+    if (currentType === 'recorrente') {
+      const r = repeatSelect.value as 'todos' | 'semana' | 'mes'
       if (r === 'mes') {
-        const diasMesVal = diasMes.value
+        const daysOfMonth = monthDays.value
           .split(',')
           .map((s) => Number(s.trim()))
           .filter((n) => Number.isInteger(n) && n >= 1 && n <= 31)
-        agenda = { dias: [], diasDoMes: [...new Set(diasMesVal)].sort((a, b) => a - b) }
+        agenda = { days: [], daysOfMonth: [...new Set(daysOfMonth)].sort((a, b) => a - b) }
       } else if (r === 'semana') {
-        const dias = [...diasChips.querySelectorAll('.chip.ativo')].map((c) => Number(c.getAttribute('data-dia')))
-        agenda = { dias }
+        const days = [...dayChips.querySelectorAll('.chip.active')].map((c) => Number(c.getAttribute('data-day')))
+        agenda = { days }
       } else {
-        agenda = { dias: [] }
+        agenda = { days: [] }
       }
     }
-    const sinal =
-      tipoAtual === 'habito'
-        ? ((form.querySelector<HTMLSelectElement>('select[name="sinal"]')!.value ?? 'positivo') as Tarefa['sinal'])
+    const sign =
+      currentType === 'habito'
+        ? ((form.querySelector<HTMLSelectElement>('select[name="sign"]')!.value ?? 'positivo') as Task['sign'])
         : undefined
 
-    const resultado = tarefa
-      ? atualizarTarefa(tarefa.id, { titulo, tipo: tipoAtual, dificuldade, tags, notas, dueDate, agenda, sinal })
-      : criarTarefa({ titulo, tipo: tipoAtual, dificuldade, tags, notas, dueDate, agenda, sinal })
-    if (!resultado.ok) {
-      notificar(resultado.motivo ?? 'Não deu para salvar.', 'erro')
+    const result = task
+      ? updateTask(task.id, { title, type: currentType, difficulty, tags, notes, dueDate, agenda, sign })
+      : createTask({ title, type: currentType, difficulty, tags, notes, dueDate, agenda, sign })
+    if (!result.ok) {
+      notify(result.reason ?? t('form.saveFailed'), 'erro')
       return
     }
     document.getElementById('modal-close')?.click()
-    notificar(tarefa ? 'Tarefa atualizada.' : 'Tarefa criada.')
+    notify(task ? t('form.updated') : t('form.created'))
   })
 }
 
-function DIFICULDADES_OPCOES(atual: Dificuldade): string {
-  const ordem: Dificuldade[] = ['facil', 'media', 'dificil', 'extrema']
-  return ordem
+function DIFFICULTY_OPTIONS(current: Difficulty): string {
+  const order: Difficulty[] = ['facil', 'media', 'dificil', 'extrema']
+  return order
     .map((id) => {
-      const d = dificuldadeDe(id)
-      return `<option value="${id}" ${id === atual ? 'selected' : ''}>${d.rotulo} (×${d.multiplicador})</option>`
+      const d = difficultyMeta(id)
+      return `<option value="${id}" ${id === current ? 'selected' : ''}>${d.label} (×${d.multiplier})</option>`
     })
     .join('')
 }

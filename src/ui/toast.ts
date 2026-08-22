@@ -1,36 +1,36 @@
-/** Toasts — feedback não-intrusivo (nunca alert/confirm nativos). */
+/** Toasts — non-intrusive feedback (never native alert/confirm). */
 
 const container = document.getElementById('toast-container')!
 
-export function notificar(msg: string, tipo: 'ok' | 'erro' = 'ok'): void {
+export function notify(msg: string, kind: 'ok' | 'erro' = 'ok'): void {
   const el = document.createElement('div')
-  el.className = `toast${tipo === 'erro' ? ' toast--erro' : ''}`
+  el.className = `toast${kind === 'erro' ? ' --error' : ''}`
   el.textContent = msg
   el.addEventListener('click', () => el.remove())
   container.appendChild(el)
   setTimeout(() => el.remove(), 4500)
 }
 
-/** Toast com HTML (ex.: miniatura de carta) — msg deve ser HTML já escapado onde necessário. */
-export function notificarHtml(html: string, tipo: 'ok' | 'erro' = 'ok'): void {
+/** Toast with HTML (e.g. card thumbnail) — msg must be already-escaped HTML where needed. */
+export function notifyHtml(html: string, kind: 'ok' | 'erro' = 'ok'): void {
   const el = document.createElement('div')
-  el.className = `toast${tipo === 'erro' ? ' toast--erro' : ''}`
+  el.className = `toast${kind === 'erro' ? ' --error' : ''}`
   el.innerHTML = html
   el.addEventListener('click', () => el.remove())
   container.appendChild(el)
   setTimeout(() => el.remove(), 5500)
 }
 
-/** Toast com miniaturas das cartas (desbloqueio/invocação). `ids` são resolvidos pelo deck. */
-export async function notificarCartas(ids: string[], texto: string): Promise<void> {
-  const { carregarDeck } = await import('../core/baralho')
-  const deck = await carregarDeck().catch(() => null)
-  const cartas = (deck ?? []).filter((c) => ids.includes(c.id))
-  const minis = cartas
+/** Toast with card thumbnails (unlock/invocation). `ids` are resolved by the deck. */
+export async function notifyCards(ids: string[], text: string): Promise<void> {
+  const { loadDeck } = await import('../core/baralho')
+  const deck = await loadDeck().catch(() => null)
+  const cards = (deck ?? []).filter((c) => ids.includes(c.id))
+  const minis = cards
     .map(
       (c) =>
-        `<span class="toast-carta" title="${c.name}"><img src="/images/cards/${c.id}.png" alt="${c.name}" /><em>${c.name}</em></span>`,
+        `<span class="toast-card" title="${c.name}"><img src="/images/cards/${c.id}.png" alt="${c.name}" /><em>${c.name}</em></span>`,
     )
     .join('')
-  notificarHtml(`<strong>${texto}</strong><span class="toast-cartas">${minis}</span>`)
+  notifyHtml(`<strong>${text}</strong><span class="toast-cards">${minis}</span>`)
 }

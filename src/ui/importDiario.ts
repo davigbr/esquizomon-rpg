@@ -1,54 +1,54 @@
-/** Parser de markdown para importação em massa do diário.
+/** Markdown parser for bulk diary import.
  *
- *  Formato aceito: blocos iniciados por heading com data no formato
- *  `## AAAA-MM-DD` (qualquer nível `#` funciona). Título opcional na PRIMEIRA
- *  linha do bloco em **negrito** (`**Título**`); o resto do bloco é o corpo
- *  (markdown preservado como está). Texto fora de blocos com data é ignorado.
+ *  Accepted format: blocks starting with a heading with date in
+ *  `## AAAA-MM-DD` format (any `#` level works). Optional title on the FIRST
+ *  line of the block in **bold** (`**Título**`); the rest of the block is the
+ *  body (markdown preserved as-is). Text outside date blocks is ignored.
  */
 
-export interface EntradaImportavel {
-  data: string
-  titulo?: string
-  texto: string
+export interface ImportableEntry {
+  date: string
+  title?: string
+  text: string
 }
 
-const RE_HEADING_DATA = /^#{1,6}\s+(\d{4}-\d{2}-\d{2})\s*$/
+const RE_HEADING_DATE = /^#{1,6}\s+(\d{4}-\d{2}-\d{2})\s*$/
 
-export function parsearMarkdownDiario(texto: string): EntradaImportavel[] {
-  const linhas = texto.replace(/\r\n/g, '\n').split('\n')
-  const entradas: EntradaImportavel[] = []
-  let bloco: { data: string; linhas: string[] } | null = null
+export function parseDiaryMarkdown(text: string): ImportableEntry[] {
+  const lines = text.replace(/\r\n/g, '\n').split('\n')
+  const entries: ImportableEntry[] = []
+  let block: { date: string; lines: string[] } | null = null
 
-  for (const linha of linhas) {
-    const m = linha.match(RE_HEADING_DATA)
+  for (const line of lines) {
+    const m = line.match(RE_HEADING_DATE)
     if (m) {
-      if (bloco) entradas.push(finalizarBloco(bloco))
-      bloco = { data: m[1], linhas: [] }
+      if (block) entries.push(finalizeBlock(block))
+      block = { date: m[1], lines: [] }
       continue
     }
-    if (bloco) bloco.linhas.push(linha)
+    if (block) block.lines.push(line)
   }
-  if (bloco) entradas.push(finalizarBloco(bloco))
+  if (block) entries.push(finalizeBlock(block))
 
-  return entradas
+  return entries
 }
 
-function finalizarBloco(bloco: { data: string; linhas: string[] }): EntradaImportavel {
-  const corpo = bloco.linhas.map((l) => l.trimEnd())
-  // remove linhas vazias do topo
+function finalizeBlock(block: { date: string; lines: string[] }): ImportableEntry {
+  const body = block.lines.map((l) => l.trimEnd())
+  // removes empty lines from the top
   let i = 0
-  while (i < corpo.length && corpo[i].trim() === '') i++
-  const restante = corpo.slice(i)
+  while (i < body.length && body[i].trim() === '') i++
+  const rest = body.slice(i)
 
-  // primeira linha em **negrito** (ou h1) vira título; o resto é o corpo
-  let titulo: string | undefined
-  let texto: string
-  const linhaTitulo = restante[0]?.match(/^\*\*(.+)\*\*\s*$/) ?? restante[0]?.match(/^#\s+(.+)$/)
-  if (linhaTitulo) {
-    titulo = linhaTitulo[1].trim() || undefined
-    texto = restante.slice(1).join('\n').trim()
+  // first line in **bold** (or h1) becomes the title; the rest is the body
+  let title: string | undefined
+  let text: string
+  const titleLine = rest[0]?.match(/^\*\*(.+)\*\*\s*$/) ?? rest[0]?.match(/^#\s+(.+)$/)
+  if (titleLine) {
+    title = titleLine[1].trim() || undefined
+    text = rest.slice(1).join('\n').trim()
   } else {
-    texto = restante.join('\n').trim()
+    text = rest.join('\n').trim()
   }
-  return { data: bloco.data, titulo, texto }
+  return { date: block.date, title, text }
 }

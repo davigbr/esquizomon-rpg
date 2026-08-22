@@ -1,30 +1,31 @@
-/** Constantes de jogo — dificuldade, multiplicadores (referência Habitica) e datas. */
+/** Game constants — difficulty, multipliers (Habitica reference) and dates. */
 
-import type { Dificuldade } from './tipos'
+import type { Difficulty } from './tipos'
+import { t, LOCALE, getLang } from '../i18n'
 
-export const DIFICULDADES: ReadonlyArray<{
-  id: Dificuldade
-  rotulo: string
-  multiplicador: number
+export const DIFFICULTIES: ReadonlyArray<{
+  id: Difficulty
+  multiplier: number
 }> = [
-  { id: 'facil', rotulo: 'Fácil', multiplicador: 1 },
-  { id: 'media', rotulo: 'Média', multiplicador: 1.5 },
-  { id: 'dificil', rotulo: 'Difícil', multiplicador: 2 },
-  { id: 'extrema', rotulo: 'Extrema', multiplicador: 2.5 },
+  { id: 'facil', multiplier: 1 },
+  { id: 'media', multiplier: 1.5 },
+  { id: 'dificil', multiplier: 2 },
+  { id: 'extrema', multiplier: 2.5 },
 ]
 
-export function dificuldadeDe(id: Dificuldade) {
-  return DIFICULDADES.find((d) => d.id === id) ?? DIFICULDADES[1]
+export function difficultyMeta(id: Difficulty) {
+  const d = DIFFICULTIES.find((x) => x.id === id) ?? DIFFICULTIES[1]
+  return { ...d, label: t(`diff.${d.id}`) }
 }
 
-/** XP concedido por conclusão, conforme a dificuldade (base 10 × multiplicador). */
-export function xpDe(dificuldade: Dificuldade): number {
-  return Math.round(10 * dificuldadeDe(dificuldade).multiplicador)
+/** XP granted per completion, by difficulty (base 10 × multiplier). */
+export function xpFor(difficulty: Difficulty): number {
+  return Math.round(10 * difficultyMeta(difficulty).multiplier)
 }
 
-/** Dano causado por uma recorrente perdida no reset diário, conforme a dificuldade. */
-export function danoDe(dificuldade: Dificuldade): number {
-  switch (dificuldade) {
+/** Damage dealt by a recurring task missed at reset, by difficulty. */
+export function damageFor(difficulty: Difficulty): number {
+  switch (difficulty) {
     case 'facil':
       return 3
     case 'media':
@@ -36,56 +37,56 @@ export function danoDe(dificuldade: Dificuldade): number {
   }
 }
 
-/** Dano de repetição negativa de hábito = MESMA escala do dano diário
- *  (`danoDe(dificuldade)`: 3/5/8/12) — decisão 2026-08-12 (usuário:
- *  "hábitos negativos devem tirar mais vida" + "aplique o multiplicador no
- *  dano do hábito também"). A constante fixa DANO_HABITO_NEGATIVO foi
- *  REMOVIDA — chamadores usam `danoDe(tarefa.dificuldade)`. */
+/** Damage of a negative habit repetition = SAME scale as daily damage
+ *  (`damageFor(difficulty)`: 3/5/8/12) — decision 2026-08-12 (user:
+ *  "negative habits should take more HP" + "apply the multiplier to habit
+ *  damage too"). The fixed constant DANO_HABITO_NEGATIVO was REMOVED —
+ *  callers use `damageFor(task.difficulty)`. */
 
-/** XP por registrar o diário (uma vez por dia — escrever a crônica). */
-export const XP_POR_REGISTRO_DIARIO = 5
+/** XP for logging the diary (once per day — writing the chronicle). */
+export const XP_PER_DAILY_LOG = 5
 
-/** Regeneração de vida por dia — fração do hpMax (lenta, 5%). */
-export const REGEN_HP_POR_DIA = 0.05
+/** HP regeneration per day — fraction of hpMax (slow, 5%). */
+export const HP_REGEN_PER_DAY = 0.05
 
-/** Vida recuperada por cada hábito positivo marcado. */
-export const VIDA_POR_HABITO_POSITIVO = 1
+/** HP recovered per positive habit marked. */
+export const HP_PER_POSITIVE_HABIT = 1
 
-/** XP necessário para subir do nível atual (curva suave: nível n exige n×80). */
-export function xpProximoDe(nivel: number): number {
-  return Math.max(80, nivel * 80)
+/** XP needed to go up from the current level (smooth curve: level n needs n×80). */
+export function xpNextFor(level: number): number {
+  return Math.max(80, level * 80)
 }
 
-/** HP máximo por nível: 50 + 5 por nível acima do 1º. */
-export function hpMaxDe(nivel: number): number {
-  return 50 + (nivel - 1) * 5
+/** Max HP per level: 50 + 5 per level above the 1st. */
+export function hpMaxFor(level: number): number {
+  return 50 + (level - 1) * 5
 }
 
-/** Mana máximo por nível: 20 + 2 por nível acima do 1º. */
-export function manaMaxDe(nivel: number): number {
-  return 20 + (nivel - 1) * 2
+/** Max mana per level: 20 + 2 per level above the 1st. */
+export function manaMaxFor(level: number): number {
+  return 20 + (level - 1) * 2
 }
 
-/* ---------- baralho: desbloqueio e invocação ---------- */
+/* ---------- deck: unlocking and invocation ---------- */
 
-/** Cartas desbloqueadas no início: ~10% de 65 = 7. */
-export const CARTAS_INICIAIS = 7
+/** Cards unlocked at start: ~10% of 65 = 7. */
+export const INITIAL_CARDS = 7
 
-/** Cartas desbloqueadas a cada nível acima do 1º (1 por nível → completo no nível 59). */
-export function cartasPorNivel(): number {
+/** Cards unlocked per level above the 1st (1 per level → complete at level 59). */
+export function cardsPerLevel(): number {
   return 1
 }
 
-/** Nível em que o baralho fica completo (65 cartas, 7 iniciais + 1/nível). */
-export function nivelBaralhoCompleto(): number {
-  return 1 + Math.ceil((65 - CARTAS_INICIAIS) / cartasPorNivel())
+/** Level at which the deck is complete (65 cards, 7 initial + 1/level). */
+export function fullDeckLevel(): number {
+  return 1 + Math.ceil((65 - INITIAL_CARDS) / cardsPerLevel())
 }
 
-/** Custo base de invocação por tipo de carta (monstro < captura < aliança).
- *  Aumentado 2026-08-12 (2× — decisão do usuário): invocar agora é escolha
- *  rara e significativa, não rotina diária. */
-export function custoBaseInvocacao(tipo: 'monstro' | 'captura' | 'alianca'): number {
-  switch (tipo) {
+/** Base invocation cost per card kind (monster < capture < alliance).
+ *  Increased 2026-08-12 (2× — user decision): invoking is now a rare and
+ *  meaningful choice, not a daily routine. */
+export function baseInvocationCost(kind: 'monstro' | 'captura' | 'alianca'): number {
+  switch (kind) {
     case 'monstro':
       return 4
     case 'captura':
@@ -95,9 +96,9 @@ export function custoBaseInvocacao(tipo: 'monstro' | 'captura' | 'alianca'): num
   }
 }
 
-/** Incremento de custo por invocação repetida da mesma carta. */
-export function incrementoInvocacao(tipo: 'monstro' | 'captura' | 'alianca'): number {
-  switch (tipo) {
+/** Cost increment per repeated invocation of the same card. */
+export function invocationIncrement(kind: 'monstro' | 'captura' | 'alianca'): number {
+  switch (kind) {
     case 'monstro':
       return 2
     case 'captura':
@@ -107,115 +108,115 @@ export function incrementoInvocacao(tipo: 'monstro' | 'captura' | 'alianca'): nu
   }
 }
 
-/** Teto de invocações que encarecem (a partir daí o custo fica estável). */
-export const TETO_INVOCACOES = 3
+/** Cap of invocations that get more expensive (beyond it the cost stays stable). */
+export const INVOCATION_CAP = 3
 
-/** Custo atual de invocar uma carta, dado quantas vezes ela já foi invocada.
- *  Ex.: monstro 4→6→8→10; captura 8→12→16→20; aliança 12→18→24→30. */
-export function custoInvocacao(tipo: 'monstro' | 'captura' | 'alianca', invocacoes: number): number {
-  const extras = Math.min(invocacoes, TETO_INVOCACOES)
-  return custoBaseInvocacao(tipo) + extras * incrementoInvocacao(tipo)
+/** Current cost of invoking a card, given how many times it was already invoked.
+ *  E.g. monster 4→6→8→10; capture 8→12→16→20; alliance 12→18→24→30. */
+export function invocationCost(kind: 'monstro' | 'captura' | 'alianca', invocations: number): number {
+  const extras = Math.min(invocations, INVOCATION_CAP)
+  return baseInvocationCost(kind) + extras * invocationIncrement(kind)
 }
 
-/** Custo premium quando a FÁBULA escolhe a carta (comando /invocar sem nome,
- *  2026-08-12): ×1,5 do custo normal, arredondado pra cima. */
-export function custoInvocacaoFabula(tipo: 'monstro' | 'captura' | 'alianca', invocacoes: number): number {
-  return Math.ceil(custoInvocacao(tipo, invocacoes) * 1.5)
+/** Premium cost when the FABLE picks the card (command /invocar without a name,
+ *  2026-08-12): ×1.5 of the normal cost, rounded up. */
+export function fableInvocationCost(kind: 'monstro' | 'captura' | 'alianca', invocations: number): number {
+  return Math.ceil(invocationCost(kind, invocations) * 1.5)
 }
 
-/** Custo da análise esquizoanalítica da Fábula (comando /analisar). */
-export const CUSTO_ANALISE = 10
+/** Cost of the Fable's schizoanalytic analysis (command /analisar). */
+export const ANALYZE_COST = 10
 
-/** Custo da varredura de capturas (comando /capturas) — CARO: lê o cotidiano
- *  com as cartas de captura desbloqueadas. */
-export const CUSTO_CAPTURAS = 25
+/** Cost of the captures sweep (command /capturas) — EXPENSIVE: reads the
+ *  everyday life with the unlocked capture cards. */
+export const CAPTURES_COST = 25
 
-/** Personagem inicial (nível 1, 7 cartas sorteadas). */
-export function personagemInicial(cartasIniciais: string[] = []) {
+/** Initial character (level 1, 7 drawn cards). */
+export function initialCharacter(initialCards: string[] = []) {
   return {
-    nivel: 1,
+    level: 1,
     xp: 0,
-    xpProximo: xpProximoDe(1),
-    hp: hpMaxDe(1),
-    hpMax: hpMaxDe(1),
-    mana: manaMaxDe(1),
-    manaMax: manaMaxDe(1),
-    esgotado: false,
-    ultimoDia: '',
-    cartas: cartasIniciais,
-    invocacoes: {},
+    xpNext: xpNextFor(1),
+    hp: hpMaxFor(1),
+    hpMax: hpMaxFor(1),
+    mana: manaMaxFor(1),
+    manaMax: manaMaxFor(1),
+    exhausted: false,
+    lastDay: '',
+    cards: initialCards,
+    invocations: {},
   }
 }
 
-export const DIAS_SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'] as const
+export const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'] as const
 
-/** Data local em ISO (YYYY-MM-DD) — nunca toISOString (vira UTC e pode trocar o dia). */
-export function hojeISO(): string {
+/** Local date in ISO (YYYY-MM-DD) — never toISOString (it becomes UTC and can change the day). */
+export function todayISO(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-/** Data ISO por extenso em pt-BR (sem o dia da semana), ex.: "3 de agosto de 2026". */
-export function dataPorExtenso(iso: string): string {
+/** ISO date spelled out in the active locale, e.g. "3 de agosto de 2026" / "August 3, 2026". */
+export function formatLongDate(iso: string): string {
   const d = new Date(iso + 'T12:00:00')
-  return d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
+  return d.toLocaleDateString(LOCALE[getLang()], { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-/** Nome do dia da semana por extenso (capitalizado), ex.: "Segunda-feira". */
-export function diaSemanaPorExtenso(iso: string): string {
-  const nome = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })
-  return nome.charAt(0).toUpperCase() + nome.slice(1)
+/** Weekday name spelled out (capitalized), e.g. "Segunda-feira" / "Monday". */
+export function formatWeekday(iso: string): string {
+  const name = new Date(iso + 'T12:00:00').toLocaleDateString(LOCALE[getLang()], { weekday: 'long' })
+  return name.charAt(0).toUpperCase() + name.slice(1)
 }
 
-/** Soma dias a uma data ISO (aceita negativos). */
-export function somarDias(iso: string, dias: number): string {
+/** Adds days to an ISO date (accepts negatives). */
+export function addDays(iso: string, days: number): string {
   const d = new Date(iso + 'T12:00:00')
-  d.setDate(d.getDate() + dias)
+  d.setDate(d.getDate() + days)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export function diaDaSemana(d: Date = new Date()): number {
+export function dayOfWeek(d: Date = new Date()): number {
   return d.getDay()
 }
 
-export function diaDoMes(d: Date = new Date()): number {
+export function dayOfMonth(d: Date = new Date()): number {
   return d.getDate()
 }
 
-/** Dias (inteiros) até uma data futura; negativo = já venceu. */
-export function diasAte(dataISO: string, hoje = hojeISO()): number {
-  const a = new Date(hoje + 'T12:00:00')
-  const b = new Date(dataISO + 'T12:00:00')
+/** Days (integer) until a future date; negative = already due. */
+export function daysUntil(dateISO: string, today = todayISO()): number {
+  const a = new Date(today + 'T12:00:00')
+  const b = new Date(dateISO + 'T12:00:00')
   return Math.round((b.getTime() - a.getTime()) / 86_400_000)
 }
 
-/** Dias desde uma data (aceita ISO completo ou só a data). */
-export function diasDesde(data: string, hoje = new Date()): number {
-  const d = new Date(data)
-  const inicioHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
-  const inicioCriacao = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-  return Math.floor((inicioHoje.getTime() - inicioCriacao.getTime()) / 86_400_000)
+/** Days since a date (accepts full ISO or date only). */
+export function daysSince(date: string, today = new Date()): number {
+  const d = new Date(date)
+  const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const startCreated = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  return Math.floor((startToday.getTime() - startCreated.getTime()) / 86_400_000)
 }
 
-/** Streak de dias consecutivos com repetição positiva, terminando em hoje ou ontem. */
-export function calcularStreak(historico: string[], hoje = hojeISO()): number {
-  if (historico.length === 0) return 0
-  const dias = new Set(historico)
-  const umDiaAtras = (iso: string): string => {
+/** Streak of consecutive days with positive repetition, ending today or yesterday. */
+export function calcStreak(history: string[], today = todayISO()): number {
+  if (history.length === 0) return 0
+  const days = new Set(history)
+  const oneDayAgo = (iso: string): string => {
     const d = new Date(iso + 'T12:00:00')
     d.setDate(d.getDate() - 1)
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }
-  let cursor = dias.has(hoje) ? hoje : umDiaAtras(hoje)
+  let cursor = days.has(today) ? today : oneDayAgo(today)
   let streak = 0
-  while (dias.has(cursor)) {
+  while (days.has(cursor)) {
     streak++
-    cursor = umDiaAtras(cursor)
+    cursor = oneDayAgo(cursor)
   }
   return streak
 }
 
-/** Um id curto e legível para tarefas novas. */
-export function novoId(): string {
+/** A short, readable id for new tasks. */
+export function newId(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4)
 }

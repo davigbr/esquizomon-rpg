@@ -1,43 +1,43 @@
-/** Núcleo da store (nanostores): estado global + helpers compartilhados.
- *  Os domínios (personagem, tarefas, check-in, diário, conversas, config)
- *  importam daqui e o app.ts re-exporta tudo — nenhum módulo importa o
- *  app.ts, então não há ciclos. */
+/** Store core (nanostores): global state + shared helpers.
+ *  The domains (character, tasks, check-in, diary, conversations, settings)
+ *  import from here and app.ts re-exports everything — no module imports
+ *  app.ts, so there are no cycles. */
 
 import { atom } from 'nanostores'
 
-import type { Agenda, AppData, Dificuldade, Tarefa, TipoLog, TipoTarefa } from '../core/tipos'
-import { novoId } from '../core/jogo'
-import { MAX_LOG, carregar, salvar } from '../db/storage'
+import type { Agenda, AppData, Difficulty, Task, LogType, TaskType } from '../core/tipos'
+import { newId } from '../core/jogo'
+import { MAX_LOG, load, save } from '../db/storage'
 
-export const appStore = atom<AppData>(carregar())
+export const appStore = atom<AppData>(load())
 
-appStore.subscribe((dados) => {
-  salvar(dados)
+appStore.subscribe((data) => {
+  save(data)
 })
 
-/** Registra um evento no histórico (mais recente primeiro, limitado a MAX_LOG). */
-export function registrarLog(tipo: TipoLog, texto: string): void {
-  const dados = appStore.get()
-  const evento = { id: novoId(), ts: new Date().toISOString(), tipo, texto }
-  appStore.set({ ...dados, log: [evento, ...dados.log].slice(0, MAX_LOG) })
+/** Records an event in the history (most recent first, capped at MAX_LOG). */
+export function addLog(type: LogType, text: string): void {
+  const data = appStore.get()
+  const event = { id: newId(), ts: new Date().toISOString(), type, text }
+  appStore.set({ ...data, log: [event, ...data.log].slice(0, MAX_LOG) })
 }
 
-export function tarefaPorId(id: string): Tarefa | undefined {
-  return appStore.get().tarefas.find((t) => t.id === id)
+export function taskById(id: string): Task | undefined {
+  return appStore.get().tasks.find((t) => t.id === id)
 }
 
-export interface Resultado {
+export interface Result {
   ok: boolean
-  motivo?: string
+  reason?: string
 }
 
-export interface DadosTarefa {
-  titulo: string
-  tipo: TipoTarefa
-  dificuldade: Dificuldade
+export interface TaskInput {
+  title: string
+  type: TaskType
+  difficulty: Difficulty
   tags: string[]
-  notas?: string
+  notes?: string
   dueDate?: string
   agenda?: Agenda
-  sinal?: 'positivo' | 'negativo' | 'ambos'
+  sign?: 'positivo' | 'negativo' | 'ambos'
 }

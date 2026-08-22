@@ -1,196 +1,196 @@
-/** Define (ou remove) o avatar do personagem — data URL JPEG já comprimida
- *  (128px, ~5KB) pelo editor de corte. */
-export function definirAvatar(avatar: string | null): void {
-  const p = appStore.get().personagem
+/** Sets (or removes) the character avatar — already-compressed JPEG data URL
+ *  (128px, ~5KB) from the crop editor. */
+export function setAvatar(avatar: string | null): void {
+  const p = appStore.get().character
   appStore.set({
     ...appStore.get(),
-    personagem: { ...p, avatar: avatar ?? undefined },
+    character: { ...p, avatar: avatar ?? undefined },
   })
 }
 
-/** Define o nome monstruoso do personagem (bold ao lado do avatar, desktop). */
-export function definirNomeMonstruoso(nome: string): void {
-  const p = appStore.get().personagem
-  const limpo = nome.trim().slice(0, 40) || undefined
+/** Sets the monster name of the character (bold next to the avatar, desktop). */
+export function setMonsterName(name: string): void {
+  const p = appStore.get().character
+  const clean = name.trim().slice(0, 40) || undefined
   appStore.set({
     ...appStore.get(),
-    personagem: { ...p, nomeMonstruoso: limpo },
+    character: { ...p, monsterName: clean },
   })
 }
 
-/** Domínio do personagem: XP, nível, cartas, mana, dano e morte. */
+/** Character domain: XP, level, cards, mana, damage and death. */
 
-import type { Personagem } from '../core/tipos'
-import { cartasPorNivel, custoInvocacao, hpMaxDe, manaMaxDe, xpProximoDe } from '../core/jogo'
-import type { Carta } from '../core/baralho'
-import { sortearIniciais, sortearIdsPonderado, todasAsCartas } from '../core/baralho'
-import { appStore, registrarLog } from './base'
-import type { Resultado } from './base'
-import { tocarSom } from '../ui/sons'
+import type { Character } from '../core/tipos'
+import { cardsPerLevel, invocationCost, hpMaxFor, manaMaxFor, xpNextFor } from '../core/jogo'
+import type { Card } from '../core/baralho'
+import { drawInitialIds, drawWeightedIds, allCards } from '../core/baralho'
+import { appStore, addLog } from './base'
+import type { Result } from './base'
+import { playSound } from '../ui/audio'
 
-/* Deck carregado + fila de desbloqueio (o deck chega assíncrono no boot). */
-export let deckCarregado: Carta[] | null = null
-let desbloqueioPendente = 0
-/** Evento de morte pendente de ser exibido pela UI (carta perdida). */
-let mortePendente: { cartaId: string; cartaNome: string } | null = null
+/* Deck loaded + unlock queue (the deck arrives async on boot). */
+export let loadedDeck: Card[] | null = null
+let pendingUnlock = 0
+/** Death event pending to be shown by the UI (lost card). */
+let pendingDeath: { cardId: string; cardName: string } | null = null
 
-/** Consome o evento de morte (uma vez) — a UI mostra a tela de esgotado e a carta perdida. */
-export function consumirMorte(): { cartaId: string; cartaNome: string } | null {
-  const m = mortePendente
-  mortePendente = null
-  return m
+/** Consumes the death event (once) — the UI shows the depleted screen and the lost card. */
+export function consumeDeath(): { cardId: string; cardName: string } | null {
+  const d = pendingDeath
+  pendingDeath = null
+  return d
 }
 
-/** Registra a morte (esgotou agora) e perde 1 carta da coleção.
- *  A ordem importa: `mortePendente` é setada ANTES do set das cartas, para o
- *  subscribe disparado pela remoção já encontrar o evento e mostrar o overlay. */
-function registrarMorte(): void {
-  const dados = appStore.get()
-  const p = dados.personagem
-  if (p.cartas.length > 0) {
-    const perdida = p.cartas[Math.floor(Math.random() * p.cartas.length)]
-    const carta = deckCarregado?.find((c) => c.id === perdida)
-    mortePendente = { cartaId: perdida, cartaNome: carta?.name ?? perdida }
-    appStore.set({ ...dados, personagem: { ...p, cartas: p.cartas.filter((id) => id !== perdida) } })
-    registrarLog('carta', `Esgotou — perdeu a carta: ${carta?.name ?? perdida}`)
+/** Registers the death (just depleted) and loses 1 card from the collection.
+ *  Order matters: `pendingDeath` is set BEFORE the cards set, so the subscribe
+ *  fired by the removal already finds the event and shows the overlay. */
+function registerDeath(): void {
+  const data = appStore.get()
+  const p = data.character
+  if (p.cards.length > 0) {
+    const lost = p.cards[Math.floor(Math.random() * p.cards.length)]
+    const card = loadedDeck?.find((c) => c.id === lost)
+    pendingDeath = { cardId: lost, cardName: card?.name ?? lost }
+    appStore.set({ ...data, character: { ...p, cards: p.cards.filter((id) => id !== lost) } })
+    addLog('carta', `Esgotou — perdeu a carta: ${card?.name ?? lost}`)
   } else {
-    mortePendente = { cartaId: '', cartaNome: '' }
-    registrarLog('dano', 'Esgotou — sem cartas para perder')
+    pendingDeath = { cardId: '', cardName: '' }
+    addLog('dano', 'Esgotou — sem cartas para perder')
   }
-  registrarLog('dano', 'Ficou esgotado (vida zerada)')
+  addLog('dano', 'Ficou esgotado (vida zerada)')
 }
 
-/** Registra o deck carregado; sorteia as cartas iniciais e processa desbloqueios pendentes. */
-export function registrarDeck(cartas: Carta[]): void {
-  deckCarregado = cartas
-  const dados = appStore.get()
-  const p = dados.personagem
-  if (p.cartas.length === 0 && !p.esgotado) {
-    // primeira execução: 5 monstros + 1 captura + 1 aliança
-    const iniciais = sortearIniciais(cartas)
-    appStore.set({ ...appStore.get(), personagem: { ...p, cartas: iniciais } })
-    const nomes = cartas.filter((c) => iniciais.includes(c.id)).map((c) => c.name)
-    registrarLog('carta', `Começou o jogo com ${iniciais.length} cartas: ${nomes.join(', ')}`)
+/** Registers the loaded deck; draws the initial cards and processes pending unlocks. */
+export function registerDeck(cards: Card[]): void {
+  loadedDeck = cards
+  const data = appStore.get()
+  const p = data.character
+  if (p.cards.length === 0 && !p.exhausted) {
+    // first run: 5 monsters + 1 capture + 1 alliance
+    const initial = drawInitialIds(cards)
+    appStore.set({ ...appStore.get(), character: { ...p, cards: initial } })
+    const names = cards.filter((c) => initial.includes(c.id)).map((c) => c.name)
+    addLog('carta', `Começou o jogo com ${initial.length} cartas: ${names.join(', ')}`)
   }
-  if (desbloqueioPendente > 0) {
-    const n = desbloqueioPendente
-    desbloqueioPendente = 0
-    desbloquearCartas(n)
+  if (pendingUnlock > 0) {
+    const n = pendingUnlock
+    pendingUnlock = 0
+    unlockCards(n)
   }
 }
 
-/** Sorteia e adiciona n cartas novas ao personagem; retorna os ids desbloqueados. */
-function desbloquearCartas(n: number): string[] {
-  const dados = appStore.get()
-  const p = dados.personagem
-  if (!deckCarregado) {
-    desbloqueioPendente += n
+/** Draws and adds n new cards to the character; returns the unlocked ids. */
+function unlockCards(n: number): string[] {
+  const data = appStore.get()
+  const p = data.character
+  if (!loadedDeck) {
+    pendingUnlock += n
     return []
   }
-  const novos = sortearIdsPonderado(deckCarregado, n, p.cartas)
-  if (novos.length === 0) return []
+  const added = drawWeightedIds(loadedDeck, n, p.cards)
+  if (added.length === 0) return []
   appStore.set({
-    ...dados,
-    personagem: { ...p, cartas: [...p.cartas, ...novos] },
+    ...data,
+    character: { ...p, cards: [...p.cards, ...added] },
   })
-  const nomes = deckCarregado.filter((c) => novos.includes(c.id)).map((c) => c.name)
-  registrarLog('carta', `Desbloqueou: ${nomes.join(', ')}`)
-  return novos
+  const names = loadedDeck.filter((c) => added.includes(c.id)).map((c) => c.name)
+  addLog('carta', `Desbloqueou: ${names.join(', ')}`)
+  return added
 }
 
-/** Aplica XP ao personagem; retorna se subiu de nível e cartas novas. */
-export function ganharXP(quantidade: number): { subiu: boolean; nivel: number; novasCartas: string[] } {
-  const p = appStore.get().personagem
-  let xp = p.xp + quantidade
-  let { nivel } = p
-  let xpProximo = p.xpProximo
-  let subiu = false
-  let niveis = 0
-  while (xp >= xpProximo) {
-    xp -= xpProximo
-    nivel += 1
-    xpProximo = xpProximoDe(nivel)
-    subiu = true
-    niveis += 1
+/** Applies XP to the character; returns whether it leveled up and new cards. */
+export function gainXP(amount: number): { leveledUp: boolean; level: number; newCards: string[] } {
+  const p = appStore.get().character
+  let xp = p.xp + amount
+  let { level } = p
+  let xpNext = p.xpNext
+  let leveledUp = false
+  let levels = 0
+  while (xp >= xpNext) {
+    xp -= xpNext
+    level += 1
+    xpNext = xpNextFor(level)
+    leveledUp = true
+    levels += 1
   }
-  const personagem: Personagem = {
+  const character: Character = {
     ...p,
     xp,
-    xpProximo,
-    nivel,
-    hpMax: hpMaxDe(nivel),
-    manaMax: manaMaxDe(nivel),
+    xpNext,
+    level,
+    hpMax: hpMaxFor(level),
+    manaMax: manaMaxFor(level),
   }
-  if (subiu) {
-    // subir de nível restaura HP e mana
-    personagem.hp = personagem.hpMax
-    personagem.mana = personagem.manaMax
-    personagem.esgotado = false
+  if (leveledUp) {
+    // leveling up restores HP and mana
+    character.hp = character.hpMax
+    character.mana = character.manaMax
+    character.exhausted = false
   }
-  appStore.set({ ...appStore.get(), personagem })
-  const novasCartas = subiu ? desbloquearCartas(niveis * cartasPorNivel()) : []
-  if (subiu) registrarLog('nivel', `Subiu para o nível ${nivel} (máximos restaurados)`)
-  if (subiu) tocarSom('nivel')
-  return { subiu, nivel, novasCartas }
+  appStore.set({ ...appStore.get(), character })
+  const newCards = leveledUp ? unlockCards(levels * cardsPerLevel()) : []
+  if (leveledUp) addLog('nivel', `Subiu para o nível ${level} (máximos restaurados)`)
+  if (leveledUp) playSound('nivel')
+  return { leveledUp, level, newCards }
 }
 
-/** Invoca uma carta desbloqueada: gasta mana (custo cresce por invocação até o teto).
- *  `custoOverride` permite cobrar um custo diferente (ex.: premium da Fábula). */
-export function invocarCarta(id: string, custoOverride?: number): Resultado {
-  const dados = appStore.get()
-  const p = dados.personagem
-  const carta = deckCarregado?.find((c) => c.id === id)
-  if (!carta) return { ok: false, motivo: 'Carta não encontrada.' }
-  if (!p.cartas.includes(id)) return { ok: false, motivo: 'Esta carta ainda está bloqueada.' }
-  const custo = custoOverride ?? custoInvocacao(carta.type, p.invocacoes[id] ?? 0)
-  if (p.mana < custo) return { ok: false, motivo: `Mana insuficiente — precisa de ${custo}.` }
+/** Invokes an unlocked card: spends mana (cost grows per invocation up to the cap).
+ *  `costOverride` allows charging a different cost (e.g. premium from the Fable). */
+export function invokeCard(id: string, costOverride?: number): Result {
+  const data = appStore.get()
+  const p = data.character
+  const card = loadedDeck?.find((c) => c.id === id)
+  if (!card) return { ok: false, reason: 'Carta não encontrada.' }
+  if (!p.cards.includes(id)) return { ok: false, reason: 'Esta carta ainda está bloqueada.' }
+  const cost = costOverride ?? invocationCost(card.type, p.invocations[id] ?? 0)
+  if (p.mana < cost) return { ok: false, reason: `Mana insuficiente — precisa de ${cost}.` }
   appStore.set({
-    ...dados,
-    personagem: {
+    ...data,
+    character: {
       ...p,
-      mana: p.mana - custo,
-      invocacoes: { ...p.invocacoes, [id]: (p.invocacoes[id] ?? 0) + 1 },
+      mana: p.mana - cost,
+      invocations: { ...p.invocations, [id]: (p.invocations[id] ?? 0) + 1 },
     },
   })
-  registrarLog('invocacao', `Invocou: ${carta.name} (−${custo} mana)`)
-  tocarSom('invocar')
+  addLog('invocacao', `Invocou: ${card.name} (−${cost} mana)`)
+  playSound('invocar')
   return { ok: true }
 }
 
-/** Aplica dano ao personagem (no-op no modo relaxado). Retorna se esgotou. */
-export function aplicarDano(quantidade: number): { esgotou: boolean } {
-  const dados = appStore.get()
-  if (dados.configuracao.modoRelaxado) return { esgotou: false }
-  const p = dados.personagem
-  if (p.esgotado) return { esgotou: true }
-  const hp = Math.max(0, p.hp - quantidade)
-  const esgotou = hp <= 0
+/** Applies damage to the character (no-op in relaxed mode). Returns whether depleted. */
+export function applyDamage(amount: number): { exhausted: boolean } {
+  const data = appStore.get()
+  if (data.settings.relaxedMode) return { exhausted: false }
+  const p = data.character
+  if (p.exhausted) return { exhausted: true }
+  const hp = Math.max(0, p.hp - amount)
+  const exhausted = hp <= 0
   appStore.set({
-    ...dados,
-    personagem: { ...p, hp, esgotado: p.esgotado || esgotou },
+    ...data,
+    character: { ...p, hp, exhausted: p.exhausted || exhausted },
   })
-  if (esgotou) registrarMorte()
-  return { esgotou }
+  if (exhausted) registerDeath()
+  return { exhausted }
 }
 
-/** Recupera vida até o máximo (no-op acima do cap). Retorna o quanto curou. */
-export function curar(quantidade: number): number {
-  const p = appStore.get().personagem
-  const antes = p.hp
-  const hp = Math.min(p.hpMax, p.hp + Math.max(0, Math.floor(quantidade)))
-  if (hp === antes) return 0
-  appStore.set({ ...appStore.get(), personagem: { ...p, hp } })
-  return hp - antes
+/** Heals up to the max (no-op above the cap). Returns how much was healed. */
+export function heal(amount: number): number {
+  const p = appStore.get().character
+  const before = p.hp
+  const hp = Math.min(p.hpMax, p.hp + Math.max(0, Math.floor(amount)))
+  if (hp === before) return 0
+  appStore.set({ ...appStore.get(), character: { ...p, hp } })
+  return hp - before
 }
 
-/** Re-sorteia TODAS as cartas desbloqueadas (mesmo total), respeitando as
- *  chances de cada tipo (monstro 6×, captura 2×, aliança 1×). Destrutivo —
- *  a UI pede confirmação antes de chamar. */
-export function rerolarBaralho(): { antes: number } {
-  const p = appStore.get().personagem
-  const antes = p.cartas.length
-  const novos = sortearIdsPonderado(todasAsCartas(), antes)
-  appStore.set({ ...appStore.get(), personagem: { ...p, cartas: novos } })
-  registrarLog('carta', `Rerolou o baralho: ${antes} cartas re-sorteadas.`)
-  return { antes }
+/** Re-draws ALL unlocked cards (same total), respecting each type's odds
+ *  (monster 6×, capture 2×, alliance 1×). Destructive — the UI asks for
+ *  confirmation before calling. */
+export function rerollDeck(): { before: number } {
+  const p = appStore.get().character
+  const before = p.cards.length
+  const drawn = drawWeightedIds(allCards(), before)
+  appStore.set({ ...appStore.get(), character: { ...p, cards: drawn } })
+  addLog('carta', `Rerolou o baralho: ${before} cartas re-sorteadas.`)
+  return { before }
 }

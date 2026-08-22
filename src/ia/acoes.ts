@@ -1,77 +1,75 @@
-/** Canal de ação Fábula → app: marcadores estruturados no fim da resposta.
- *  A Fábula anexa `[[acao:{"tipo":"...","carta":"<id>"}]]` e o app executa
- *  (desconta mana, valida, registra). O marcador é removido do texto exibido. */
+/** Fable → app action channel: structured markers at the end of the answer.
+ *  The Fable appends `[[acao:{"type":"...","card":"<id>"}]]` and the app executes
+ *  (deducts mana, validates, records). The marker is removed from the shown text. */
 
-export interface AcaoInvocar {
-  tipo: 'invocar'
-  carta: string
+export interface InvokeAction {
+  type: 'invocar'
+  card: string
 }
 
-export type AcaoIA = AcaoInvocar
+export type AiAction = InvokeAction
 
 /** Comandos do chat (digitados com /). O app converte o comando numa frase
- *  natural antes de enviar à Fábula — o histórico lê como conversa. */
-export interface ComandoIA {
-  tipo: 'invocar' | 'analisar' | 'capturas'
+ *  natural before sending to the Fable — the history reads as a conversation. */
+export interface AiCommand {
+  type: 'invocar' | 'analisar' | 'capturas'
   /** invocar com nome: termo digitado (nome ou slug da carta). */
-  carta?: string
-  /** invocar SEM nome: a Fábula escolhe a carta (custo premium ×1,5). */
-  escolhaFabula: boolean
+  card?: string
+  /** invoke WITHOUT a name: the Fable picks the card (premium cost ×1.5). */
+  fableChoice: boolean
 }
 
-const RE_ACAO = /\[\[acao:\s*(\{[\s\S]*?)\s*\]\]/g
+const ACTION_RE = /\[\[acao:\s*(\{[\s\S]*?\})\s*\]\]/g
 
-/** Extrai os marcadores do texto e devolve o texto limpo + as ações. */
-export function extrairAcoes(texto: string): { texto: string; acoes: AcaoIA[] } {
-  const acoes: AcaoIA[] = []
-  const limpo = texto.replace(RE_ACAO, (_match, json: string) => {
+/** Extracts the markers from the text and returns the clean text + the actions. */
+export function extractActions(text: string): { text: string; actions: AiAction[] } {
+  const actions: AiAction[] = []
+  const clean = text.replace(ACTION_RE, (_match, json: string) => {
     try {
       const obj: unknown = JSON.parse(json)
-      if (
-        typeof obj === 'object' &&
-        obj !== null &&
-        (obj as Record<string, unknown>).tipo === 'invocar' &&
-        typeof (obj as Record<string, unknown>).carta === 'string' &&
-        ((obj as Record<string, unknown>).carta as string).trim()
-      ) {
-        acoes.push({ tipo: 'invocar', carta: ((obj as Record<string, unknown>).carta as string).trim() })
+      if (typeof obj !== 'object' || obj === null) return ''
+      const o = obj as Record<string, unknown>
+      const actionType = o.tipo ?? o.type
+      const cardRaw = o.carta ?? o.card
+      if (actionType === 'invocar' && typeof cardRaw === 'string' && cardRaw.trim()) {
+        actions.push({ type: 'invocar', card: cardRaw.trim() })
       }
     } catch {
       // marcador malformado — remove mesmo assim, sem executar
     }
     return ''
   })
-  return { texto: limpo.trim(), acoes }
+  return { text: clean.replace(/\[\[acao:[\s\S]*?\]\]/g, '').trim(), actions }
 }
 
-/** Detecta um pedido EXPLÍCITO de invocação na mensagem do usuário
- *  ("invoca a carta X", "pode invocar X?", "me invoca a carta ninho...") e
- *  devolve o termo da carta (nome ou id). Null se não for pedido de invocação.
- *  Usado pelo chat pra executar a invocação NO APP (determinístico), sem
- *  depender do modelo emitir o marcador. */
-export function detectarPedidoInvocacao(texto: string): string | null {
-  const t = texto.trim()
+/** Detects an EXPLICIT invocation request in the user's message
+ *  ("invoca a carta X", "pode invocar X?", "me invoca a carta ninho...") and
+ *  returns the card term (name or id). Null if it's not an invocation request.
+ *  Used by the chat to run the invocation IN THE APP (deterministic), without
+ *  relying on the model emitting the marker. */
+export function detectInvocationRequest(text: string): string | null {
+  const t = text.trim()
   const m =
     t.match(/^(?:me\s+|por\s+favor\s*,\s*)?(?:pode\s+|poderia\s+)?invoc\w*\s+(?:a\s+carta\s+)?(.+)$/i) ??
     t.match(/invoc\w*\s+(?:a\s+carta\s+)?([^\n.!?]+)/i)
   if (!m) return null
-  const termo = m[1].trim()
-  return termo || null
+  const term = m[1].trim()
+  return term || null
 }
 
-/** Detecta comandos do chat (digitados com /): `/invocar <carta>` (invocação
- *  normal), `/invocar` sem nome ou `/fabula-invoca` (a FÁBULA escolhe a carta —
- *  custo premium) e `/analisar` (análise esquizoanalítica, 10 mana). Devolve o
- *  comando pra o app converter em frase natural e orquestrar a ação. */
-export function detectarComando(texto: string): ComandoIA | null {
-  const m = texto.trim().match(/^\/([a-z-]+)(?:\s+(.*))?$/i)
+/** Detects chat commands (typed with /): `/invocar <carta>` (normal
+ *  invocation), `/invocar` without a name or `/fabula-invoca` (the FABLE picks the
+ *  card — premium cost) and `/analisar` (schizoanalytic analysis, 10 mana). Returns
+ *  the command for the app to convert into natural speech and orchestrate the action. */
+export function detectCommand(text: string): AiCommand | null {
+  const m = text.trim().match(/^\/([a-z-]+)(?:\s+(.*))?$/i)
   if (!m) return null
-  const nome = m[1].toLowerCase()
-  const resto = (m[2] ?? '').trim()
-  if (nome === 'invocar' || nome === 'fabula-invoca') {
-    return resto ? { tipo: 'invocar', carta: resto, escolhaFabula: false } : { tipo: 'invocar', escolhaFabula: true }
+  const name = m[1].toLowerCase()
+  const rest = (m[2] ?? '').trim()
+  if (name === 'invocar' || name === 'fabula-invoca') {
+    return rest ? { type: 'invocar', card: rest, fableChoice: false } : { type: 'invocar', fableChoice: true }
   }
-  if (nome === 'analisar') return { tipo: 'analisar', escolhaFabula: false }
-  if (nome === 'capturas') return { tipo: 'capturas', escolhaFabula: false }
+  if (name === 'analisar') return { type: 'analisar', fableChoice: false }
+  if (name === 'capturas') return { type: 'capturas', fableChoice: false }
   return null
 }

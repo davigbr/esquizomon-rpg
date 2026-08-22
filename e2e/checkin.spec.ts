@@ -19,16 +19,16 @@ async function semearPendentes(page: import('@playwright/test').Page): Promise<v
   await page.addInitScript(
     ({ ontem }) => {
       const d = {
-        versao: 3,
-        tarefas: [
-          { id: 'r1', tipo: 'recorrente', titulo: 'Meditar', dificuldade: 'facil', tags: [], agenda: { dias: [] }, historico: [], criadaEm: new Date().toISOString() },
-          { id: 'u1', tipo: 'unica', titulo: 'Relatório', dificuldade: 'facil', tags: [], dueDate: ontem, concluida: false, historico: [], criadaEm: new Date().toISOString() },
+        version: 3,
+        tasks: [
+          { id: 'r1', type: 'recorrente', title: 'Meditar', difficulty: 'facil', tags: [], agenda: { dias: [] }, history: [], createdAt: new Date().toISOString() },
+          { id: 'u1', type: 'unica', title: 'Relatório', difficulty: 'facil', tags: [], dueDate: ontem, done: false, history: [], createdAt: new Date().toISOString() },
         ],
-        personagem: { nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20, esgotado: false, ultimoDia: ontem, cartas: [], invocacoes: {} },
-        configuracao: { tema: 'dark' },
+        character: { nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20, exhausted: false, lastDay: ontem, cartas: [], invocations: {} },
+        settings: { tema: 'dark' },
         log: [],
-        conversas: [],
-        diario: [],
+        conversations: [],
+        diary: [],
       }
       localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
     },
@@ -38,7 +38,7 @@ async function semearPendentes(page: import('@playwright/test').Page): Promise<v
 
 test('check-in: tudo vem desmarcado; marcar um item conclui em ontem e o resto sofre dano', async ({ page }) => {
   await semearPendentes(page)
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
 
   // modal "Tarefas de ontem" com as 2 pendentes DESMARCADAS
   await expect(page.locator('.checkin-item')).toHaveCount(2)
@@ -47,7 +47,7 @@ test('check-in: tudo vem desmarcado; marcar um item conclui em ontem e o resto s
 
   // marca apenas a 2ª (Relatório) — a 1ª (Meditar) fica sem marcação
   await page.locator('.checkin-check').nth(1).check()
-  await page.locator('[data-checkin-confirmar]').click()
+  await page.locator('[data-checkin-confirm]').click()
 
   // modal fechou
   await expect(page.locator('#modal')).toBeHidden()
@@ -60,20 +60,20 @@ test('check-in: tudo vem desmarcado; marcar um item conclui em ontem e o resto s
 
 test('check-in: confirmar sem marcar nada equivale a pular (dano em todas)', async ({ page }) => {
   await semearPendentes(page)
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
 
   await expect(page.locator('.checkin-item')).toHaveCount(2)
-  await page.locator('[data-checkin-confirmar]').click()
+  await page.locator('[data-checkin-confirm]').click()
 
   await expect(page.locator('#modal')).toBeHidden()
-  // nada marcado → XP 0; a recorrente Meditar perdida → −3 vida (únicas não dão dano)
+  // nada marked → XP 0; a recorrente Meditar perdida → −3 vida (únicas não dão dano)
   // (dano cancelado pela regeneração diária de +5%; fica 50/50)
   await expect(page.locator('[data-s-xp]')).toHaveText('XP 0/80')
   await expect(page.locator('[data-s-hp]')).toHaveText('50/50')
 })
 
 test('sem pendentes: nenhum modal aparece no novo dia', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await expect(page.locator('#modal')).toBeHidden()
   await expect(page.locator('.checkin-item')).toHaveCount(0)
 })

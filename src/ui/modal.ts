@@ -1,56 +1,57 @@
-/** Modal genérico prometido — Escape/backdrop fecham; foco devolvido a quem abriu. */
+import { t } from '../i18n'
+/** Generic promised modal — Escape/backdrop close; focus returned to the opener. */
 
 const overlay = document.getElementById('modal')!
 export const modalBody = document.getElementById('modal-body')!
 const closeBtn = document.getElementById('modal-close')!
-const botaoOriginal = document.activeElement as HTMLElement | null
+const origButton = document.activeElement as HTMLElement | null
 
-export function abrirModal(html: string): void {
+export function openModal(html: string): void {
   modalBody.innerHTML = html
   overlay.hidden = false
-  const primeiro = modalBody.querySelector<HTMLElement>('[autofocus], input, select, textarea, button')
-  primeiro?.focus()
+  const first = modalBody.querySelector<HTMLElement>('[autofocus], input, select, textarea, button')
+  first?.focus()
 }
 
-export function fecharModal(): void {
+export function closeModal(): void {
   overlay.hidden = true
   modalBody.innerHTML = ''
-  botaoOriginal?.focus()
+  origButton?.focus()
 }
 
-closeBtn.addEventListener('click', fecharModal)
+closeBtn.addEventListener('click', closeModal)
 overlay.addEventListener('click', (e) => {
-  if (e.target === overlay) fecharModal()
+  if (e.target === overlay) closeModal()
 })
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !overlay.hidden) fecharModal()
+  if (e.key === 'Escape' && !overlay.hidden) closeModal()
 })
 
-/** Confirmação prometida — resolve true apenas se o usuário confirmar. */
-export function confirmar(msg: string, rotulo = 'Confirmar'): Promise<boolean> {
+/** Promised confirmation — resolves true only if the user confirms. */
+export function confirm(msg: string, label = t('common.confirm')): Promise<boolean> {
   return new Promise((resolve) => {
-    const onFechar = () => {
-      fecharModal()
+    const onClose = () => {
+      closeModal()
       document.removeEventListener('keydown', handler)
       resolve(false)
     }
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onFechar()
+      if (e.key === 'Escape') onClose()
     }
-    abrirModal(`
-      <h2>Confirmar</h2>
+    openModal(`
+      <h2>${t('common.confirm')}</h2>
       <p style="color:var(--text-secondary);font-size:14px;margin:0 0 20px">${msg}</p>
-      <div class="form-acoes">
-        <button class="btn" data-modal-cancelar>Cancelar</button>
-        <button class="btn btn-primary" data-modal-confirmar>${rotulo}</button>
+      <div class="form-actions">
+        <button class="btn" data-modal-cancel>${t('common.cancel')}</button>
+        <button class="btn btn-primary" data-modal-confirm>${label}</button>
       </div>
     `)
-    modalBody.querySelector('[data-modal-confirmar]')!.addEventListener('click', () => {
+    modalBody.querySelector('[data-modal-confirm]')!.addEventListener('click', () => {
       document.removeEventListener('keydown', handler)
-      fecharModal()
+      closeModal()
       resolve(true)
     })
-    modalBody.querySelector('[data-modal-cancelar]')!.addEventListener('click', onFechar)
+    modalBody.querySelector('[data-modal-cancel]')!.addEventListener('click', onClose)
     document.addEventListener('keydown', handler)
   })
 }

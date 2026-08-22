@@ -1,20 +1,20 @@
-/** Domínio das conversas com a IA (Fábula). */
+/** AI conversations (Fable) domain. */
 
-import type { Conversa, MensagemIA } from '../core/tipos'
-import { novoId } from '../core/jogo'
-import { MAX_CONVERSAS } from '../db/storage'
+import type { Conversation, AiMessage } from '../core/tipos'
+import { newId } from '../core/jogo'
+import { MAX_CONVERSATIONS } from '../db/storage'
 import { appStore } from './base'
 
-function conversasAtuais(): Conversa[] {
-  return appStore.get().conversas ?? []
+function currentConversations(): Conversation[] {
+  return appStore.get().conversations ?? []
 }
 
-function salvarConversas(conversas: Conversa[]): void {
-  appStore.set({ ...appStore.get(), conversas })
+function saveConversations(conversations: Conversation[]): void {
+  appStore.set({ ...appStore.get(), conversations })
 }
 
-/** Título padrão de conversa nova: data e hora (ex.: "14/08, 21:37"). */
-function tituloPadraoConversa(): string {
+/** Default title of a new conversation: date and time (e.g. "14/08, 21:37"). */
+function defaultConversationTitle(): string {
   return new Date().toLocaleString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
@@ -23,48 +23,48 @@ function tituloPadraoConversa(): string {
   })
 }
 
-export function criarConversa(): Conversa {
-  const id = novoId()
-  const agora = new Date().toISOString()
-  const conversa: Conversa = { id, titulo: tituloPadraoConversa(), mensagens: [], atualizadaEm: agora }
-  salvarConversas([conversa, ...conversasAtuais()].slice(0, MAX_CONVERSAS))
-  return conversa
+export function createConversation(): Conversation {
+  const id = newId()
+  const now = new Date().toISOString()
+  const conversation: Conversation = { id, title: defaultConversationTitle(), messages: [], updatedAt: now }
+  saveConversations([conversation, ...currentConversations()].slice(0, MAX_CONVERSATIONS))
+  return conversation
 }
 
-export function conversaPorId(id: string): Conversa | undefined {
-  return conversasAtuais().find((c) => c.id === id)
+export function conversationById(id: string): Conversation | undefined {
+  return currentConversations().find((c) => c.id === id)
 }
 
-export function atualizarConversa(id: string, patch: Partial<Conversa>): void {
-  const conversas = conversasAtuais()
-  const idx = conversas.findIndex((c) => c.id === id)
+export function updateConversation(id: string, patch: Partial<Conversation>): void {
+  const conversations = currentConversations()
+  const idx = conversations.findIndex((c) => c.id === id)
   if (idx < 0) return
-  const atualizada: Conversa = { ...conversas[idx], ...patch, atualizadaEm: new Date().toISOString() }
-  const proximas = [...conversas]
-  proximas.splice(idx, 1)
-  // Re-ordena: mais recente no topo.
-  salvarConversas([atualizada, ...proximas].slice(0, MAX_CONVERSAS))
+  const updated: Conversation = { ...conversations[idx], ...patch, updatedAt: new Date().toISOString() }
+  const next = [...conversations]
+  next.splice(idx, 1)
+  // Re-orders: most recent on top.
+  saveConversations([updated, ...next].slice(0, MAX_CONVERSATIONS))
 }
 
-export function adicionarMensagem(conversaId: string, msg: MensagemIA): void {
-  const conversa = conversaPorId(conversaId)
-  if (!conversa) return
-  const mensagens = [...conversa.mensagens, msg]
-  // Primeira mensagem do usuário vira o título (3-5 palavras).
-  let titulo = conversa.titulo
-  if (conversa.mensagens.length === 0 && msg.role === 'user') {
-    titulo = msg.content
+export function addMessage(conversationId: string, msg: AiMessage): void {
+  const conversation = conversationById(conversationId)
+  if (!conversation) return
+  const messages = [...conversation.messages, msg]
+  // First user message becomes the title (3-5 words).
+  let title = conversation.title
+  if (conversation.messages.length === 0 && msg.role === 'user') {
+    title = msg.content
       .replace(/\s+/g, ' ')
       .trim()
       .split(' ')
       .slice(0, 5)
       .join(' ')
       .slice(0, 60)
-    if (!titulo) titulo = 'Conversa'
+    if (!title) title = 'Conversa'
   }
-  atualizarConversa(conversaId, { titulo, mensagens })
+  updateConversation(conversationId, { title, messages })
 }
 
-export function excluirConversa(id: string): void {
-  salvarConversas(conversasAtuais().filter((c) => c.id !== id))
+export function deleteConversation(id: string): void {
+  saveConversations(currentConversations().filter((c) => c.id !== id))
 }

@@ -1,54 +1,54 @@
 import { expect, test } from '@playwright/test'
 
-/* Núcleo do merge por entidade (caminho "E" da sincronização). */
+/* Per-entity merge core (sync path "E"). */
 
-test('sync: fundirDados mescla criações dos dois lados (nada se perde)', async ({ page }) => {
-  await page.goto('/#/hoje')
+test('sync: mergeData mescla criações dos dois lados (nada se perde)', async ({ page }) => {
+  await page.goto('/#/today')
   const r = await page.evaluate(async () => {
-    const { fundirDados } = await import('/src/core/syncMerge')
-    const t = (id: string, titulo: string, editadaEm: string) => ({
-      id, titulo, tipo: 'unica', dificuldade: 'facil', concluida: false,
-      historico: [], criadaEm: '2026-01-01', editadaEm,
+    const { mergeData } = await import('/src/core/syncMerge')
+    const t = (id: string, title: string, updatedAt: string) => ({
+      id, title, type: 'unica', difficulty: 'facil', done: false,
+      history: [], createdAt: '2026-01-01', updatedAt,
     })
-    const base = { tarefas: [], diario: [], conversas: [], log: [], versao: 6 }
-    const local = { ...base, tarefas: [t('a', 'criada no local', '09:00')] }
-    const nuvem = { ...base, tarefas: [t('a', 'criada no local', '09:00'), t('b', 'criada na nuvem', '10:00')] }
-    const fundida = fundirDados(local, nuvem) as { tarefas: Array<{ id: string; titulo: string }> }
-    return { ids: fundida.tarefas.map((x) => x.id).sort(), tituloA: fundida.tarefas.find((x) => x.id === 'a')?.titulo }
+    const base: any = { tasks: [], diary: [], conversations: [], log: [], version: 6 }
+    const local = { ...base, tasks: [t('a', 'criada no local', '09:00')] }
+    const cloud = { ...base, tasks: [t('a', 'criada no local', '09:00'), t('b', 'criada na nuvem', '10:00')] }
+    const merged = mergeData(local, cloud) as { tasks: Array<{ id: string; title: string }> }
+    return { ids: merged.tasks.map((x) => x.id).sort(), titleA: merged.tasks.find((x) => x.id === 'a')?.title }
   })
-  expect(r.ids).toEqual(['a', 'b'])      // as criadas em cada lado se mesclam
-  expect(r.tituloA).toBe('criada no local')
+  expect(r.ids).toEqual(['a', 'b'])      // the creations on each side merge
+  expect(r.titleA).toBe('criada no local')
 })
 
 test('sync: exclusão não é revertida pelo merge (tombstone)', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   const r = await page.evaluate(async () => {
-    const { fundirDados } = await import('/src/core/syncMerge')
-    const t = (id: string, titulo: string, editadaEm: string) => ({
-      id, titulo, tipo: 'unica', dificuldade: 'facil', concluida: false, historico: [], tags: [], criadaEm: editadaEm, editadaEm,
+    const { mergeData } = await import('/src/core/syncMerge')
+    const t = (id: string, title: string, updatedAt: string) => ({
+      id, title, type: 'unica', difficulty: 'facil', done: false, history: [], tags: [], createdAt: updatedAt, updatedAt,
     })
-    const base = { tarefas: [], diario: [], conversas: [], log: [], personagem: {}, configuracao: {}, versao: 6 } as any
-    // local: excluiu 'b' (tombstone); nuvem: ainda tem 'b'
-    const local = { ...base, tarefas: [{ ...t('a', 'A', '2026-01-01T00:00:00Z') }], tarefasExcluidas: { b: '2026-01-02T00:00:00Z' } }
-    const nuvem = { ...base, tarefas: [{ ...t('a', 'A', '2026-01-01T00:00:00Z') }, { ...t('b', 'B', '2026-01-01T00:00:00Z') }] }
-    const f = fundirDados(local as any, nuvem as any) as any
-    return { ids: f.tarefas.map((x: any) => x.id).sort(), aindaExcluida: f.tarefasExcluidas.b }
+    const base = { tasks: [], diary: [], conversations: [], log: [], character: {}, settings: {}, version: 6 } as any
+    // local: deleted 'b' (tombstone); cloud: still has 'b'
+    const local = { ...base, tasks: [{ ...t('a', 'A', '2026-01-01T00:00:00Z') }], deletedTasks: { b: '2026-01-02T00:00:00Z' } }
+    const cloud = { ...base, tasks: [{ ...t('a', 'A', '2026-01-01T00:00:00Z') }, { ...t('b', 'B', '2026-01-01T00:00:00Z') }] }
+    const f = mergeData(local as any, cloud as any) as any
+    return { ids: f.tasks.map((x: any) => x.id).sort(), aindaExcluida: f.deletedTasks.b }
   })
   expect(r.ids).toEqual(['a']) // 'b' NÃO volta
-  expect(r.aindaExcluida).toBe('2026-01-02T00:00:00Z') // tombstone mantido (nuvem ainda tinha)
+  expect(r.aindaExcluida).toBe('2026-01-02T00:00:00Z') // tombstone mantido (cloud ainda tinha)
 })
 
 test('sync: conflito na mesma tarefa vence a mais recente', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   const r = await page.evaluate(async () => {
-    const { fundirDados } = await import('/src/core/syncMerge')
-    const t = (titulo: string, editadaEm: string) => ({
-      id: 'x', titulo, tipo: 'unica', dificuldade: 'facil', concluida: false,
-      historico: [], criadaEm: '2026-01-01', editadaEm,
+    const { mergeData } = await import('/src/core/syncMerge')
+    const t = (title: string, updatedAt: string) => ({
+      id: 'x', title, type: 'unica', difficulty: 'facil', done: false,
+      history: [], createdAt: '2026-01-01', updatedAt,
     })
-    const base = { tarefas: [], diario: [], conversas: [], log: [], versao: 6 }
-    const fundida = fundirDados({ ...base, tarefas: [t('local antigo', '10:00')] }, { ...base, tarefas: [t('nuvem mais novo', '11:00')] })
-    return (fundida as { tarefas: Array<{ titulo: string }> }).tarefas[0].titulo
+    const base: any = { tasks: [], diary: [], conversations: [], log: [], version: 6 }
+    const merged = mergeData({ ...base, tasks: [t('local antigo', '10:00')] }, { ...base, tasks: [t('nuvem mais novo', '11:00')] })
+    return (merged as { tasks: Array<{ title: string }> }).tasks[0].title
   })
   expect(r).toBe('nuvem mais novo')
 })
@@ -75,62 +75,75 @@ test('sync ponta a ponta: dois dispositivos convergem sem perder criações', as
 
   const verificar = async (page: any) => page.evaluate(() => {
       const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
-      return (d.tarefas ?? []).map((t: { titulo: string }) => t.titulo).sort()
+      return (d.tasks ?? []).map((t: { title: string }) => t.title).sort()
     })
 
-  // Dispositivo A: cria 'local-a' → envia à nuvem
+  const seed = (id: string, title: string) => {
+    const hoje = new Date().toISOString()
+    localStorage.setItem(
+      'esquizomon-rpg:v1',
+      JSON.stringify({ version: 3, tasks: [{
+        id, title: titulo, type: 'unica', difficulty: 'facil', done: false,
+        tags: [], history: [], createdAt: hoje, updatedAt: hoje,
+      }], diary: [], conversations: [], log: [], character: {}, settings: {},
+      }),
+    )
+    localStorage.setItem('esquizomon-rpg:auth', JSON.stringify({ accessToken: 'tok', refreshToken: 'rt', expiresAt: 4102444800000, user: { id: 'u1', email: 'x@y.z' } }))
+  }
+
+  // Device A: creates 'local-a' → sends to cloud
   const ctxA = await browser.newContext()
   const pageA = await ctxA.newPage()
-  await pageA.addInitScript(() => {
+  await pageA.addInitScript(([id, titulo]) => {
     const hoje = new Date().toISOString()
     localStorage.setItem(
       'esquizomon-rpg:v1',
-      JSON.stringify({ versao: 6, tarefas: [{
-        id: 'a', titulo: 'local-a', tipo: 'unica', dificuldade: 'facil', concluida: false,
-        tags: [], historico: [], criadaEm: hoje, editadaEm: hoje,
-      }], diario: [], conversas: [], log: [], personagem: {}, configuracao: {},
+      JSON.stringify({ version: 3, tasks: [{
+        id, title: titulo, type: 'unica', difficulty: 'facil', done: false,
+        tags: [], history: [], createdAt: hoje, updatedAt: hoje,
+      }], diary: [], conversations: [], log: [], character: {}, settings: {},
       }),
     )
-    localStorage.setItem('esquizomon-rpg:auth', JSON.stringify({ accessToken: 'tok', refreshToken: 'rt', expiraEm: 4102444800000, usuario: { id: 'u1', email: 'x@y.z' } }))
-  })
+    localStorage.setItem('esquizomon-rpg:auth', JSON.stringify({ accessToken: 'tok', refreshToken: 'rt', expiresAt: 4102444800000, user: { id: 'u1', email: 'x@y.z' } }))
+  }, ['a', 'local-a'])
   await rotaSync(pageA)
-  await pageA.goto(base + '/#/hoje')
-  await pageA.waitForTimeout(3000) // boot: GET (vazia) → PUT
-  expect((nuvem.dados as { tarefas?: Array<{ titulo: string }> })?.tarefas?.map((t) => t.titulo).sort()).toEqual(['local-a'])
+  await pageA.goto(base + '/#/today')
+  await pageA.waitForTimeout(3000) // boot: GET (empty) → PUT
+  expect((nuvem.dados as { tasks?: Array<{ title: string }> })?.tasks?.map((t) => t.title).sort()).toEqual(['local-a'])
 
-  // Dispositivo B: cria 'local-b' → puxa a nuvem (local-a) e funde (a+b de volta à nuvem)
+  // Device B: creates 'local-b' → pulls cloud (local-a) and merges (a+b back to cloud)
   const ctxB = await browser.newContext()
   const pageB = await ctxB.newPage()
-  await pageB.addInitScript(() => {
+  await pageB.addInitScript(([id, titulo]) => {
     const hoje = new Date().toISOString()
     localStorage.setItem(
       'esquizomon-rpg:v1',
-      JSON.stringify({ versao: 6, tarefas: [{
-        id: 'b', titulo: 'local-b', tipo: 'unica', dificuldade: 'facil', concluida: false,
-        tags: [], historico: [], criadaEm: hoje, editadaEm: hoje,
-      }], diario: [], conversas: [], log: [], personagem: {}, configuracao: {},
+      JSON.stringify({ version: 3, tasks: [{
+        id, title: titulo, type: 'unica', difficulty: 'facil', done: false,
+        tags: [], history: [], createdAt: hoje, updatedAt: hoje,
+      }], diary: [], conversations: [], log: [], character: {}, settings: {},
       }),
     )
-    localStorage.setItem('esquizomon-rpg:auth', JSON.stringify({ accessToken: 'tok', refreshToken: 'rt', expiraEm: 4102444800000, usuario: { id: 'u1', email: 'x@y.z' } }))
-  })
+    localStorage.setItem('esquizomon-rpg:auth', JSON.stringify({ accessToken: 'tok', refreshToken: 'rt', expiresAt: 4102444800000, user: { id: 'u1', email: 'x@y.z' } }))
+  }, ['b', 'local-b'])
   await rotaSync(pageB)
-  await pageB.goto(base + '/#/hoje')
-  await pageB.waitForTimeout(3000) // boot: GET (local-a) → funde → aplica a+b → PUT
+  await pageB.goto(base + '/#/today')
+  await pageB.waitForTimeout(3000) // boot: GET (local-a) → merge → apply a+b → PUT
   expect(await verificar(pageB)).toEqual(['local-a', 'local-b']) // NADA se perde
-  expect((nuvem.dados as { tarefas?: Array<{ titulo: string }> })?.tarefas?.map((t) => t.titulo).sort()).toEqual(['local-a', 'local-b'])
+  expect((nuvem.dados as { tasks?: Array<{ title: string }> })?.tasks?.map((t) => t.title).sort()).toEqual(['local-a', 'local-b'])
 
-  // Um NOVO dispositivo (A2, sem dados locais) loga e recebe TUDO da nuvem
+  // A NEW device (A2, no local data) logs in and receives EVERYTHING from cloud
   const ctxA2 = await browser.newContext()
   const pageA2 = await ctxA2.newPage()
   await pageA2.addInitScript(() => {
     localStorage.setItem(
       'esquizomon-rpg:v1',
-      JSON.stringify({ versao: 6, tarefas: [], diario: [], conversas: [], log: [], personagem: {}, configuracao: {} }),
+      JSON.stringify({ version: 3, tasks: [], diary: [], conversations: [], log: [], character: {}, settings: {} }),
     )
-    localStorage.setItem('esquizomon-rpg:auth', JSON.stringify({ accessToken: 'tok', refreshToken: 'rt', expiraEm: 4102444800000, usuario: { id: 'u1', email: 'x@y.z' } }))
+    localStorage.setItem('esquizomon-rpg:auth', JSON.stringify({ accessToken: 'tok', refreshToken: 'rt', expiresAt: 4102444800000, user: { id: 'u1', email: 'x@y.z' } }))
   })
   await rotaSync(pageA2)
-  await pageA2.goto(base + '/#/hoje')
+  await pageA2.goto(base + '/#/today')
   await pageA2.waitForTimeout(3000)
   expect(await verificar(pageA2)).toEqual(['local-a', 'local-b'])
   await ctxA2.close()

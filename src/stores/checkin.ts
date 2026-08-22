@@ -1,130 +1,130 @@
-/** Domínio do ciclo diário: renovação do dia e check-in (estilo Habitica). */
+/** Daily cycle domain: day renewal and check-in (Habitica style). */
 
-import type { Tarefa } from '../core/tipos'
-import { danoDe, diaDaSemana, diaDoMes, hojeISO, REGEN_HP_POR_DIA, somarDias, xpDe } from '../core/jogo'
-import { appStore, registrarLog } from './base'
-import { aplicarDano, ganharXP } from './personagem'
-import { registrarRecompensa } from './tarefas'
-import { tocarSom } from '../ui/sons'
+import type { Task } from '../core/tipos'
+import { damageFor, dayOfWeek, dayOfMonth, todayISO, HP_REGEN_PER_DAY, addDays, xpFor } from '../core/jogo'
+import { appStore, addLog } from './base'
+import { applyDamage, gainXP } from './personagem'
+import { storeReward } from './tasks'
+import { playSound } from '../ui/audio'
 
-/** Pendências de ontem aguardando decisão do check-in (modal estilo Habitica). */
-export let checkinPendente: { data: string; ids: string[] } | null = null
+/** Yesterday's outstanding items awaiting the check-in decision (Habitica-style modal). */
+export let pendingCheckin: { date: string; ids: string[] } | null = null
 
-/** Marca o dia processado e regenera mana (fim do ciclo diário). */
-function finalizarDia(hoje: string): void {
-  const atual = appStore.get().personagem
+/** Marks the day processed and regenerates mana (end of the daily cycle). */
+function finishDay(today: string): void {
+  const current = appStore.get().character
   appStore.set({
     ...appStore.get(),
-    personagem: {
-      ...atual,
-      ultimoDia: hoje,
-      // regeneração LENTA de vida: +5% do hpMax por dia (mín. 1)
-      hp: Math.min(atual.hpMax, atual.hp + Math.max(1, Math.round(atual.hpMax * REGEN_HP_POR_DIA))),
-      mana: !atual.esgotado ? atual.manaMax : atual.mana,
+    character: {
+      ...current,
+      lastDay: today,
+      // SLOW HP regeneration: +5% of hpMax per day (min 1)
+      hp: Math.min(current.hpMax, current.hp + Math.max(1, Math.round(current.hpMax * HP_REGEN_PER_DAY))),
+      mana: !current.exhausted ? current.manaMax : current.mana,
     },
   })
 }
 
-/** Aplica o dano diário das recorrentes perdidas (não marcadas no check-in).
- *  Únicas vencidas NUNCA dão dano diário — só recorrentes. */
-function aplicarDanoDiario(ids: string[]): void {
+/** Applies daily damage from missed recurring tasks (unmarked in check-in).
+ *  Expired one-offs NEVER deal daily damage — only recurring ones. */
+function applyDailyDamage(ids: string[]): void {
   if (ids.length === 0) return
-  const dados = appStore.get()
-  if (dados.configuracao.modoRelaxado || dados.personagem.esgotado) return
-  const perdidas = ids
-    .map((id) => dados.tarefas.find((x) => x.id === id))
-    .filter((t): t is Tarefa => !!t && t.tipo === 'recorrente')
-  if (perdidas.length === 0) return
-  const danoTotal = perdidas.reduce((soma, t) => soma + danoDe(t.dificuldade), 0)
-  aplicarDano(danoTotal)
-  registrarLog('dano', `Dano diário: ${perdidas.length} recorrente(s) perdida(s) (−${danoTotal} vida)`)
+  const data = appStore.get()
+  if (data.settings.relaxedMode || data.character.exhausted) return
+  const missed = ids
+    .map((id) => data.tasks.find((x) => x.id === id))
+    .filter((t): t is Task => !!t && t.type === 'recorrente')
+  if (missed.length === 0) return
+  const totalDamage = missed.reduce((sum, t) => sum + damageFor(t.difficulty), 0)
+  applyDamage(totalDamage)
+  addLog('dano', `Dano diário: ${missed.length} recorrente(s) perdida(s) (−${totalDamage} vida)`)
 }
 
-/** Reset diário (uma vez por dia). Se há tarefas de ontem pendentes, NÃO cobra
- *  dano ainda — deixa pendente o check-in (modal estilo Habitica) para o
- *  usuário decidir quais quer marcar retroativamente. */
-export function renovarDia(): void {
-  const dados = appStore.get()
-  const hoje = hojeISO()
-  if (dados.personagem.ultimoDia === hoje) return
+/** Daily reset (once per day). If there are outstanding tasks from yesterday,
+ *  it does NOT charge damage yet — it leaves the check-in pending
+ *  (Habitica-style modal) for the user to decide which to mark retroactively. */
+export function renewDay(): void {
+  const data = appStore.get()
+  const today = todayISO()
+  if (data.character.lastDay === today) return
 
-  const ontem = somarDias(hoje, -1)
-  const diaOntem = diaDaSemana(new Date(ontem + 'T12:00:00'))
-  const diaMesOntem = diaDoMes(new Date(ontem + 'T12:00:00'))
+  const yesterday = addDays(today, -1)
+  const dayYesterday = dayOfWeek(new Date(yesterday + 'T12:00:00'))
+  const dayOfMonthYesterday = dayOfMonth(new Date(yesterday + 'T12:00:00'))
 
-  // 1. zera contador de "hoje" dos hábitos (positivos e negativos)
-  const tarefas = dados.tarefas.map((t) => {
-    if (t.tipo !== 'habito') return t
-    const contador = t.contador ?? { hoje: 0, hojeNeg: 0, totalPositivo: 0, totalNegativo: 0 }
-    const precisaReset = (contador.hoje > 0 || contador.hojeNeg > 0) && !t.historico.includes(hoje)
-    return precisaReset ? { ...t, contador: { ...contador, hoje: 0, hojeNeg: 0 } } : t
+  // 1. zeros the "today" counter of habits (positive and negative)
+  const tasks = data.tasks.map((t) => {
+    if (t.type !== 'habito') return t
+    const counter = t.counter ?? { today: 0, todayNeg: 0, totalPositive: 0, totalNegative: 0 }
+    const needsReset = (counter.today > 0 || counter.todayNeg > 0) && !t.history.includes(today)
+    return needsReset ? { ...t, counter: { ...counter, today: 0, todayNeg: 0 } } : t
   })
-  appStore.set({ ...dados, tarefas })
+  appStore.set({ ...data, tasks })
 
-  const p = appStore.get().personagem
-  const primeiraVez = p.ultimoDia === ''
+  const p = appStore.get().character
+  const firstTime = p.lastDay === ''
 
-  // 2. pendencias de ontem: recorrentes válidas não concluídas + únicas vencidas ontem
-  const pendentes = dados.tarefas.filter((t) => {
-    if (t.tipo === 'recorrente' && valeNaData(t, diaOntem, diaMesOntem) && !t.historico.includes(ontem)) return true
-    if (t.tipo === 'unica' && t.dueDate === ontem && !t.concluida) return true
+  // 2. yesterday's outstanding: valid recurring not completed + one-offs due yesterday
+  const pending = data.tasks.filter((t) => {
+    if (t.type === 'recorrente' && appliesOnDate(t, dayYesterday, dayOfMonthYesterday) && !t.history.includes(yesterday)) return true
+    if (t.type === 'unica' && t.dueDate === yesterday && !t.done) return true
     return false
   })
 
-  if (!primeiraVez && !p.esgotado && !dados.configuracao.modoRelaxado && pendentes.length > 0) {
-    // deixa o check-in decidir — sem dano por enquanto
-    checkinPendente = { data: ontem, ids: pendentes.map((t) => t.id) }
+  if (!firstTime && !p.exhausted && !data.settings.relaxedMode && pending.length > 0) {
+    // lets the check-in decide — no damage for now
+    pendingCheckin = { date: yesterday, ids: pending.map((t) => t.id) }
     return
   }
 
-  // 3. sem pendentes (ou primeira vez/relaxado): cobra dano das não feitas (nenhuma) e finaliza
-  const perdidas = pendentes.filter((t) => t.tipo === 'recorrente').map((t) => t.id)
-  if (!primeiraVez && !p.esgotado && !dados.configuracao.modoRelaxado) {
-    aplicarDanoDiario(perdidas)
+  // 3. without outstanding (or first time/relaxed): charges damage from the undone (none) and finishes
+  const missed = pending.filter((t) => t.type === 'recorrente').map((t) => t.id)
+  if (!firstTime && !p.exhausted && !data.settings.relaxedMode) {
+    applyDailyDamage(missed)
   }
-  finalizarDia(hoje)
+  finishDay(today)
 }
 
-/** Check-in: marca em ONTEM as tarefas selecionadas (XP retroativo) e aplica o
- *  dano apenas nas recorrentes que ficaram sem marcação. */
-export function concluirCheckin(idsMarcados: string[]): void {
-  const pend = checkinPendente
-  if (!pend) return
-  checkinPendente = null
-  const hoje = hojeISO()
-  const marcadosSet = new Set(idsMarcados)
+/** Check-in: marks the selected tasks in YESTERDAY (retroactive XP) and applies
+ *  damage only to the recurring ones left unmarked. */
+export function finishCheckin(markedIds: string[]): void {
+  const pending = pendingCheckin
+  if (!pending) return
+  pendingCheckin = null
+  const today = todayISO()
+  const markedSet = new Set(markedIds)
 
-  // marca as selecionadas em ONTEM
-  const tarefas = appStore.get().tarefas.map((t) => {
-    if (!marcadosSet.has(t.id)) return t
-    if (t.tipo === 'unica') {
-      return { ...t, concluida: true, historico: [...new Set([...t.historico, pend.data])] }
+  // marks the selected ones in YESTERDAY
+  const tasks = appStore.get().tasks.map((t) => {
+    if (!markedSet.has(t.id)) return t
+    if (t.type === 'unica') {
+      return { ...t, done: true, history: [...new Set([...t.history, pending.date])] }
     }
-    if (t.tipo === 'recorrente' && !t.historico.includes(pend.data)) {
-      return { ...t, historico: [...t.historico, pend.data] }
+    if (t.type === 'recorrente' && !t.history.includes(pending.date)) {
+      return { ...t, history: [...t.history, pending.date] }
     }
     return t
   })
-  appStore.set({ ...appStore.get(), tarefas })
+  appStore.set({ ...appStore.get(), tasks })
 
-  // XP retroativo das marcadas
-  for (const id of idsMarcados) {
-    const t = appStore.get().tarefas.find((x) => x.id === id)
+  // retroactive XP of the marked ones
+  for (const id of markedIds) {
+    const t = appStore.get().tasks.find((x) => x.id === id)
     if (!t) continue
-    registrarLog('tarefa', `Check-in: ${t.titulo} concluída em ${pend.data} (+${xpDe(t.dificuldade)} XP)`)
-    const antes = appStore.get().personagem
-    const novas = ganharXP(xpDe(t.dificuldade)).novasCartas
-    registrarRecompensa(t.id, pend.data, antes, novas)
+    addLog('tarefa', `Check-in: ${t.title} concluída em ${pending.date} (+${xpFor(t.difficulty)} XP)`)
+    const before = appStore.get().character
+    const added = gainXP(xpFor(t.difficulty)).newCards
+    storeReward(t.id, pending.date, before, added)
   }
-  if (idsMarcados.length > 0) tocarSom('tarefa')
+  if (markedIds.length > 0) playSound('tarefa')
 
-  // dano das recorrentes pendentes NÃO marcadas
-  const danoIds = pend.ids.filter((id) => !marcadosSet.has(id))
-  aplicarDanoDiario(danoIds)
-  finalizarDia(hoje)
+  // damage of pending recurring ones NOT marked
+  const damageIds = pending.ids.filter((id) => !markedSet.has(id))
+  applyDailyDamage(damageIds)
+  finishDay(today)
 }
 
-function valeNaData(t: Tarefa, dia: number, diaMes: number): boolean {
-  if (t.agenda?.diasDoMes && t.agenda.diasDoMes.length > 0) return t.agenda.diasDoMes.includes(diaMes)
-  return !t.agenda || t.agenda.dias.length === 0 || t.agenda.dias.includes(dia)
+function appliesOnDate(t: Task, day: number, dayOfMonth: number): boolean {
+  if (t.agenda?.daysOfMonth && t.agenda.daysOfMonth.length > 0) return t.agenda.daysOfMonth.includes(dayOfMonth)
+  return !t.agenda || t.agenda.days.length === 0 || t.agenda.days.includes(day)
 }

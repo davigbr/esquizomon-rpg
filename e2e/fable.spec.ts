@@ -20,17 +20,17 @@ async function semear(page: import('@playwright/test').Page): Promise<void> {
     ({ hoje }) => {
       if (localStorage.getItem('esquizomon-rpg:v1')) return
       const d = {
-        versao: 3,
-        tarefas: [],
-        personagem: {
+        version: 3,
+        tasks: [],
+        character: {
           nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20,
-          esgotado: false, ultimoDia: hoje,
-          cartas: ['ninho-enclausurado'], invocacoes: {},
+          exhausted: false, lastDay: hoje,
+          cartas: ['ninho-enclausurado'], invocations: {},
         },
-        configuracao: { tema: 'dark' },
+        settings: { tema: 'dark' },
         log: [],
-        conversas: [],
-        diario: [],
+        conversations: [],
+        diary: [],
       }
       localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
     },
@@ -40,13 +40,13 @@ async function semear(page: import('@playwright/test').Page): Promise<void> {
 
 test('config: efeitos sonoros têm toggle persistente (padrão ligado)', async ({ page }) => {
   await semear(page)
-  await page.goto('/#/config')
+  await page.goto('/#/settings')
   const sel = page.locator('[data-sons]')
   await expect(sel).toHaveValue('on') // padrão ligado
   await sel.selectOption('off')
   await expect
     .poll(() =>
-      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.configuracao?.sons ?? null)),
+      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.settings?.sound ?? null)),
     )
     .toBe(false)
   await page.reload()
@@ -54,20 +54,20 @@ test('config: efeitos sonoros têm toggle persistente (padrão ligado)', async (
 })
 
 test('config: tema tem opção "sistema" como padrão e persiste a escolha', async ({ page }) => {
-  await page.goto('/#/config') // sem seed: instalação nova
+  await page.goto('/#/settings') // sem seed: instalação nova
   const sel = page.locator('[data-tema]')
   await expect(sel).toHaveValue('sistema') // padrão = segue o SO
   await sel.selectOption('dark')
   await expect.poll(() =>
-    page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.configuracao?.tema ?? null)),
+    page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.settings?.theme ?? null)),
   ).toBe('dark')
   await expect(page.evaluate(() => document.documentElement.dataset.theme)).resolves.toBe('dark')
 })
 
 test('config: avatar — upload, corte quadrado, compressão e exibição ao lado do nível', async ({ page }) => {
   await semear(page)
-  await page.goto('/#/config')
-  await page.locator('[data-avatar-escolher]').click()
+  await page.goto('/#/settings')
+  await page.locator('[data-avatar-choose]').click()
   await page.locator('[data-avatar-arquivo]').setInputFiles({
     name: 'avatar.png',
     mimeType: 'image/png',
@@ -78,47 +78,47 @@ test('config: avatar — upload, corte quadrado, compressão e exibição ao lad
   })
   // modal de corte abre; salva
   await expect(page.locator('[data-avatar-janela]')).toBeVisible()
-  await page.locator('[data-avatar-salvar]').click()
+  await page.locator('[data-avatar-save]').click()
   // avatar persistido como JPEG comprimido
   await expect
     .poll(() =>
-      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.personagem?.avatar ?? '').startsWith('data:image/jpeg')),
+      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.character?.avatar ?? '').startsWith('data:image/jpeg')),
     )
     .toBe(true)
   // status bar: avatar à esquerda do nível
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   const avatar = await page.locator('.status-avatar').boundingBox()
   const nivel = await page.locator('.status-item--nivel').boundingBox()
   expect(avatar).not.toBeNull()
   expect(nivel).not.toBeNull()
   expect(avatar!.x).toBeLessThan(nivel!.x)
   // remover com confirmação
-  await page.goto('/#/config')
-  await page.locator('[data-avatar-remover]').click()
-  await page.locator('[data-modal-confirmar]').click()
+  await page.goto('/#/settings')
+  await page.locator('[data-avatar-remove]').click()
+  await page.locator('[data-modal-confirm]').click()
   await expect
-    .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.personagem?.avatar ?? null))
+    .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.character?.avatar ?? null))
     .toBe(null)
 })
 
 test('config: nome monstruoso salva e aparece em negrito ao lado do avatar', async ({ page }) => {
   await semearChat(page)
-  await page.goto('/#/config')
-  await page.locator('[data-nome-monstruoso]').fill('Devorador de Segundas')
-  await page.locator('[data-nome-monstruoso]').blur()
+  await page.goto('/#/settings')
+  await page.locator('[data-monster-name]').fill('Devorador de Segundas')
+  await page.locator('[data-monster-name]').blur()
   await expect.poll(() =>
-    page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.personagem?.nomeMonstruoso ?? null),
+    page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.character?.monsterName ?? null),
   ).toBe('Devorador de Segundas')
 
   // status bar: nome bold à direita do avatar
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.evaluate(() => {
     const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
-    d.personagem.avatar = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    d.character.avatar = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
     localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
   })
   await page.reload()
-  const nome = page.locator('.status-nome')
+  const nome = page.locator('.status-name')
   await expect(nome).toHaveText('Devorador de Segundas')
   await expect(nome).toHaveCSS('font-weight', '700')
   const boxNome = await nome.boundingBox()
@@ -134,21 +134,21 @@ test('config: nome monstruoso salva e aparece em negrito ao lado do avatar', asy
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-input]').fill('Fala comigo')
   await page.locator('[data-fabula-input]').press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toContainText('Fala, monstro.')
+  await expect(page.locator('.fable-bubble--assistant')).toContainText('Fala, monstro.')
   const corpo = JSON.parse(corpos[corpos.length - 1]) as { messages: { role: string; content: string }[] }
   expect(corpo.messages[0].content).toContain('NOME MONSTRUOSO: Devorador de Segundas')
 })
 
 test('config: "Sobre você" salva o resumo e persiste no reload', async ({ page }) => {
-  await page.goto('/#/config')
-  const campo = page.locator('[data-resumo]')
-  await expect(campo).toBeVisible()
-  await campo.fill('Mestrando em psicologia, atendo, escrevo, treino calistenia.')
-  await campo.blur()
+  await page.goto('/#/settings')
+  const field = page.locator('[data-resumo]')
+  await expect(field).toBeVisible()
+  await field.fill('Mestrando em psicologia, atendo, escrevo, treino calistenia.')
+  await field.blur()
 
   await expect
     .poll(() =>
-      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.configuracao?.resumo ?? '')),
+      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.settings?.summary ?? '')),
     )
     .toBe('Mestrando em psicologia, atendo, escrevo, treino calistenia.')
 
@@ -158,18 +158,18 @@ test('config: "Sobre você" salva o resumo e persiste no reload', async ({ page 
 
 test('fabula: prompt injeta {resumo}, cartas desbloqueadas e o protocolo de invocação', async ({ page }) => {
   await semear(page)
-  await page.goto('/#/config')
+  await page.goto('/#/settings')
   await page.locator('[data-resumo]').fill('Vivo com a Aline e duas gatas.')
   await page.locator('[data-resumo]').blur()
-  await page.goto('/#/diario')
-  await page.locator('[data-diario-novo]').click()
-  await page.locator('[data-diario-editor]').fill('Hoje lembrei do Ninho Enclausurado.')
+  await page.goto('/#/diary')
+  await page.locator('[data-dayry-new]').click()
+  await page.locator('[data-dayry-editor]').fill('Hoje lembrei do Ninho Enclausurado.')
   await page.keyboard.press('Tab')
 
   const prompt = await page.evaluate(async () => {
-    const { montarSystemPrompt } = await import('/src/ia/prompt')
+    const { buildSystemPrompt } = await import('/src/ia/prompt')
     const { appStore } = await import('/src/stores/app')
-    return montarSystemPrompt(appStore.get())
+    return buildSystemPrompt(appStore.get())
   })
   expect(prompt).toContain('Rizomante')
   expect(prompt).toContain('Vivo com a Aline e duas gatas.')
@@ -181,61 +181,61 @@ test('fabula: prompt injeta {resumo}, cartas desbloqueadas e o protocolo de invo
 })
 
 test('fabula: marcador [[acao:invocar]] é extraído e removido do texto', async ({ page }) => {
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   const res = await page.evaluate(async () => {
-    const { extrairAcoes } = await import('/src/ia/acoes')
-    return extrairAcoes(
+    const { extractActions } = await import('/src/ia/acoes')
+    return extractActions(
       'A carta chega como um alívio.\n[[acao:{"tipo":"invocar","carta":"ninho-enclausurado"}]]',
     )
   })
-  expect(res.texto).toBe('A carta chega como um alívio.')
-  expect(res.acoes).toHaveLength(1)
-  expect(res.acoes[0]).toEqual({ tipo: 'invocar', carta: 'ninho-enclausurado' })
+  expect(res.text).toBe('A carta chega como um alívio.')
+  expect(res.actions).toHaveLength(1)
+  expect(res.actions[0]).toEqual({ type: 'invocar', card: 'ninho-enclausurado' })
 
   // marcador malformado é removido sem executar
   const invalido = await page.evaluate(async () => {
-    const { extrairAcoes } = await import('/src/ia/acoes')
-    return extrairAcoes('texto [[acao:{{quebrado]] resto')
+    const { extractActions } = await import('/src/ia/acoes')
+    return extractActions('texto [[acao:{{quebrado]] resto')
   })
-  expect(invalido.acoes).toHaveLength(0)
-  expect(invalido.texto).toBe('texto  resto')
+  expect(invalido.actions).toHaveLength(0)
+  expect(invalido.text).toBe('texto  resto')
 })
 
 test('fabula: as últimas entradas do diário entram NA ÍNTEGRA no prompt (sem truncar)', async ({ page }) => {
   await semear(page)
-  await page.goto('/#/diario')
-  await page.locator('[data-diario-novo]').click()
+  await page.goto('/#/diary')
+  await page.locator('[data-dayry-new]').click()
 
   // entrada longa (bem acima do antigo corte de 600 chars)
   const longo = 'A'.repeat(800) + ' FIM-DO-REGISTRO-INTEGRO'
-  await page.locator('[data-diario-editor]').fill(longo)
+  await page.locator('[data-dayry-editor]').fill(longo)
   await page.keyboard.press('Tab')
 
   await expect
     .poll(() =>
-      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.diario?.[0]?.texto ?? '')),
+      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.diary?.[0]?.text ?? '')),
     )
     .toBe(longo)
 
   const prompt = await page.evaluate(async () => {
-    const { montarSystemPrompt } = await import('/src/ia/prompt')
+    const { buildSystemPrompt } = await import('/src/ia/prompt')
     const { appStore } = await import('/src/stores/app')
-    return montarSystemPrompt(appStore.get())
+    return buildSystemPrompt(appStore.get())
   })
   expect(prompt).toContain('FIM-DO-REGISTRO-INTEGRO')
   expect(prompt).toContain('SOBRE O ESQUIZOMON')
   expect(prompt).toContain('O QUE VOCÊ PODE E DEVE FAZER')
 })
 
-test('fabula: invocarCarta (via chat) desconta mana e registra', async ({ page }) => {
+test('fabula: invokeCard (via chat) desconta mana e registra', async ({ page }) => {
   await semear(page)
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 20/20')
 
   const res = await page.evaluate(async () => {
-    const { invocarCarta } = await import('/src/stores/app')
-    const ok = invocarCarta('ninho-enclausurado') // captura → custo 8
-    const mana = (await import('/src/stores/app')).appStore.get().personagem.mana
+    const { invokeCard } = await import('/src/stores/app')
+    const ok = invokeCard('ninho-enclausurado') // captura → custo 8
+    const mana = (await import('/src/stores/app')).appStore.get().character.mana
     return { ok: ok.ok, mana }
   })
   expect(res.ok).toBe(true)
@@ -244,8 +244,8 @@ test('fabula: invocarCarta (via chat) desconta mana e registra', async ({ page }
   // sem mana → recusa
   const semMana = await page.evaluate(async () => {
     const mod = await import('/src/stores/app')
-    mod.appStore.set({ ...mod.appStore.get(), personagem: { ...mod.appStore.get().personagem, mana: 1 } })
-    return mod.invocarCarta('ninho-enclausurado')
+    mod.appStore.set({ ...mod.appStore.get(), character: { ...mod.appStore.get().character, mana: 1 } })
+    return mod.invokeCard('ninho-enclausurado')
   })
   expect(semMana.ok).toBe(false)
 })
@@ -258,20 +258,20 @@ async function semearChat(page: import('@playwright/test').Page): Promise<void> 
     ({ hoje }) => {
       if (localStorage.getItem('esquizomon-rpg:v1')) return
       const d = {
-        versao: 3,
-        tarefas: [],
-        personagem: {
+        version: 3,
+        tasks: [],
+        character: {
           nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20,
-          esgotado: false, ultimoDia: hoje,
-          cartas: ['ninho-enclausurado'], invocacoes: {},
+          exhausted: false, lastDay: hoje,
+          cartas: ['ninho-enclausurado'], invocations: {},
         },
-        configuracao: {
+        settings: {
           tema: 'dark',
-          ia: { provider: 'deepseek', modelo: '', apiKey: 'chave-fake', systemPrompt: '' },
+          ai: { provider: 'deepseek', model: '', apiKey: 'chave-fake', systemPrompt: '' },
         },
         log: [],
-        conversas: [],
-        diario: [],
+        conversations: [],
+        diary: [],
       }
       localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
     },
@@ -292,17 +292,17 @@ test('fabula: o histórico completo vai pra IA (mensagens anteriores + a atual)'
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('Resposta da Fábula') })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click() // cria a conversa (input desabilita sem ela)
   const input = page.locator('[data-fabula-input]')
   await input.fill('primeira mensagem')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   await input.fill('segunda mensagem')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(2)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(2)
 
   // o segundo request traz TUDO: user1, resposta1 E a mensagem atual no fim
   const corpo = JSON.parse(corpos[corpos.length - 1])
@@ -320,16 +320,16 @@ test('fabula: "invoca a carta X" executa no app, desconta mana e mostra a miniat
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('A carta chega.') })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click() // cria a conversa
   await page.locator('[data-fabula-input]').fill('invoca a carta Ninho Enclausurado')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   // mana descontou (20 → 12, captura custa 8) e a bolha exibe a miniatura da carta
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 12/20')
-  const img = page.locator('.fabula-bolha--assistente img.fabula-carta')
+  const img = page.locator('.fable-bubble--assistant img.fable-card')
   await expect(img).toBeVisible()
   await expect(img).toHaveAttribute('src', '/images/cards/ninho-enclausurado.png')
 
@@ -344,7 +344,7 @@ test('fabula: "invoca a carta X" executa no app, desconta mana e mostra a miniat
   // carta BLOQUEADA → mana intacta e nota de bloqueio
   await page.locator('[data-fabula-input]').fill('invoca a carta Internato de Ferro')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(2)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(2)
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 12/20')
   const corpo2 = JSON.parse(corpos[corpos.length - 1])
   const sistema2 = corpo2.messages
@@ -353,22 +353,22 @@ test('fabula: "invoca a carta X" executa no app, desconta mana e mostra a miniat
     .join('\n')
   expect(sistema2).toContain('BLOQUEADA')
   // sem miniatura na segunda bolha (carta não foi invocada)
-  await expect(page.locator('.fabula-bolha--assistente img.fabula-carta')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant img.fable-card')).toHaveCount(1)
 })
 
 test('fabula: cada mensagem tem botão copiar (markdown; carta vira nome)', async ({ page, context }) => {
   await semear(page)
   await page.addInitScript(() => {
-    localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ aberto: false, conversaAtivaId: 'conv-copia' }))
+    localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ open: false, activeConversationId: 'conv-copia' }))
   })
   await page.addInitScript(() => {
     const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
-    d.conversas = [
+    d.conversations = [
       {
         id: 'conv-copia',
-        titulo: 'Sobre o dia',
+        title: 'Sobre o dia',
         atualizadaEm: '2026-08-12T14:00:00.000Z',
-        mensagens: [
+        messages: [
           { role: 'user', content: 'primeira mensagem', ts: '2026-08-12T14:00:00.000Z' },
           {
             role: 'assistant',
@@ -394,21 +394,21 @@ test('fabula: cada mensagem tem botão copiar (markdown; carta vira nome)', asyn
     }
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   // o botão de copiar é POR MENSAGEM (cabeçalho não tem mais)
   await expect(page.locator('[data-fabula-copiar]')).toHaveCount(0)
   await expect(page.locator('[data-fabula-copiar-msg]')).toHaveCount(2)
 
   // copia a mensagem da Fábula: o marcador vira o nome da carta em itálico
-  await page.locator('.fabula-bolha--assistente [data-fabula-copiar-msg]').click()
+  await page.locator('.fable-bubble--assistant [data-fabula-copiar-msg]').click()
   const fabula = await page.evaluate(() => (window as unknown as { __ultimoCopiado?: string }).__ultimoCopiado ?? '')
   expect(fabula).toBe('A carta chega como um alívio.\n*Ninho Enclausurado*')
 
   // copia a mensagem do usuário: texto cru
-  await page.locator('.fabula-bolha--usuario [data-fabula-copiar-msg]').click()
+  await page.locator('.fable-bubble--user [data-fabula-copiar-msg]').click()
   const voce = await page.evaluate(() => (window as unknown as { __ultimoCopiado?: string }).__ultimoCopiado ?? '')
   expect(voce).toBe('primeira mensagem')
 
@@ -420,22 +420,22 @@ test('fabula: cada mensagem tem botão copiar (markdown; carta vira nome)', asyn
 test('fabula: conversa pode ser renomeada (Enter salva e persiste)', async ({ page }) => {
   await semear(page)
   await page.addInitScript(() => {
-    localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ aberto: false, conversaAtivaId: 'conv-renome' }))
+    localStorage.setItem('esquizomon-rpg:chat-painel', JSON.stringify({ open: false, activeConversationId: 'conv-renome' }))
   })
   await page.addInitScript(() => {
     const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
-    d.conversas = [
+    d.conversations = [
       {
         id: 'conv-renome',
-        titulo: 'Título automático da primeira mensagem',
+        title: 'Título automático da primeira mensagem',
         atualizadaEm: '2026-08-12T14:00:00.000Z',
-        mensagens: [{ role: 'user', content: 'olá', ts: '2026-08-12T14:00:00.000Z' }],
+        messages: [{ role: 'user', content: 'olá', ts: '2026-08-12T14:00:00.000Z' }],
       },
     ]
     localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.click('[data-fabula-renomear]')
 
@@ -446,11 +446,11 @@ test('fabula: conversa pode ser renomeada (Enter salva e persiste)', async ({ pa
 
   // o input some, a lista lateral mostra o título novo e o storage persiste
   await expect(input).toHaveCount(0)
-  await expect(page.locator('.fabula-item--ativa .fabula-item-titulo')).toHaveText('Sobre os monstros de agosto')
+  await expect(page.locator('.fable-item--active .fable-item-title')).toHaveText('Sobre os monstros de agosto')
   await expect
     .poll(() =>
       page.evaluate(() =>
-        (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.conversas?.[0]?.titulo ?? '')),
+        (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.conversations?.[0]?.title ?? '')),
     )
     .toBe('Sobre os monstros de agosto')
 })
@@ -465,17 +465,17 @@ test('fabula: mencionar uma carta NÃO invoca (mana intacta; marcador do modelo 
     })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('essa carta Ninho Enclausurado me visitou no diário')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   // menção ≠ pedido: mana intacta, sem miniatura, marcador ignorado com aviso
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 20/20')
-  await expect(page.locator('.fabula-bolha--assistente img.fabula-carta')).toHaveCount(0)
-  await expect(page.locator('.fabula-bolha--assistente')).toContainText('só por pedido explícito')
+  await expect(page.locator('.fable-bubble--assistant img.fable-card')).toHaveCount(0)
+  await expect(page.locator('.fable-bubble--assistant')).toContainText('só por pedido explícito')
 })
 
 test('fabula: /invocar com autocomplete escolhe a carta e invoca (mana normal)', async ({ page }) => {
@@ -484,34 +484,34 @@ test('fabula: /invocar com autocomplete escolhe a carta e invoca (mana normal)',
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('A carta chega.') })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   const input = page.locator('[data-fabula-input]')
 
   // "/" abre os comandos (invocar, analisar, capturas); Enter completa "/invocar "
   await input.fill('/')
-  await expect(page.locator('.fabula-sugestao')).toHaveCount(3)
+  await expect(page.locator('.fable-suggestion')).toHaveCount(3)
   await page.keyboard.press('Enter')
   await expect(input).toHaveValue('/invocar ')
 
   // "ninho" filtra as cartas desbloqueadas; Enter completa o nome
   await input.fill('/invocar ninho')
-  await expect(page.locator('.fabula-sugestao').first()).toBeVisible()
+  await expect(page.locator('.fable-suggestion').first()).toBeVisible()
   await page.keyboard.press('Enter')
   await expect(input).toHaveValue('/invocar Ninho Enclausurado')
 
   // Enter com dropdown fechado ENVIA
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   // captura custa 8 → 20−8 = 12; o texto CRU do comando fica no histórico
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 12/20')
-  await expect(page.locator('.fabula-bolha--assistente img.fabula-carta')).toBeVisible()
+  await expect(page.locator('.fable-bubble--assistant img.fable-card')).toBeVisible()
   const corpo = await page.evaluate(async () => {
     const { appStore } = await import('/src/stores/app')
-    const c = appStore.get().conversas?.[0]
-    return c?.mensagens?.[0]?.content ?? ''
+    const c = appStore.get().conversations?.[0]
+    return c?.messages?.[0]?.content ?? ''
   })
   expect(corpo).toBe('/invocar Ninho Enclausurado')
 })
@@ -528,17 +528,17 @@ test('fabula: /invocar sem nome — a Fábula escolhe a carta (custo premium ×1
     })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('/invocar')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   // captura premium: 8 × 1,5 = 12 → 20−12 = 8; nota de escolha + miniatura
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 8/20')
-  await expect(page.locator('.fabula-bolha--assistente')).toContainText('escolhida pela Fábula')
-  await expect(page.locator('.fabula-bolha--assistente img.fabula-carta')).toBeVisible()
+  await expect(page.locator('.fable-bubble--assistant')).toContainText('escolhida pela Fábula')
+  await expect(page.locator('.fable-bubble--assistant img.fable-card')).toBeVisible()
   const corpo = JSON.parse(corpos[corpos.length - 1])
   const sistema = corpo.messages
     .filter((m: { role: string }) => m.role === 'system')
@@ -555,12 +555,12 @@ test('fabula: /analisar desconta 10 de mana e pede análise esquizoanalítica', 
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('Sua máquina do mês...') })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('/analisar')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 10/20')
   const corpo = JSON.parse(corpos[corpos.length - 1])
@@ -576,7 +576,7 @@ test('fabula: /analisar desconta 10 de mana e pede análise esquizoanalítica', 
 
 test('hábito: marcar no dia anterior (ontem) marca retroativo e dá XP', async ({ page }) => {
   await semear(page)
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   // adiciona um hábito positivo ao estado
   await page.evaluate(async () => {
     const mod = await import('/src/stores/app')
@@ -584,32 +584,32 @@ test('hábito: marcar no dia anterior (ontem) marca retroativo e dá XP', async 
     const d = mod.appStore.get()
     mod.appStore.set({
       ...d,
-      tarefas: [{
-        id: 'h1', titulo: 'Ler', tipo: 'habito', dificuldade: 'facil', sinal: 'positivo', notas: '',
-        historico: [], contador: { hoje: 0, hojeNeg: 0, totalPositivo: 0, totalNegativo: 0 },
-        tags: [], criadaEm: agora, editadaEm: agora, recompensas: {},
+      tasks: [{
+        id: 'h1', title: 'Ler', type: 'habito', difficulty: 'facil', sinal: 'positivo', notas: '',
+        history: [], contador: { hoje: 0, hojeNeg: 0, totalPositivo: 0, totalNegativo: 0 },
+        tags: [], createdAt: agora, updatedAt: agora, recompensas: {},
       }],
     })
   })
   // navega para ONTEM
-  await page.locator('[data-dia-anterior]').click()
-  const xp0 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
+  await page.locator('[data-prev-day]').click()
+  const xp0 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').character.xp)
   // o botão positivo está habilitado em ontem (retroativo)
-  await expect(page.locator('[data-habito="positivo"]')).toBeEnabled()
-  await page.locator('[data-habito="positivo"]').click()
+  await expect(page.locator('[data-habit="positivo"]')).toBeEnabled()
+  await page.locator('[data-habit="positivo"]').click()
   await expect(page.locator('.toast').last()).toContainText('Repetição registrada')
-  const xp1 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
+  const xp1 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').character.xp)
   expect(xp1).toBe(xp0 + 10) // hábito fácil = +10 XP
-  // streak do dia visível = 1 (marcado retroativa/ontem)
-  await expect(page.locator('.habito-card')).toContainText('seq 1')
+  // streak do dia visível = 1 (marked retroativa/ontem)
+  await expect(page.locator('.habit-card')).toContainText('seq 1')
   // clicar de novo (dedup em dia passado) NÃO dá XP de novo
-  const xpAntesDedup = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
-  await page.locator('[data-habito="positivo"]').click()
-  const xpDepoisDedup = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
+  const xpAntesDedup = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').character.xp)
+  await page.locator('[data-habit="positivo"]').click()
+  const xpDepoisDedup = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').character.xp)
   expect(xpDepoisDedup).toBe(xpAntesDedup)
   // antes de ontem: botão desabilitado
-  await page.locator('[data-dia-anterior]').click() // agora em "anteontem"
-  await expect(page.locator('[data-habito="positivo"]')).toBeDisabled()
+  await page.locator('[data-prev-day]').click() // agora em "anteontem"
+  await expect(page.locator('[data-habit="positivo"]')).toBeDisabled()
 })
 
 test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async ({ page }) => {
@@ -620,14 +620,14 @@ test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async 
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('Que conexão linda...') })
   })
   const hoje = dataLocal()
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.evaluate(
     async (h: string) => {
       const mod = await import('/src/stores/app')
       const d = mod.appStore.get()
       mod.appStore.set({
         ...d,
-        diario: [{ id: 'm1', data: h, titulo: 'teste', texto: 'Hoje fui cercado pelo Ninho Enclausurado.' }],
+        diary: [{ id: 'm1', date: h, title: 'teste', text: 'Hoje fui cercado pelo Ninho Enclausurado.' }],
       })
     },
     hoje,
@@ -636,8 +636,8 @@ test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async 
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('oi')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
-  const xp1 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
+  const xp1 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').character.xp)
   expect(xp1).toBeGreaterThanOrEqual(10)
 
   // a Fábula foi avisada (nota de sistema) com o nome + o XP
@@ -652,8 +652,8 @@ test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async 
   // 2ª interação: não dá XP de novo (record diarioXp)
   await page.locator('[data-fabula-input]').fill('oi de novo')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(2)
-  const xp2 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').personagem.xp)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(2)
+  const xp2 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').character.xp)
   expect(xp2).toBe(xp1)
 })
 
@@ -662,25 +662,25 @@ test('fabula: /capturas desconta 25 de mana e pede a varredura das capturas', as
   const corpos: string[] = []
   await page.route('**/api/ia', (rota) => {
     corpos.push(rota.request().postData() ?? '')
-    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('A Câmara dos Ecos está ativa...') })
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('A Câmara dos Ecos está active...') })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   // o seed traz mana 20/max 20 — o /capturas custa 25; subir no STORE (o app
   // normaliza o storage no boot e o addInitScript extra não sobrevive)
   await page.evaluate(async () => {
     const mod = await import('/src/stores/app')
-    const p = mod.appStore.get().personagem
-    mod.appStore.set({ ...mod.appStore.get(), personagem: { ...p, mana: 40, manaMax: 40 } })
+    const p = mod.appStore.get().character
+    mod.appStore.set({ ...mod.appStore.get(), character: { ...p, mana: 40, manaMax: 40 } })
   })
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('/capturas')
   await page.locator('[data-fabula-form]').press('Enter')
   // o desconto acontece com a RESPOSTA (não antes) — bolha primeiro, toast depois
-  await expect(page.locator('.fabula-bolha--assistente')).toContainText('Câmara')
+  await expect(page.locator('.fable-bubble--assistant')).toContainText('Câmara')
   await expect(page.locator('.toast').last()).toContainText('25')
-  const mana = await page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}') as { personagem: { mana: number } }).personagem.mana)
+  const mana = await page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}') as { character: { mana: number } }).character.mana)
   expect(mana).toBe(15) // 40 − 25
   const corpo = JSON.parse(corpos[corpos.length - 1])
   const sistema = corpo.messages
@@ -702,17 +702,17 @@ test('fabula: /capturas sem mana — a Fábula explica no chat (mana intacta)', 
   // mana baixa: 10 < 25
   await page.addInitScript(() => {
     const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
-    d.personagem.mana = 10
+    d.character.mana = 10
     localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('/capturas')
   await page.locator('[data-fabula-form]').press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toContainText('forças')
-  const mana = await page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}') as { personagem: { mana: number } }).personagem.mana)
+  await expect(page.locator('.fable-bubble--assistant')).toContainText('forças')
+  const mana = await page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}') as { character: { mana: number } }).character.mana)
   expect(mana).toBe(10) // intacta
 })
 
@@ -726,16 +726,16 @@ test('fabula: /analisar sem mana — a Fábula explica no chat (mana intacta)', 
   // mana baixa: 5 < 10
   await page.addInitScript(() => {
     const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
-    d.personagem.mana = 5
+    d.character.mana = 5
     localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(d))
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('/analisar')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
   // mana NÃO descontou e a Fábula foi avisada pra recusar com delicadeza
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 5/20')
@@ -753,14 +753,14 @@ test('fabula: resposta vazia do modelo vira erro visível (sem bolha vazia)', as
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: 'data: [DONE]\n' })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('olá')
   await page.keyboard.press('Enter')
 
   // nenhuma bolha do assistente é salva; toast de erro aparece
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(0)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(0)
   await expect(page.locator('.toast').last()).toContainText('não respondeu nada')
 })
 
@@ -772,14 +772,14 @@ test('fabula: resposta em markdown renderiza negrito, lista, tabela e itálico n
     void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake(markdown) })
   })
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
   await page.locator('[data-fabula-nova]').click()
   await page.locator('[data-fabula-input]').fill('escreva markdown')
   await page.keyboard.press('Enter')
-  await expect(page.locator('.fabula-bolha--assistente')).toHaveCount(1)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
 
-  const bolha = page.locator('.fabula-bolha--assistente')
+  const bolha = page.locator('.fable-bubble--assistant')
   await expect(bolha.locator('strong')).toHaveText('Negrito')
   await expect(bolha.locator('em')).toHaveText('itálico')
   await expect(bolha.locator('ul li')).toHaveCount(2)
@@ -787,7 +787,7 @@ test('fabula: resposta em markdown renderiza negrito, lista, tabela e itálico n
   await expect(bolha.locator('table td').first()).toHaveText('Ninho')
   // miniatura CLICÁVEL → abre o mesmo modal da galeria
   const mini = bolha.locator('[data-fabula-carta]')
-  await expect(mini.locator('img.fabula-carta')).toBeVisible()
+  await expect(mini.locator('img.fable-card')).toBeVisible()
   await mini.click()
   await expect(page.locator('#modal')).toBeVisible()
   await expect(page.locator('#modal')).toContainText('Ninho Enclausurado')
@@ -797,18 +797,18 @@ test('fabula: resposta em markdown renderiza negrito, lista, tabela e itálico n
 })
 
 test('fabula: sem conversas — o chat inicia uma automaticamente ao abrir', async ({ page }) => {
-  await semear(page) // conversas: []
+  await semear(page) // conversations: []
 
-  await page.goto('/#/hoje')
+  await page.goto('/#/today')
   await page.click('#fabula-toggle')
 
   // uma conversa foi criada, com o título padrão de DATA/HORA, e o input habilitado
-  await expect(page.locator('.fabula-item')).toHaveCount(1)
-  await expect(page.locator('.fabula-item--ativa .fabula-item-titulo')).toContainText(/^\d{2}\/\d{2}/)
+  await expect(page.locator('.fable-item')).toHaveCount(1)
+  await expect(page.locator('.fable-item--active .fable-item-title')).toContainText(/^\d{2}\/\d{2}/)
   await expect(page.locator('[data-fabula-input]')).toBeEnabled()
   await expect
     .poll(() =>
-      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.conversas?.length ?? 0)),
+      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.conversations?.length ?? 0)),
     )
     .toBe(1)
   await expect(page.locator('.toast').last()).toContainText('comecei uma nova')
@@ -816,15 +816,15 @@ test('fabula: sem conversas — o chat inicia uma automaticamente ao abrir', asy
 
 test('config: rerolar baralho pede confirmação e mantém o total de cartas', async ({ page }) => {
   await semear(page)
-  await page.goto('/#/config')
-  const antes = await page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.personagem?.cartas?.length ?? 0))
+  await page.goto('/#/settings')
+  const antes = await page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.character?.cards?.length ?? 0))
   expect(antes).toBeGreaterThan(0)
-  await page.locator('[data-rerolar-cartas]').click()
+  await page.locator('[data-reshuffle-cards]').click()
   // o modal de confirmação (operação destrutiva) abre
-  await expect(page.locator('[data-modal-confirmar]')).toBeVisible()
-  await page.locator('[data-modal-confirmar]').click()
+  await expect(page.locator('[data-modal-confirm]')).toBeVisible()
+  await page.locator('[data-modal-confirm]').click()
   // após o reroll, o mesmo total de cartas é preservado
   await expect
-    .poll(() => page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.personagem?.cartas?.length ?? 0)))
+    .poll(() => page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.character?.cards?.length ?? 0)))
     .toBe(antes)
 })

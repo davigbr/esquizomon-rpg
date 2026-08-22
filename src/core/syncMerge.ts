@@ -1,31 +1,31 @@
 /**
- * Merge por entidade (2026-08-17) — caminho "E" da sincronização.
+ * Per-entity merge (2026-08-17) — path "E" of the sync.
  *
- * Substitui o last-write-wins global por um merge não-destrutivo:
- * - Coleções (tarefas, diário, conversas) fazem LWW por ITEM (id/data): um item
- *   criado em só um dos lados SEMPRE entra; na mesma entidade, vence a versão
- *   mais nova (editadaEm ?? criadaEm). Empate fica com o lado "base".
- * - O merge é COMUTATIVO nas coleções (fundir(A,B) == fundir(B,A)) — a ordem
- *   só decide o personagem/configuração (objetos não-granulares).
- * - Nada de sobrescrita global: itens de lados distintos nunca se perdem.
+ * Replaces the global last-write-wins with a non-destructive merge:
+ * - Collections (tasks, diary, conversations) do LWW per ITEM (id/date): an item
+ *   created on only one side ALWAYS enters; for the same entity, the newest
+ *   version wins (updatedAt ?? createdAt). Ties go to the "base" side.
+ * - The merge is COMMUTATIVE on collections (merge(A,B) == merge(B,A)) — the
+ *   order only decides character/settings (non-granular objects).
+ * - No global overwrite: items from distinct sides never get lost.
  */
-import type { AppData, Tarefa, EntradaDiario, Conversa, LogEvento } from './tipos'
+import type { AppData, Task, DiaryEntry, Conversation, LogEvent } from './tipos'
 
-const tsDe = (x: { editadaEm?: string; criadaEm?: string }): string => x.editadaEm ?? x.criadaEm ?? ''
+const tsOf = (x: { updatedAt?: string; createdAt?: string }): string => x.updatedAt ?? x.createdAt ?? ''
 
-interface Chaveada {
+interface Keyed {
   id?: string
-  data?: string
+  date?: string
 }
 
-function fundirPorChave<T extends Chaveada>(a: T[], b: T[], chaveDe: (x: T) => string, ts: (x: T) => string): T[] {
+function mergeByKey<T extends Keyed>(a: T[], b: T[], keyOf: (x: T) => string, ts: (x: T) => string): T[] {
   const m = new Map<string, T>()
   const add = (it: T) => {
-    const k = chaveDe(it)
+    const k = keyOf(it)
     if (!k) return
     const ex = m.get(k)
     if (!ex) return void m.set(k, it)
-    if (ts(ex) >= ts(it)) return // empate → o primeiro (base) vence
+    if (ts(ex) >= ts(it)) return // tie → the first (base) wins
     m.set(k, it)
   }
   for (const it of a) add(it)
@@ -33,43 +33,43 @@ function fundirPorChave<T extends Chaveada>(a: T[], b: T[], chaveDe: (x: T) => s
   return [...m.values()]
 }
 
-function fundirLog(a: LogEvento[], b: LogEvento[]): LogEvento[] {
-  const m = new Map<string, LogEvento>()
-  // b primeiro para b vencer idênticos; dedup por id
+function mergeLog(a: LogEvent[], b: LogEvent[]): LogEvent[] {
+  const m = new Map<string, LogEvent>()
+  // b first so b wins identical; dedup by id
   for (const it of [...b, ...a]) if (it.id) m.set(it.id, it)
   return [...m.values()].sort((x, y) => (y.ts < x.ts ? -1 : y.ts > x.ts ? 1 : 0))
 }
 
 /**
- * Funde `local` e `nuvem`. O primeiro argumento é a "BASE" (personagem,
- * configuração e o desempate). As coleções sempre mesclam de forma comutativa.
+ * Merges `local` and `cloud`. The first argument is the "BASE" (character,
+ * settings and the tie-break). Collections always merge commutatively.
  */
-export function fundirDados(local: AppData, nuvem: AppData): AppData {
-  const tarefas = fundirPorChave<Tarefa>(local.tarefas, nuvem.tarefas, (t) => t.id, tsDe)
-  const diario = fundirPorChave<EntradaDiario>(local.diario ?? [], nuvem.diario ?? [], (e) => e.data, tsDe)
-  const conversas = fundirPorChave<Conversa>(local.conversas ?? [], nuvem.conversas ?? [], (c) => c.id, (c) => c.atualizadaEm)
-  const log = fundirLog(local.log ?? [], nuvem.log ?? [])
+export function mergeData(local: AppData, cloud: AppData): AppData {
+  const tasks = mergeByKey<Task>(local.tasks, cloud.tasks, (t) => t.id, tsOf)
+  const diary = mergeByKey<DiaryEntry>(local.diary ?? [], cloud.diary ?? [], (e) => e.date, tsOf)
+  const conversations = mergeByKey<Conversation>(local.conversations ?? [], cloud.conversations ?? [], (c) => c.id, (c) => c.updatedAt)
+  const log = mergeLog(local.log ?? [], cloud.log ?? [])
 
-  // Tombstone de exclusão: tarefa excluída em QUALQUER lado some do merge.
-  // `vivos` = ids presentes em algum dos arrays brutos (o outro lado ainda tem
-  // a tarefa → mantém o tombstone); ids fora dos dois → assenta (limpa).
-  const excluidas = { ...(local.tarefasExcluidas ?? {}), ...(nuvem.tarefasExcluidas ?? {}) }
-  const excluidasIds = new Set(Object.keys(excluidas))
-  const vivos = new Set([...local.tarefas, ...nuvem.tarefas].map((t) => t.id))
-  const excluidasAssentadas: Record<string, string> = {}
-  for (const [tid, ts] of Object.entries(excluidas)) {
-    if (vivos.has(tid)) excluidasAssentadas[tid] = ts // o outro lado ainda tem → mantém o tombstone
+  // Deletion tombstone: a task deleted on ANY side disappears from the merge.
+  // `alive` = ids present in some raw array (the other side still has the
+  // task → keeps the tombstone); ids outside both → settles (clears).
+  const deleted = { ...(local.deletedTasks ?? {}), ...(cloud.deletedTasks ?? {}) }
+  const deletedIds = new Set(Object.keys(deleted))
+  const alive = new Set([...local.tasks, ...cloud.tasks].map((t) => t.id))
+  const settledDeleted: Record<string, string> = {}
+  for (const [tid, ts] of Object.entries(deleted)) {
+    if (alive.has(tid)) settledDeleted[tid] = ts // the other side still has it → keeps the tombstone
   }
-  const tarefasComExclusao = tarefas.filter((t) => !excluidasIds.has(t.id))
+  const tasksWithDeletion = tasks.filter((t) => !deletedIds.has(t.id))
 
   return {
     ...local,
-    tarefas: tarefasComExclusao,
-    diario,
-    conversas,
+    tasks: tasksWithDeletion,
+    diary,
+    conversations,
     log,
-    tarefasExcluidas: excluidasAssentadas,
-    diarioXp: { ...(nuvem.diarioXp ?? {}), ...(local.diarioXp ?? {}) },
-    diarioRegistroXp: { ...(nuvem.diarioRegistroXp ?? {}), ...(local.diarioRegistroXp ?? {}) },
+    deletedTasks: settledDeleted,
+    diaryXp: { ...(cloud.diaryXp ?? {}), ...(local.diaryXp ?? {}) },
+    diaryLogXp: { ...(cloud.diaryLogXp ?? {}), ...(local.diaryLogXp ?? {}) },
   }
 }

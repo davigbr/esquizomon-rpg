@@ -1,11 +1,11 @@
 /** Store global — ponto de entrada dos consumidores (views, IA, main).
- *  Re-exporta os domínios; cada domínio vive em seu módulo e importa apenas
- *  do núcleo (base.ts) — sem ciclos. */
+ *  Re-exports the domains; each domain lives in its own module and imports only
+ *  from the core (base.ts) — no cycles. */
 
 export * from './base'
 export * from './personagem'
-export * from './tarefas'
+export * from './tasks'
 export * from './checkin'
-export * from './diario'
+export * from './diary'
 export * from './conversas'
-export * from './config'
+export * from './settings'

@@ -1,59 +1,59 @@
 /**
- * Recompensa por menção de cartas no diário (2026-08-17).
+ * Reward for card mentions in the diary (2026-08-17).
  *
- * Sempre que um NOME DE CARTA aparecer no diário, o jogador ganha XP — isso
- * acontece quando a Fábula lê o diário (na interação com o chat): o app
- * processa as entradas e aplica o XP; a Fábula celebra na resposta.
+ * Every time a CARD NAME appears in the diary, the player earns XP — this
+ * happens when the Fable reads the diary (in chat interaction): the app
+ * processes the entries and applies the XP; the Fable celebrates in the reply.
  *
- * "Deve salvar para não acontecer duas vezes": o campo `diarioXp` (data →
- * ids de carta já premiados) registra o que já foi recompensado; se o texto
- * da entrada mudar e mencionar uma carta NOVA, essa nova dá XP.
+ * "Must save so it doesn't happen twice": the `diaryXp` field (date →
+ * already-awarded card ids) records what was already rewarded; if the entry
+ * text changes and mentions a NEW card, that new one gives XP.
  */
 import { appStore } from '../stores/base'
-import { ganharXP } from '../stores/personagem'
-import { todasAsCartas } from './baralho'
+import { gainXP } from '../stores/personagem'
+import { allCards } from './baralho'
 
-/** XP por menção de uma carta no diário (por entrada/dia). */
-export const XP_POR_MENCAO = 10
+/** XP per card mention in the diary (per entry/day). */
+export const XP_PER_MENTION = 10
 
-export interface ResultadoMencoes {
-  nomes: string[]
+export interface MentionResult {
+  names: string[]
   xp: number
-  nivelSubiu: boolean
-  novasCartas: string[]
+  leveledUp: boolean
+  newCards: string[]
 }
 
-/** Varre o diário, recompensa menções não premiadas e aplica o XP
- *  (com leve-up, se cair). Chamado na interação com a Fábula. */
-export function processarMencoesDiario(): ResultadoMencoes {
+/** Scans the diary, rewards unawarded mentions and applies the XP (with a
+ *  level-up, if it lands). Called on interaction with the Fable. */
+export function processDiaryMentions(): MentionResult {
   const d = appStore.get()
-  const ja = d.diarioXp ?? {}
-  const deck = todasAsCartas()
-  const entradas = d.diario ?? []
+  const already = d.diaryXp ?? {}
+  const deck = allCards()
+  const entries = d.diary ?? []
 
-  const novoJa: Record<string, string[]> = { ...ja }
-  const detectados: string[] = []
+  const newAlready: Record<string, string[]> = { ...already }
+  const detected: string[] = []
   let total = 0
-  let mudou = false
+  let changed = false
 
-  for (const entrada of entradas) {
-    if (!entrada || typeof entrada.texto !== 'string') continue
-    const premiados = ja[entrada.data] ?? []
-    const texto = `${entrada.titulo ?? ''}\n${entrada.texto}`.toLowerCase()
-    for (const carta of deck) {
-      if (!premiados.includes(carta.id) && texto.includes(carta.name.toLowerCase())) {
-        novoJa[entrada.data] = [...(novoJa[entrada.data] ?? [...premiados]), carta.id]
-        if (!detectados.includes(carta.name)) detectados.push(carta.name)
-        total += XP_POR_MENCAO
-        mudou = true
+  for (const entry of entries) {
+    if (!entry || typeof entry.text !== 'string') continue
+    const awarded = already[entry.date] ?? []
+    const text = `${entry.title ?? ''}\n${entry.text}`.toLowerCase()
+    for (const card of deck) {
+      if (!awarded.includes(card.id) && text.includes(card.name.toLowerCase())) {
+        newAlready[entry.date] = [...(newAlready[entry.date] ?? [...awarded]), card.id]
+        if (!detected.includes(card.name)) detected.push(card.name)
+        total += XP_PER_MENTION
+        changed = true
       }
     }
   }
 
-  if (!mudou) return { nomes: [], xp: 0, nivelSubiu: false, novasCartas: [] }
+  if (!changed) return { names: [], xp: 0, leveledUp: false, newCards: [] }
 
-  // persiste o registro ANTES (ganharXp re-setá o store preservando este campo)
-  appStore.set({ ...d, diarioXp: novoJa })
-  const r = ganharXP(total)
-  return { nomes: detectados, xp: total, nivelSubiu: r.subiu, novasCartas: r.novasCartas }
+  // persists the record BEFORE (gainXp re-sets the store preserving this field)
+  appStore.set({ ...d, diaryXp: newAlready })
+  const r = gainXP(total)
+  return { names: detected, xp: total, leveledUp: r.leveledUp, newCards: r.newCards }
 }

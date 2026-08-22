@@ -1,189 +1,196 @@
-/** Tipos de dados do Esquizomon RPG — domínio puro, sem dependência de UI. */
+/** Esquizomon RPG data types — pure domain, no UI dependency.
+ *  NOTE: the VALUES of discriminated/tagged literals (e.g. 'recorrente', 'facil',
+ *  'dark', log tag values) are PERSISTED data and intentionally remain in PT
+ *  so existing save blobs migrate transparently. Only field/type names are EN. */
 
-export type TipoTarefa = 'recorrente' | 'unica' | 'habito'
-export type Dificuldade = 'facil' | 'media' | 'dificil' | 'extrema'
-/** Tema: 'sistema' segue o padrão do SO (preferência do usuário 2026-08-12). */
-export type Tema = 'dark' | 'light' | 'sistema'
+export type TaskType = 'recorrente' | 'unica' | 'habito'
+export type Difficulty = 'facil' | 'media' | 'dificil' | 'extrema'
+/** Theme: 'sistema' follows the OS preference (user preference 2026-08-12). */
+export type Theme = 'dark' | 'light' | 'sistema'
 
-/** Agenda de uma tarefa recorrente.
- *  `dias` = dias da semana 0-6 (domingo = 0); vazio = todos os dias.
- *  `diasDoMes` = dias do mês 1-31; quando presente e não vazio, a tarefa vale nesses dias (mensal). */
+/** Schedule of a recurring task.
+ *  `days` = weekdays 0-6 (Sunday = 0); empty = every day.
+ *  `daysOfMonth` = days of the month 1-31; when present and not empty, the task
+ *  applies on those days (monthly). */
 export interface Agenda {
-  dias: number[]
-  diasDoMes?: number[]
+  days: number[]
+  daysOfMonth?: number[]
 }
 
-/** Contador de um hábito. `hoje`/`hojeNeg` = repetições (pos/neg) de hoje;
- *  streaks derivados do histórico. */
-export interface ContadorHabito {
-  hoje: number
-  hojeNeg: number
-  totalPositivo: number
-  totalNegativo: number
+/** Counter of a habit. `today`/`todayNeg` = repetitions (pos/neg) of today;
+ *  streaks derived from the history. */
+export interface HabitCounter {
+  today: number
+  todayNeg: number
+  totalPositive: number
+  totalNegative: number
 }
 
-/** Personagem do jogador — nível, XP, HP, mana e baralho. */
-export interface Personagem {
-  nivel: number
+/** Player character — level, XP, HP, mana and deck. */
+export interface Character {
+  level: number
   xp: number
-  xpProximo: number
+  xpNext: number
   hp: number
   hpMax: number
   mana: number
   manaMax: number
-  /** Morte não-destrutiva: HP ≤ 0 deixa o personagem esgotado até o próximo reset. */
-  esgotado: boolean
-  /** Data ISO do último reset diário processado (evita dano repetido no mesmo dia). */
-  ultimoDia: string
-  /** Ids das cartas do baralho desbloqueadas (galeria). */
-  cartas: string[]
-  /** Avatar do jogador: data URL JPEG comprimido (~5KB), exibido na status bar. */
+  /** Non-destructive death: HP ≤ 0 leaves the character depleted until next reset. */
+  exhausted: boolean
+  /** ISO date of the last processed daily reset (avoids repeated damage same day). */
+  lastDay: string
+  /** Ids of unlocked deck cards (gallery). */
+  cards: string[]
+  /** Player avatar: compressed JPEG data URL (~5KB), shown in the status bar. */
   avatar?: string
-  /** Nome monstruoso do personagem — bold ao lado do avatar (desktop apenas). */
-  nomeMonstruoso?: string
-  /** Nº de invocações por carta (custo de mana cresce até um teto). */
-  invocacoes: Record<string, number>
+  /** Monster name of the character — bold next to the avatar (desktop only). */
+  monsterName?: string
+  /** Count of invocations per card (mana cost grows up to a cap). */
+  invocations: Record<string, number>
 }
 
-export interface Tarefa {
+export interface Task {
   id: string
-  tipo: TipoTarefa
-  titulo: string
-  dificuldade: Dificuldade
+  type: TaskType
+  title: string
+  difficulty: Difficulty
   tags: string[]
-  /** Única: data de vencimento (YYYY-MM-DD). */
+  /** One-off: due date (YYYY-MM-DD). */
   dueDate?: string
-  notas?: string
-  /** Recorrente: quais dias da semana vale (vazio = todos). */
+  notes?: string
+  /** Recurring: which weekdays it applies (empty = all). */
   agenda?: Agenda
-  /** Hábito: sinal. 'positivo' | 'negativo' | 'ambos'. */
-  sinal?: 'positivo' | 'negativo' | 'ambos'
-  contador?: ContadorHabito
-  /** Única: concluída ou não. */
-  concluida?: boolean
-  /** Datas ISO (YYYY-MM-DD) de conclusões — recorrentes: dias concluídos; hábitos: dias com repetição positiva. */
-  historico: string[]
-  /** Recompensas concedidas por data de conclusão (para reverter ao desmarcar). */
-  recompensas?: Record<string, RecompensaConclusao>
-  criadaEm: string
-  /** ISO da última edição (sincronização: merge LWW por item). */
-  editadaEm?: string
+  /** Habit: sign. 'positivo' | 'negativo' | 'ambos'. */
+  sign?: 'positivo' | 'negativo' | 'ambos'
+  counter?: HabitCounter
+  /** One-off: completed or not. */
+  done?: boolean
+  /** ISO dates (YYYY-MM-DD) of completions — recurring: completed days; habits: positive-repetition days. */
+  history: string[]
+  /** ISO dates (YYYY-MM-DD) of NEGATIVE habit repetitions — lets the UI show a
+   *  negative habit as active on a past day when navigating the date selector. */
+  negativeHistory?: string[]
+  /** Rewards granted per completion date (to revert when unchecking). */
+  rewards?: Record<string, CompletionReward>
+  createdAt: string
+  /** ISO of last edit (sync: per-item LWW merge). */
+  updatedAt?: string
 }
 
-/** Snapshot da recompensa de UMA conclusão — permite reverter XP/nível/cartas ao desmarcar.
- *  Guarda o estado ANTES do ganho (para restaurar) e o nível PÓS-ganho (para a guarda de reversão). */
-export interface RecompensaConclusao {
+/** Snapshot of the reward of ONE completion — lets you revert XP/level/cards when unchecking.
+ *  Stores the state BEFORE the gain (to restore) and the POST-gain level (for the reversal guard). */
+export interface CompletionReward {
   xp: number
-  /** true se a conclusão subiu de nível. */
-  subiu?: boolean
-  /** Nível atingido por esta conclusão (reverte só se ninguém subiu depois). */
-  nivel?: number
-  /** Estado do personagem ANTES do ganho (restaurado ao desmarcar). */
-  xpAntes?: number
-  nivelAntes?: number
-  xpProximoAntes?: number
-  hpMaxAntes?: number
-  manaMaxAntes?: number
-  /** Cartas desbloqueadas por subir de nível (para remover ao reverter). */
-  cartas?: string[]
+  /** true if this completion leveled up. */
+  leveledUp?: boolean
+  /** Level reached by this completion (reverts only if nobody leveled up after). */
+  level?: number
+  /** Character state BEFORE the gain (restored when unchecking). */
+  xpBefore?: number
+  levelBefore?: number
+  xpNextBefore?: number
+  hpMaxBefore?: number
+  manaMaxBefore?: number
+  /** Cards unlocked by leveling up (to remove when reverting). */
+  cards?: string[]
 }
 
-export interface Configuracao {
-  tema: Tema
-  /** Modo relaxado: desliga o dano (jogo vira só bônus). */
-  modoRelaxado?: boolean
-  /** Configuração da Fábula (chat com IA, BYOK). */
-  ia?: ConfigIa
-  /** Resumo da vida do usuário ("Sobre você") — a Fábula usa pra te conhecer. */
-  resumo?: string
-  /** Efeitos sonoros (Web Audio, sintetizados) — padrão ligado. */
-  sons?: boolean
+export interface Settings {
+  theme: Theme
+  /** Relaxed mode: disables damage (game becomes bonus-only). */
+  relaxedMode?: boolean
+  /** Fable (AI chat) configuration. */
+  ai?: AiConfig
+  /** User life summary ("About you") — the Fable uses it to know you. */
+  summary?: string
+  /** Sound effects (Web Audio, synthesized) — default on. */
+  sound?: boolean
 }
 
-/** Provider de IA. MVP: deepseek e opencode Zen Go (ambos OpenAI-compatíveis). */
-export type ProviderIA = 'nenhum' | 'deepseek' | 'opencode'
+/** AI provider. MVP: deepseek and opencode Zen Go (both OpenAI-compatible). */
+export type AiProvider = 'nenhum' | 'deepseek' | 'opencode'
 
-/** Configuração da Fábula (chat). Persistida em `configuracao.ia`. */
-export interface ConfigIa {
-  provider: ProviderIA
-  /** Modelo a usar (vazio = modelo padrão do provider). */
-  modelo: string
-  /** Chave de API do usuário (BYOK — fica no localStorage). */
+/** Fable (chat) configuration. Persisted in `settings.ai`. */
+export interface AiConfig {
+  provider: AiProvider
+  /** Model to use (empty = provider default). */
+  model: string
+  /** User API key (BYOK — stays in localStorage). */
   apiKey: string
-  /** System prompt editável pelo usuário. Vazio = usar o canônico (Fábula do NARRATIVA.md). */
+  /** User-editable system prompt. Empty = canonical one (Fable from NARRATIVA.md). */
   systemPrompt: string
 }
 
-/** Mensagem de uma conversa com a IA (formato OpenAI-compatível). */
-export interface MensagemIA {
+/** Message of an AI conversation (OpenAI-compatible format). */
+export interface AiMessage {
   role: 'user' | 'assistant'
-  /** Texto visível. */
+  /** Visible text. */
   content: string
-  /** Raciocínio do modelo (DeepSeek R1, OpenAI o-series, Gemini thinking) — colapsável. */
+  /** Model reasoning (DeepSeek R1, OpenAI o-series, Gemini thinking) — collapsible. */
   reasoning?: string
   /** ISO timestamp. */
   ts: string
 }
 
-/** Conversa com a IA. Múltiplas conversas persistidas. */
-export interface Conversa {
+/** AI conversation. Multiple conversations persisted. */
+export interface Conversation {
   id: string
-  /** Título automático (3-5 primeiras palavras da 1ª mensagem do usuário) ou editado. */
-  titulo: string
-  /** Mensagens em ordem cronológica. */
-  mensagens: MensagemIA[]
-  /** ISO da última atividade. */
-  atualizadaEm: string
+  /** Auto title (first 3-5 words of the 1st user message) or edited. */
+  title: string
+  /** Messages in chronological order. */
+  messages: AiMessage[]
+  /** ISO of last activity. */
+  updatedAt: string
 }
 
-/** Tipo de evento do histórico (define ícone e cor na listagem). */
-export type TipoLog = 'tarefa' | 'habito' | 'invocacao' | 'carta' | 'nivel' | 'dano' | 'sistema'
+/** Type of history event (defines icon and color in listing). */
+export type LogType = 'tarefa' | 'habito' | 'invocacao' | 'carta' | 'nivel' | 'dano' | 'sistema'
 
-/** Evento do histórico de ações do jogo. */
-export interface LogEvento {
+/** Event of the game action history. */
+export interface LogEvent {
   id: string
-  /** Data/hora ISO (com tempo). */
+  /** ISO datetime (with time). */
   ts: string
-  tipo: TipoLog
-  texto: string
+  type: LogType
+  text: string
 }
 
 export interface AppData {
-  versao: number
-  tarefas: Tarefa[]
-  personagem: Personagem
-  configuracao: Configuracao
-  /** Histórico extensivo de ações (mais recente primeiro). */
-  log: LogEvento[]
-  /** Conversas com a Fábula (chat com IA). Múltiplas, persistidas. */
-  conversas?: Conversa[]
-  /** Tarefas excluídas (id → data): tombstone pra o merge não re-adicionar
-   *  uma tarefa que um dispositivo já excluiu. */
-  tarefasExcluidas?: Record<string, string>
-  /** Diário de bordo (1 entrada por dia, com texto/voz). Persistido. */
-  diario?: EntradaDiario[]
-  /** Menções de cartas já recompensadas por dia (data → ids de carta).
-   *  Evita dar XP duas vezes pela mesma menção. */
-  diarioXp?: Record<string, string[]>
-  /** Datas em que registrar o diário já rendeu XP (data → true, 1×/dia). */
-  diarioRegistroXp?: Record<string, boolean>
+  version: number
+  tasks: Task[]
+  character: Character
+  settings: Settings
+  /** Extensive action history (most recent first). */
+  log: LogEvent[]
+  /** Fable conversations (AI chat). Multiple, persisted. */
+  conversations?: Conversation[]
+  /** Deleted tasks (id → date): tombstone so the merge doesn't re-add
+   *  a task a device already deleted. */
+  deletedTasks?: Record<string, string>
+  /** Ship log (1 entry per day, text/voice). Persisted. */
+  diary?: DiaryEntry[]
+  /** Mentions of cards already rewarded per day (date → card ids).
+   *  Avoids granting XP twice for the same mention. */
+  diaryXp?: Record<string, string[]>
+  /** Days where logging the diary already yielded XP (date → true, 1×/day). */
+  diaryLogXp?: Record<string, boolean>
 }
 
-export const VERSAO_DADOS = 3
+export const DATA_VERSION = 3
 
-/** Entrada do diário. Uma por dia (chave = data YYYY-MM-DD). */
-export interface EntradaDiario {
+/** Diary entry. One per day (key = date YYYY-MM-DD). */
+export interface DiaryEntry {
   id: string
-  /** Data da entrada (YYYY-MM-DD) — chave de unicidade. */
-  data: string
-  /** Título curto (opcional, o usuário pode deixar em branco). */
-  titulo: string
-  /** Texto da entrada (markdown-lite, como em notas de tarefa). */
-  texto: string
-  /** ISO timestamp de criação. */
-  criadaEm: string
-  /** ISO timestamp da última edição (undefined se nunca editada). */
-  editadaEm?: string
+  /** Entry date (YYYY-MM-DD) — uniqueness key. */
+  date: string
+  /** Short title (optional, user may leave blank). */
+  title: string
+  /** Entry text (markdown-lite, like task notes). */
+  text: string
+  /** ISO creation timestamp. */
+  createdAt: string
+  /** ISO of last edit (undefined if never edited). */
+  updatedAt?: string
 }
 export const STORAGE_KEY = 'esquizomon-rpg:v1'
-export const TEMA_KEY = 'esquizomon-rpg:tema'
+export const THEME_KEY = 'esquizomon-rpg:tema'
