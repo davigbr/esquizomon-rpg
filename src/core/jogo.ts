@@ -15,7 +15,7 @@ export const DIFFICULTIES: ReadonlyArray<{
 
 export function difficultyMeta(id: Difficulty) {
   const d = DIFFICULTIES.find((x) => x.id === id) ?? DIFFICULTIES[1]
-  return { ...d, label: t(`dif.${d.id}`) }
+  return { ...d, label: t(`diff.${d.id}`) }
 }
 
 /** XP granted per completion, by difficulty (base 10 × multiplier). */
