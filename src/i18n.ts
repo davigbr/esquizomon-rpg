@@ -59,6 +59,8 @@ const MESSAGES: Cat = {
     'nav.game': 'Jogo',
     'nav.history': 'Histórico',
     'nav.settings': 'Configurações',
+    'nav.fable': 'Abrir conversa com a Fábula',
+    'nav.account': 'Conta e sincronização',
 
     // ---- hoje / seletor de dia ----
     'today.yesterday': 'Ontem',
@@ -482,6 +484,8 @@ const MESSAGES: Cat = {
     'nav.game': 'Game',
     'nav.history': 'History',
     'nav.settings': 'Settings',
+    'nav.fable': 'Open chat with the Fable',
+    'nav.account': 'Account & sync',
 
     'today.yesterday': 'Yesterday',
     'today.prevDay': 'Previous day',
@@ -912,5 +916,13 @@ export function applyLangAttr(): void {
   document.querySelectorAll<HTMLElement>('[data-i18n]').forEach((el) => {
     const key = el.dataset.i18n
     if (key) el.textContent = t(key)
+  })
+  document.querySelectorAll<HTMLElement>('[data-i18n-title]').forEach((el) => {
+    const key = el.dataset.i18nTitle
+    if (key) el.title = t(key)
+  })
+  document.querySelectorAll<HTMLElement>('[data-i18n-aria]').forEach((el) => {
+    const key = el.dataset.i18nAria
+    if (key) el.setAttribute('aria-label', t(key))
   })
 }
