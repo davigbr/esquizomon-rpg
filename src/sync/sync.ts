@@ -16,6 +16,7 @@ import { normalizeData } from '../db/storage'
 import { getValidToken, renewToken, currentSession } from './auth'
 import type { AppData } from '../core/tipos'
 import { mergeData } from '../core/syncMerge'
+import { logSync } from './syncLog'
 
 const SYNC_KEY = 'esquizomon-rpg:sync' // local sync metadata
 const ENDPOINT = '/.netlify/functions/dados'
@@ -158,10 +159,16 @@ async function authedFetch(method: 'GET' | 'PUT', url: string, body?: string): P
   let res = await fetch(url, { method, headers: { Authorization: `Bearer ${token}` }, body })
   if (res.status !== 401) return res
 
+  logSync('auth', `401 on ${method} — renewing token and retrying once`)
   console.warn('[sync] 401 — renovando o token e tentando de novo…')
   token = await renewToken()
-  if (!token) throw new Error('renovação do token falhou')
-  return fetch(url, { method, headers: { Authorization: `Bearer ${token}` }, body })
+  if (!token) {
+    logSync('auth', 'renew failed — session unusable, treating as offline')
+    throw new Error('renovação do token falhou')
+  }
+  res = await fetch(url, { method, headers: { Authorization: `Bearer ${token}` }, body })
+  if (res.status !== 200) logSync('auth', `retry after renewal → HTTP ${res.status}`)
+  return res
 }
 
 async function request(method: 'GET' | 'PUT', body?: string): Promise<Response> {
@@ -220,15 +227,22 @@ export function restoreBackup(ts: string): boolean {
 
 async function sendNow(): Promise<void> {
   const token = await getValidToken()
-  if (!token) return
+  if (!token) {
+    logSync('put', 'aborted: no valid token — change stays local')
+    return
+  }
   setSyncState('enviando')
   const savedAt = readMeta().salvoEm ?? new Date().toISOString()
+  const taskCount = appStore.get().tasks.length
   try {
+    logSync('put', `start: ${taskCount} tasks, salvoEm=${savedAt}`)
     const res = await request('PUT', JSON.stringify({ salvoEm: savedAt, dados: appStore.get() }))
     if (!res.ok) throw new Error(`PUT falhou: HTTP ${res.status}`)
     pendingLocalChange = false
+    logSync('put', 'ok')
     setSyncState('sincronizado')
-  } catch {
+  } catch (err) {
+    logSync('put', `failed: ${err instanceof Error ? err.message : String(err)} — change stays local`)
     setSyncState('sem-conexao')
   }
 }
@@ -242,6 +256,7 @@ function flushPendingNow(): void {
     timer = null
   }
   pendingLocalChange = false
+  logSync('flush', 'app hidden/unload — sending unsent local change now')
   void sendNow()
 }
 
@@ -252,11 +267,13 @@ function flushPendingNow(): void {
 export async function syncNow(force?: 'local' | 'nuvem'): Promise<void> {
   const token = await getValidToken()
   if (!token) {
+    logSync('get', 'aborted: no valid token — offline/local only')
     setSyncState('local')
     return
   }
   setSyncState('enviando')
   try {
+    logSync('get', `start (force=${force ?? 'auto'})`)
     const res = await request('GET')
     if (!res.ok) throw new Error(`GET falhou: HTTP ${res.status}`)
     const envelope = (await res.json()) as { salvoEm: string | null; dados: unknown }
@@ -266,6 +283,7 @@ export async function syncNow(force?: 'local' | 'nuvem'): Promise<void> {
 
     if (!cloud) {
       // empty cloud (first time) → the local becomes the cloud
+      logSync('get', 'cloud empty — pushing local as first migration')
       await sendNow()
       return
     }
@@ -287,6 +305,7 @@ export async function syncNow(force?: 'local' | 'nuvem'): Promise<void> {
       base = local
       other = cloud
     }
+    logSync('get', `cloud.salvoEm=${envelope.salvoEm ?? 'null'} local.salvoEm=${localSavedAt || 'null'} → base=${(base === cloud ? 'cloud' : 'local')} (cloudTasks=${cloud.tasks.length}, localTasks=${local.tasks.length})`)
 
     const merged = mergeData(base, other)
 
@@ -299,15 +318,19 @@ export async function syncNow(force?: 'local' | 'nuvem'): Promise<void> {
       writeMeta({
         salvoEm: ((envelope.salvoEm ?? '') > localSavedAt ? envelope.salvoEm : localSavedAt) ?? undefined,
       })
+      logSync('get', `applied merge to local (mergedTasks=${merged.tasks.length})`)
     }
 
     const cloudChanged = JSON.stringify(merged) !== JSON.stringify(cloud)
     if (cloudChanged) {
+      logSync('get', `merged differs from cloud — pushing merged (${merged.tasks.length} tasks)`)
       await sendNow() // PUT uses appStore.get() — the merged (applied to local above)
       return
     }
+    logSync('get', 'in sync with cloud')
     setSyncState('sincronizado')
-  } catch {
+  } catch (err) {
+    logSync('get', `failed: ${err instanceof Error ? err.message : String(err)}`)
     setSyncState('sem-conexao')
   }
 }
@@ -315,9 +338,11 @@ export async function syncNow(force?: 'local' | 'nuvem'): Promise<void> {
 /** Called when the session changes (login/logout) — re-syncs or returns to local. */
 export function onSessionChange(force?: 'local' | 'nuvem'): void {
   if (currentSession()) {
+    logSync('session', `change: logged in (force=${force ?? 'auto'}) — starting periodic pull`)
     startPeriodicPull()
     void syncNow(force)
   } else {
+    logSync('session', 'change: logged out — stopped periodic pull, local only')
     stopPeriodicPull()
     setSyncState('local')
   }
@@ -338,6 +363,7 @@ appStore.subscribe(() => {
       writeMeta({ salvoEm: new Date().toISOString() })
       if (currentSession()) {
         pendingLocalChange = true
+        logSync('change', `local change — scheduling send in ${DEBOUNCE_MS}ms (tasks=${appStore.get().tasks.length})`)
         if (timer) clearTimeout(timer)
         timer = setTimeout(() => {
           timer = null
@@ -353,9 +379,11 @@ appStore.subscribe(() => {
 /** Boot: syncs if already logged in (restored session). */
 export function initSync(): void {
   if (currentSession()) {
+    logSync('boot', `restored session (uid=${currentSession()?.user?.id}) — starting periodic pull`)
     startPeriodicPull()
     void syncNow()
   } else {
+    logSync('boot', 'no session — local only (no cloud sync)')
     setSyncState('local')
   }
 }

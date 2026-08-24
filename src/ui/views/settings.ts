@@ -12,6 +12,7 @@ import { editAvatar } from '../avatarEditor'
 import { currentSession } from '../../sync/auth'
 import { getBackups, onSessionChange, restoreBackup, subscribeSync, syncNow } from '../../sync/sync'
 import type { SyncState } from '../../sync/sync'
+import { clearSyncLog, exportSyncLog } from '../../sync/syncLog'
 import { openLoginModal } from '../loginModal'
 import { getLang, setLang, t } from '../../i18n'
 
@@ -139,6 +140,12 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
       <div class="settings-hint settings-hint-row">${total} tarefa${total === 1 ? '' : 's'} · nível <b>${data.character.level}</b> · <b>${data.character.cards.length}</b> cartas desbloqueadas</div>
       <div class="settings-hint settings-hint-row backup-title">${t('settings.backupsTitle')}</div>
       <div class="settings-backups" data-backups></div>
+
+      <div class="settings-hint settings-hint-row backup-title" style="margin-top:12px">${t('settings.syncLogTitle')}</div>
+      <div class="settings-actions">
+        <button class="btn" data-export-synclog title="${t('settings.syncLogHint')}"><i class="fa-solid fa-bug" aria-hidden="true"></i> ${t('settings.exportSyncLog')}</button>
+        <button class="btn" data-clear-synclog><i class="fa-solid fa-eraser" aria-hidden="true"></i> ${t('settings.clearSyncLog')}</button>
+      </div>
     </div>
 
     <div class="settings-section">
@@ -215,6 +222,23 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
     a.click()
     URL.revokeObjectURL(url)
     notify(t('settings.dataExported'))
+  })
+
+  root.querySelector('[data-export-synclog]')!.addEventListener('click', () => {
+    const json = exportSyncLog()
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `esquizomon-sync-log-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    notify(t('settings.syncLogExported'))
+  })
+
+  root.querySelector('[data-clear-synclog]')!.addEventListener('click', () => {
+    clearSyncLog()
+    notify(t('settings.syncLogCleared'))
   })
 
   root.querySelector('[data-import]')!.addEventListener('click', () => {
