@@ -41,8 +41,8 @@ test('cura: gasta mana e cura TODA a vida, removendo esgotado', async ({ page })
   // mana diminuiu
   const manaAfter = await page.locator('[data-s-mana]').textContent()
   expect(manaAfter).not.toBe(manaBefore)
-  // esgotado removido
+  // depleted cleared
   await expect(page.locator('[data-s-esgotado]')).toBeHidden()
-  // botão desabilitado (vida cheia)
+  // button disabled (full health)
   await expect(heal).toBeDisabled()
 })

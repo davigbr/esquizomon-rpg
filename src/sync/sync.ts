@@ -19,7 +19,6 @@ import { mergeData } from '../core/syncMerge'
 
 const SYNC_KEY = 'esquizomon-rpg:sync' // local sync metadata
 const ENDPOINT = '/.netlify/functions/dados'
-const DEBOUNCE_MS = 2000
 
 export type SyncState = 'local' | 'enviando' | 'sincronizado' | 'sem-conexao'
 
@@ -46,8 +45,12 @@ let syncSubscribers: Array<(e: SyncState) => void> = []
 let pullInterval: ReturnType<typeof setInterval> | null = null
 let firstSubscribe = true
 let idleTimer: ReturnType<typeof setTimeout> | null = null
+let pendingLocalChange = false // a local change happened and may not be sent yet
 const PULL_MS = 10_000
 const IDLE_MS = 3 * 60_000 // 3 min without interaction → polling "sleeps"
+// Short debounce so the last interaction lands before the app is closed/navigated
+// away — a long window loses the final write when the tab exits (real bug).
+const DEBOUNCE_MS = 500
 
 /** Periodic pull + on returning to the tab: with 2 logged devices, one's
  *  changes reach the other within ~30s (or on returning to the tab). Without it,
@@ -87,13 +90,19 @@ function startPullTimer(): void {
   }, PULL_MS)
 }
 function onVisibilityChange(): void {
-  if (document.visibilityState === 'hidden') onSleep()
-  else onInteract() // returning to the tab: wake + rearm the idle
+  if (document.visibilityState === 'hidden') {
+    onSleep()
+    flushPendingNow() // don't lose the last interaction when the tab is hidden
+  } else onInteract() // returning to the tab: wake + rearm the idle
+}
+const onPageHide = (): void => {
+  flushPendingNow() // final best-effort flush before the page unloads
 }
 function startPeriodicPull(): void {
   if (pullInterval) return // already has listeners/timer
   startPullTimer()
   document.addEventListener('visibilitychange', onVisibilityChange)
+  window.addEventListener('pagehide', onPageHide)
   window.addEventListener('focus', onInteract)
   window.addEventListener('pointerdown', onInteract, { passive: true })
   window.addEventListener('keydown', onInteract)
@@ -110,6 +119,7 @@ function stopPeriodicPull(): void {
     idleTimer = null
   }
   document.removeEventListener('visibilitychange', onVisibilityChange)
+  window.removeEventListener('pagehide', onPageHide)
   window.removeEventListener('focus', onInteract)
   window.removeEventListener('pointerdown', onInteract)
   window.removeEventListener('keydown', onInteract)
@@ -216,10 +226,23 @@ async function sendNow(): Promise<void> {
   try {
     const res = await request('PUT', JSON.stringify({ salvoEm: savedAt, dados: appStore.get() }))
     if (!res.ok) throw new Error(`PUT falhou: HTTP ${res.status}`)
+    pendingLocalChange = false
     setSyncState('sincronizado')
   } catch {
     setSyncState('sem-conexao')
   }
+}
+
+/** Flushes any unsent local change immediately. Used when the user leaves the
+ *  tab/app so the last interaction is not lost to the debounce window. */
+function flushPendingNow(): void {
+  if (!pendingLocalChange) return
+  if (timer) {
+    clearTimeout(timer)
+    timer = null
+  }
+  pendingLocalChange = false
+  void sendNow()
 }
 
 /** Syncs with the cloud — NON-destructive MERGE (path "E", 2026-08-17).
@@ -314,6 +337,7 @@ appStore.subscribe(() => {
       // REAL change: stamp the last-write-wins timestamp
       writeMeta({ salvoEm: new Date().toISOString() })
       if (currentSession()) {
+        pendingLocalChange = true
         if (timer) clearTimeout(timer)
         timer = setTimeout(() => {
           timer = null

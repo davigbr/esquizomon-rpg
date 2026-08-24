@@ -119,12 +119,13 @@ export function toggleRecurringToday(id: string, date: string = todayISO()): str
   const tasks = appStore.get().tasks.map((t) => {
     if (t.id !== id || t.type !== 'recorrente') return t
     const has = t.history.includes(date)
+    const now = new Date().toISOString()
     if (has) {
       // unmarking: reverts that day's reward
       revertReward(t, date)
-      return { ...t, history: t.history.filter((d) => d !== date), rewards: withoutReward(t.rewards, date) }
+      return { ...t, updatedAt: now, history: t.history.filter((d) => d !== date), rewards: withoutReward(t.rewards, date) }
     }
-    return { ...t, history: [...t.history, date] }
+    return { ...t, updatedAt: now, history: [...t.history, date] }
   })
   appStore.set({ ...appStore.get(), tasks })
   const task = tasks.find((t) => t.id === id)
@@ -148,11 +149,13 @@ export function toggleOneOff(id: string, date: string = todayISO()): string[] {
   const tasks = appStore.get().tasks.map((t) => {
     if (t.id !== id || t.type !== 'unica') return t
     const done = !t.done
+    const now = new Date().toISOString()
     if (!done) {
       // unmarking: reverts that day's reward
       revertReward(t, date)
       return {
         ...t,
+        updatedAt: now,
         done,
         history: t.history.filter((d) => d !== date),
         rewards: withoutReward(t.rewards, date),
@@ -160,6 +163,7 @@ export function toggleOneOff(id: string, date: string = todayISO()): string[] {
     }
     return {
       ...t,
+      updatedAt: now,
       done,
       history: [...new Set([...t.history, date])],
     }
