@@ -62,13 +62,26 @@ export function mergeData(local: AppData, cloud: AppData): AppData {
   }
   const tasksWithDeletion = tasks.filter((t) => !deletedIds.has(t.id))
 
+  // Same tombstone for conversations (mirrors tasks): a conversation deleted
+  // on any side never comes back, and the tombstone settles once neither side
+  // has the conversation anymore.
+  const deletedConv = { ...(local.deletedConversations ?? {}), ...(cloud.deletedConversations ?? {}) }
+  const deletedConvIds = new Set(Object.keys(deletedConv))
+  const convAlive = new Set([...(local.conversations ?? []), ...(cloud.conversations ?? [])].map((c) => c.id))
+  const settledDeletedConv: Record<string, string> = {}
+  for (const [cid, ts] of Object.entries(deletedConv)) {
+    if (convAlive.has(cid)) settledDeletedConv[cid] = ts // the other side still has it → keeps the tombstone
+  }
+  const conversationsWithDeletion = conversations.filter((c) => !deletedConvIds.has(c.id))
+
   return {
     ...local,
     tasks: tasksWithDeletion,
     diary,
-    conversations,
+    conversations: conversationsWithDeletion,
     log,
     deletedTasks: settledDeleted,
+    deletedConversations: settledDeletedConv,
     diaryXp: { ...(cloud.diaryXp ?? {}), ...(local.diaryXp ?? {}) },
     diaryLogXp: { ...(cloud.diaryLogXp ?? {}), ...(local.diaryLogXp ?? {}) },
   }

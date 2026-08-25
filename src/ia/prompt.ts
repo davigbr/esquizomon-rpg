@@ -131,5 +131,9 @@ export function buildSchizoanalystSystemPrompt(data: AppData): string {
 
 MATERIAL PARA ANÁLISE (diário e cotidiano do jogador):
 
+DIÁRIO (últimas entradas, na íntegra — leia com atenção, é o coração da análise):
+${buildDiaryContext()}
+
+ESTADO ATUAL DO COTIDIANO (tarefas, personagem, cartas, histórico):
 ${buildContext(data)}`
 }

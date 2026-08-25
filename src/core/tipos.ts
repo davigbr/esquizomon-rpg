@@ -167,6 +167,9 @@ export interface AppData {
   /** Deleted tasks (id → date): tombstone so the merge doesn't re-add
    *  a task a device already deleted. */
   deletedTasks?: Record<string, string>
+  /** Deleted conversations (id → date): tombstone so the merge doesn't
+   *  re-add a conversation a device already deleted (mirrors deletedTasks). */
+  deletedConversations?: Record<string, string>
   /** Ship log (1 entry per day, text/voice). Persisted. */
   diary?: DiaryEntry[]
   /** Mentions of cards already rewarded per day (date → card ids).

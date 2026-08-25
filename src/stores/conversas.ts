@@ -66,5 +66,13 @@ export function addMessage(conversationId: string, msg: AiMessage): void {
 }
 
 export function deleteConversation(id: string): void {
-  saveConversations(currentConversations().filter((c) => c.id !== id))
+  const d = appStore.get()
+  // tombstone: the sync merge must not re-add a conversation another device
+  // still has in the cloud (mirrors deleteTask's deletedTasks).
+  const remaining = (d.conversations ?? []).filter((c) => c.id !== id)
+  appStore.set({
+    ...d,
+    conversations: remaining,
+    deletedConversations: { ...(d.deletedConversations ?? {}), [id]: new Date().toISOString() },
+  })
 }

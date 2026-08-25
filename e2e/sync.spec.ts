@@ -38,6 +38,22 @@ test('sync: exclusão não é revertida pelo merge (tombstone)', async ({ page }
   expect(r.aindaExcluida).toBe('2026-01-02T00:00:00Z') // tombstone mantido (cloud ainda tinha)
 })
 
+test('sync: exclusão de conversa não é revertida pelo merge (tombstone)', async ({ page }) => {
+  await page.goto('/#/today')
+  const r = await page.evaluate(async () => {
+    const { mergeData } = await import('/src/core/syncMerge')
+    const conv = (id: string, updatedAt: string) => ({ id, title: id, messages: [], updatedAt })
+    const base = { tasks: [], diary: [], log: [], character: {}, settings: {}, version: 6 } as any
+    // local: deleted 'b' (tombstone de conversa); cloud: still has 'b' + 'c'
+    const local = { ...base, conversations: [conv('a', '2026-01-01T00:00:00Z')], deletedConversations: { b: '2026-01-02T00:00:00Z' } }
+    const cloud = { ...base, conversations: [conv('b', '2026-01-01T00:00:00Z'), conv('c', '2026-01-01T00:00:00Z')] }
+    const f = mergeData(local, cloud) as any
+    return { ids: f.conversations.map((x: any) => x.id).sort(), aindaExcluida: f.deletedConversations.b }
+  })
+  expect(r.ids).toEqual(['a', 'c']) // 'b' NÃO volta, 'c' (só da nuvem) entra
+  expect(r.aindaExcluida).toBe('2026-01-02T00:00:00Z') // tombstone mantido (cloud ainda tinha 'b')
+})
+
 test('sync: conflito na mesma tarefa vence a mais recente', async ({ page }) => {
   await page.goto('/#/today')
   const r = await page.evaluate(async () => {

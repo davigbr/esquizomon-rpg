@@ -362,6 +362,7 @@ export function normalizeData(raw: unknown): AppData | null {
     conversations,
     diary,
     deletedTasks: normalizeStringMap(field<unknown>(b, 'deletedTasks', 'tarefasExcluidas')),
+    deletedConversations: normalizeStringMap(field<unknown>(b, 'deletedConversations', 'conversasExcluidas')),
     diaryXp: normalizeDiaryXp(field<unknown>(b, 'diaryXp', 'diarioXp')),
     diaryLogXp: normalizeDiaryLogXp(field<unknown>(b, 'diaryLogXp', 'diarioRegistroXp')),
   }
@@ -434,6 +435,7 @@ export function emptyState(): AppData {
     conversations: [],
     diary: [],
     deletedTasks: {},
+    deletedConversations: {},
     diaryXp: {},
     diaryLogXp: {},
   }
