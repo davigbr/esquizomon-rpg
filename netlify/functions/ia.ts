@@ -103,6 +103,10 @@ async function handle(req: Request): Promise<Response> {
     model,
     messages: mensagens,
     stream,
+    // Pedir um output generoso evita que o modelo corta a resposta no teto
+    // default de tokens (real bug 2026-08-24: análise/invocação extensa vinha
+    // truncada no fim sem aviso). 8192 é o teto do DeepSeek; opencode aceita.
+    max_tokens: 8192,
     // Pede raciocínio quando o modelo suporta (OpenAI o-series, DeepSeek R1,
     // Gemini thinking). O cliente decide qual modelo usar; aqui só pedimos.
   })
