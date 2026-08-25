@@ -464,7 +464,7 @@ const MESSAGES: Cat = {
 
     // ---- ficha narrativa ----
     'sheet.rule1': 'Concluir tarefas dá XP conforme a dificuldade (Fácil ×1 · Média ×1,5 · Difícil ×2 · Extrema ×2,5).',
-    'sheet.rule2': 'Subir de nível restaura vida e mana, e aumenta os máximos. Cada dia você também regenera +5% da vida (mín. 1).',
+    'sheet.rule2': 'Subir de nível restaura vida e mana, e aumenta os máximos. Cada dia você também regenera <b>+5% da vida</b> (mín. 1) e <b>a mana volta ao máximo</b> — a menos que esteja esgotado.',
     'sheet.rule3': 'Recorrentes perdidas causam dano no dia seguinte, proporcional à dificuldade.',
     'sheet.rule4': 'Hábitos negativos causam dano pequeno; positivos dão XP e recuperam +1 vida.',
     'sheet.rule5': 'Registrar o diário dá +5 XP (uma vez por dia). Mencionar o nome de uma carta no diário dá +10 XP por menção, quando a Fábula lê o diário (na interação) — vale para qualquer carta da galeria e não se repete para a mesma menção.',
@@ -895,7 +895,7 @@ const MESSAGES: Cat = {
 
     // ---- ficha narrativa ----
     'sheet.rule1': 'Completing tasks gives XP by difficulty (Easy ×1 · Medium ×1.5 · Hard ×2 · Extreme ×2.5).',
-    'sheet.rule2': 'Leveling up restores health and mana, and raises the maximums. Each day you also <b>regen +5% health</b> (min. 1).',
+    'sheet.rule2': 'Leveling up restores health and mana, and raises the maximums. Each day you also <b>regen +5% health</b> (min. 1) and <b>mana returns to its maximum</b> — unless you are depleted.',
     'sheet.rule3': 'Missed recurring tasks deal damage the next day, proportional to difficulty.',
     'sheet.rule4': 'Negative habits deal small damage; <b>positive</b> ones give XP and <b>recover +1 health</b>.',
     'sheet.rule5': 'Writing in the diary gives +5 XP (once a day). <b>Mentioning a card name in the diary</b> gives +10 XP per mention, when the Fable reads the diary (on interaction) — works for any gallery card and doesn\'t repeat for the same mention.',
