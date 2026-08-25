@@ -50,19 +50,9 @@ export function addMessage(conversationId: string, msg: AiMessage): void {
   const conversation = conversationById(conversationId)
   if (!conversation) return
   const messages = [...conversation.messages, msg]
-  // First user message becomes the title (3-5 words).
-  let title = conversation.title
-  if (conversation.messages.length === 0 && msg.role === 'user') {
-    title = msg.content
-      .replace(/\s+/g, ' ')
-      .trim()
-      .split(' ')
-      .slice(0, 5)
-      .join(' ')
-      .slice(0, 60)
-    if (!title) title = 'Conversa'
-  }
-  updateConversation(conversationId, { title, messages })
+  // Title stays as the creation date/time — the first message does NOT
+  // override it. Only a manual rename (updateConversation {title}) changes it.
+  updateConversation(conversationId, { title: conversation.title, messages })
 }
 
 export function deleteConversation(id: string): void {
