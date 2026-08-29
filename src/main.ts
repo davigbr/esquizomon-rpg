@@ -232,12 +232,21 @@ document.getElementById('fabula-toggle')!.addEventListener('click', () => {
 
 mountAccountButton()
 
-/* ---------- new day ---------- */
-
-renewDay()
-checkDaily()
-
 /* ---------- account & sync (optional — the app runs offline) ---------- */
+
+/** The day rollover + checkin run ONLY after the first sync (pull+merge), so
+ *  they never act on stale local data. Even if sync fails/offline, the day
+ *  still rolls over (try/catch). */
+void initAuth()
+  .then(async () => {
+    try {
+      await initSync()
+    } catch {
+      /* offline/fail — still roll the day locally */
+    }
+    renewDay()
+    checkDaily()
+  })
 
 /** "Last sync" item in the status bar (desktop, to the right). */
 function updateSyncStatus(): void {
@@ -254,8 +263,6 @@ function updateSyncStatus(): void {
     el.title = t('sync.never')
   }
 }
-
-void initAuth().then(() => initSync())
 
 /* ---------- persistence failure warning (quota full / storage blocked) ---------- */
 

@@ -9,6 +9,7 @@ import type { TaskInput, Result } from './base'
 import { playSound } from '../ui/audio'
 import { notify } from '../ui/toast'
 import { applyDamage, heal, gainXP } from './personagem'
+import { flushSend } from '../sync/sync'
 
 export function tagsInUse(data: AppData): string[] {
   const set = new Set<string>()
@@ -98,6 +99,9 @@ export function deleteTask(id: string): void {
     deletedTasks: { ...(d.deletedTasks ?? {}), [id]: new Date().toISOString() },
   })
   if (task) addLog('tarefa', `Excluiu: ${task.title}`)
+  // flush: guarantee the tombstone reaches the cloud right away (not via
+  // debounce, which could be lost if the app closes immediately)
+  flushSend()
 }
 
 /** Reorders the tasks (drag & drop): `ids` in the new order, within the same type. */

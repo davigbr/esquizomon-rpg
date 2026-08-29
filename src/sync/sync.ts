@@ -376,14 +376,29 @@ appStore.subscribe(() => {
   }
 })
 
-/** Boot: syncs if already logged in (restored session). */
-export function initSync(): void {
+/** Sends immediately if a local change is pending (flushes the debounce).
+ *  Critical ops (e.g. delete) call this so the tombstone reaches the cloud
+ *  even if the app closes right after. */
+export function flushSend(): void {
+  if (currentSession() && pendingLocalChange) {
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
+    void sendNow()
+  }
+}
+
+/** Boot: syncs if already logged in (restored session). Resolves after the
+ *  FIRST pull+merge so the caller can act on fresh data (never on stale). */
+export function initSync(): Promise<void> {
   if (currentSession()) {
     logSync('boot', `restored session (uid=${currentSession()?.user?.id}) — starting periodic pull`)
     startPeriodicPull()
-    void syncNow()
+    return syncNow()
   } else {
     logSync('boot', 'no session — local only (no cloud sync)')
     setSyncState('local')
+    return Promise.resolve()
   }
 }
