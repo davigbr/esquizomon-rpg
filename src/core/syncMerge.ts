@@ -51,27 +51,25 @@ export function mergeData(local: AppData, cloud: AppData): AppData {
   const log = mergeLog(local.log ?? [], cloud.log ?? [])
 
   // Deletion tombstone: a task deleted on ANY side disappears from the merge.
-  // `alive` = ids present in some raw array (the other side still has the
-  // task → keeps the tombstone); ids outside both → settles (clears).
+  // We keep the FULL UNION of tombstones indefinitely and NEVER "settle" one
+  // away based on the two sides present here. Settling was the resurrection bug
+  // (2026-08-30): once both current sides lacked the task, the tombstone was
+  // dropped — and then a stale/offline device that STILL held a live copy of
+  // that task re-uploaded it (no tombstone left to filter it), spreading it to
+  // every device again. Because we cannot see all devices, a tombstone must
+  // persist as the durable record of "this task was deleted".
   const deleted = { ...(local.deletedTasks ?? {}), ...(cloud.deletedTasks ?? {}) }
   const deletedIds = new Set(Object.keys(deleted))
-  const alive = new Set([...local.tasks, ...cloud.tasks].map((t) => t.id))
-  const settledDeleted: Record<string, string> = {}
-  for (const [tid, ts] of Object.entries(deleted)) {
-    if (alive.has(tid)) settledDeleted[tid] = ts // the other side still has it → keeps the tombstone
-  }
+  const settledDeleted: Record<string, string> = deleted // keep every tombstone
   const tasksWithDeletion = tasks.filter((t) => !deletedIds.has(t.id))
 
   // Same tombstone for conversations (mirrors tasks): a conversation deleted
-  // on any side never comes back, and the tombstone settles once neither side
-  // has the conversation anymore.
+  // on any side never comes back. The tombstone union is also kept forever —
+  // never settled away (see comment above: settling allows stale devices to
+  // resurrect).
   const deletedConv = { ...(local.deletedConversations ?? {}), ...(cloud.deletedConversations ?? {}) }
   const deletedConvIds = new Set(Object.keys(deletedConv))
-  const convAlive = new Set([...(local.conversations ?? []), ...(cloud.conversations ?? [])].map((c) => c.id))
-  const settledDeletedConv: Record<string, string> = {}
-  for (const [cid, ts] of Object.entries(deletedConv)) {
-    if (convAlive.has(cid)) settledDeletedConv[cid] = ts // the other side still has it → keeps the tombstone
-  }
+  const settledDeletedConv: Record<string, string> = deletedConv
   const conversationsWithDeletion = conversations.filter((c) => !deletedConvIds.has(c.id))
 
   return {

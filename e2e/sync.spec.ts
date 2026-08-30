@@ -54,6 +54,26 @@ test('sync: exclusão de conversa não é revertida pelo merge (tombstone)', asy
   expect(r.aindaExcluida).toBe('2026-01-02T00:00:00Z') // tombstone mantido (cloud ainda tinha 'b')
 })
 
+test('REGRESSION: tombstone NUNCA é "settled" quando os 2 lados não têm a task viva — senão um device obsoleto ressuscita (2026-08-30)', async ({ page }) => {
+  await page.goto('/#/today')
+  const r = await page.evaluate(async () => {
+    const { mergeData } = await import('/src/core/syncMerge')
+    const t = (id: string) => ({ id, title: id, type: 'unica', difficulty: 'facil', done: false, history: [], tags: [], createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' })
+    const base = { tasks: [], diary: [], log: [], character: {}, settings: {}, version: 6 } as any
+    // Device A deleted 'b' (tombstone) and it was propagated: BOTH sides now
+    // lack the task — under the old "settle" logic the tombstone would be
+    // dropped here...
+    const sideA = { ...base, tasks: [t('a')], deletedTasks: { b: '2026-01-02T00:00:00Z' } }
+    const sideB = { ...base, tasks: [t('a')], deletedTasks: { b: '2026-01-02T00:00:00Z' } }
+    const f = mergeData(sideA, sideB) as any
+    return { tombstoneMantido: f.deletedTasks.b, tasks: f.tasks.map((x: any) => x.id) }
+  })
+  // ...and a later, stale device (C) that still had 'b' alive would re-upload it
+  // with nothing left to filter. The tombstone must persist as the durable record.
+  expect(r.tombstoneMantido).toBe('2026-01-02T00:00:00Z')
+  expect(r.tasks).toEqual(['a'])
+})
+
 test('sync: conflito na mesma tarefa vence a mais recente', async ({ page }) => {
   await page.goto('/#/today')
   const r = await page.evaluate(async () => {
