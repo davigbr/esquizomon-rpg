@@ -737,6 +737,31 @@ test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async 
   expect(xp2).toBe(xp1)
 })
 
+test('diário: citar carta no diário dá +XP NA HORA DO SAVE (sem depender de conversar com a Fábula) e não dobra (bug 2026-08-30)', async ({ page }) => {
+  await semearChat(page)
+  await page.goto('/#/today')
+  const r = await page.evaluate(async () => {
+    const { appStore } = await import('/src/stores/app')
+    const { saveEntry } = await import('/src/stores/diary')
+    const { XP_PER_DAILY_LOG } = await import('/src/core/jogo')
+    const { XP_PER_MENTION } = await import('/src/core/recompensa')
+    appStore.set({ ...appStore.get(), character: { ...appStore.get().character, xp: 0 } })
+    // salva um dia SEM carta → só o XP diário
+    saveEntry('2026-01-01', { text: 'dia simples' })
+    const xpSimples = appStore.get().character.xp
+    // salva OUTRO dia citando a carta → XP diário + 10 da menção
+    saveEntry('2026-01-02', { text: 'Hoje fui cercado pelo Ninho Enclausurado.' })
+    const xpCitei = appStore.get().character.xp
+    // re-salva o mesmo dia citando de novo → NÃO dá de novo (dedup diaryXp)
+    saveEntry('2026-01-02', { text: 'Ninho Enclausurado de novo' })
+    const xpDnv = appStore.get().character.xp
+    return { xpSimples, xpCitei, xpDnv, XP_PER_DAILY_LOG, XP_PER_MENTION }
+  })
+  expect(r.xpSimples).toBe(r.XP_PER_DAILY_LOG) // dia simples = só o XP do diário
+  expect(r.xpCitei).toBe(r.xpSimples + r.XP_PER_DAILY_LOG + r.XP_PER_MENTION) // +10 da menção no save
+  expect(r.xpDnv).toBe(r.xpCitei) // re-salvar não dobra
+})
+
 test('fabula: /capturas desconta 25 de mana e pede a varredura das capturas', async ({ page }) => {
   await semearChat(page)
   const corpos: string[] = []

@@ -4,6 +4,7 @@ import type { DiaryEntry } from '../core/tipos'
 import { newId, XP_PER_DAILY_LOG } from '../core/jogo'
 import { appStore, addLog } from './base'
 import { gainXP } from './personagem'
+import { processDiaryMentions } from '../core/recompensa'
 import { notify } from '../ui/toast'
 import type { Result } from './base'
 
@@ -34,6 +35,7 @@ export function saveEntry(date: string, fields: { title?: string; text: string }
     const updated: DiaryEntry = { ...current, ...patch }
     saveDiary(currentDiary().map((e) => (e.id === current.id ? updated : e)))
     rewardLog(date, realText)
+    recompensarMencoesCarta()
     return updated
   }
   const created: DiaryEntry = {
@@ -45,6 +47,7 @@ export function saveEntry(date: string, fields: { title?: string; text: string }
   }
   saveDiary([created, ...currentDiary()])
   rewardLog(date, realText)
+  recompensarMencoesCarta()
   return created
 }
 
@@ -62,6 +65,17 @@ function rewardLog(date: string, realText: string): void {
 
 export function deleteEntry(id: string): void {
   saveDiary(currentDiary().filter((e) => e.id !== id))
+}
+
+/** Card mentions in the diary grant XP immediately on save (bug 2026-08-30:
+ *  before, the reward only happened when the Fable read the diary in a chat —
+ *  so citing a card and never chatting gave nothing). `diaryXp` keeps it once. */
+function recompensarMencoesCarta(): void {
+  const r = processDiaryMentions()
+  if (r.xp > 0) {
+    addLog('sistema', `Carta(s) citada(s) no diário: ${r.names.join(', ')} (+${r.xp} XP)`)
+    notify(`Carta(s) citada(s) no diário: ${r.names.join(', ')} (+${r.xp} XP)`)
+  }
 }
 
 /** Moves an entry to another date (respecting 1/day). Returns result. */
@@ -105,7 +119,10 @@ export function importDiary(
       createdAt: new Date().toISOString(),
     })
   }
-  if (imported.length > 0) saveDiary([...imported, ...diary])
+  if (imported.length > 0) {
+    saveDiary([...imported, ...diary])
+    recompensarMencoesCarta()
+  }
   return { imported: imported.length, skipped, invalid }
 }
 
