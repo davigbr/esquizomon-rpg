@@ -386,6 +386,30 @@ test('fabula: resposta vazia da IA não cobra mana do /analisar (bug 2026-08-30)
   await expect(page.locator('[data-s-mana]')).toHaveText('Mana 10/20')
 })
 
+test('fabula: resposta só-raciocínio (DeepSeek-R1, content vazio) exibe o raciocínio na bolha — não some em silêncio (bug 2026-08-30)', async ({ page }) => {
+  await semearChat(page)
+  await page.route('**/api/ia', (rota) => {
+    // SSE com APENAS reasoning_content — nenhum delta.content.
+    void rota.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: 'data: {"choices":[{"delta":{"reasoning_content":"Vou mapear os fluxos do desejo."}}]}\n\ndata: [DONE]\n',
+    })
+  })
+
+  await page.goto('/#/today')
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click()
+  const input = page.locator('[data-fabula-input]')
+  input.fill('/analisar')
+  await input.press('Enter')
+
+  // a bolha da Fábula existe e contém o raciocínio (não some; antes nada era exibido)
+  const bolha = page.locator('.fable-bubble--assistant').last()
+  await expect(bolha).toBeVisible()
+  await expect(bolha.locator('.fable-reasoning pre')).toContainText('Vou mapear os fluxos do desejo.')
+})
+
 test('fabula: cada mensagem tem botão copiar (markdown; carta vira nome)', async ({ page, context }) => {
   await semear(page)
   await page.addInitScript(() => {

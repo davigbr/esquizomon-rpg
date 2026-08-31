@@ -10,7 +10,7 @@ import {
   createConversation,
   deleteConversation,
 } from '../stores/app'
-import { sendToAI, AiError, type ChatMessage } from '../ia/cliente'
+import { sendToAI, defaultModel, AiError, type ChatMessage } from '../ia/cliente'
 import { buildSystemPrompt, buildSchizoanalystSystemPrompt } from '../ia/prompt'
 import { extractActions, detectInvocationRequest, type AiAction } from '../ia/acoes'
 import { collectCommandNotes } from '../ia/notasDeComando'
@@ -619,39 +619,46 @@ async function send(text: string): Promise<void> {
   let reasoning = ''
   busy = true
   render()
+  // Creates the streaming assistant bubble ONCE, used by both onContent and
+  // onReasoning. (Real bug 2026-08-30: the bubble was only created inside
+  // onContent, so a reasoning-only reply from DeepSeek-R1 — reasoning_content
+  // but empty final content — rendered NOTHING at all: not even the reasoning.)
+  const garantirBolhaStream = (): HTMLElement | null => {
+    const area = messagesEl
+    if (!area) return null
+    let last = area.querySelector<HTMLElement>('.fable-bubble--assistant[data-stream="1"]')
+    if (!last) {
+      last = document.createElement('div')
+      last.className = 'fable-bubble fable-bubble--assistant'
+      last.dataset.stream = '1'
+      area.appendChild(last)
+    }
+    return last
+  }
   try {
     await sendToAI(ai, history, {
       onContent: (delta) => {
         response += delta
         // In-place update (no full re-render) to avoid losing focus / lag
-        const area = messagesEl
-        if (!area) return
-        let last = area.querySelector<HTMLElement>('.fable-bubble--assistant[data-stream="1"]')
-        if (!last) {
-          last = document.createElement('div')
-          last.className = 'fable-bubble fable-bubble--assistant' 
-          last.dataset.stream = '1'
-          area.appendChild(last)
-        }
+        const last = garantirBolhaStream()
+        if (!last) return
         // Preserves the <details> of reasoning if it already exists; if not, builds later.
         const reasoningEl = last.querySelector<HTMLElement>('.fable-reasoning')
         // Shows without the markers ([[acao:...]] and [[carta:...]]) — streaming shows the crude text
         last.textContent = response.replace(/\[\[(?:acao|carta):[\s\S]*?\]\]/g, '')
         if (reasoningEl) last.appendChild(reasoningEl)
-        area.scrollTop = area.scrollHeight
+        messagesEl!.scrollTop = messagesEl!.scrollHeight
       },
       onReasoning: (delta) => {
         reasoning += delta
-        // The reasoning goes into a <details> at the end of the bubble; it's
-        // inserted only when the content starts (onContent callback above).
-        const area = messagesEl
-        if (!area) return
-        const last = area.querySelector<HTMLElement>('.fable-bubble--assistant[data-stream="1"]')
+        // The reasoning goes into a <details> at the end of the bubble; created
+        // even if the content hasn't started (so reasoning-only replies are visible).
+        const last = garantirBolhaStream()
         if (!last) return
         let reasoningEl = last.querySelector<HTMLElement>('.fable-reasoning')
         if (!reasoningEl) {
           const det = document.createElement('details')
-          det.className = 'fable-reasoning' 
+          det.className = 'fable-reasoning'
           det.open = true // visible while writing
           const sum = document.createElement('summary')
           sum.innerHTML = '<i class="fa-solid fa-brain" aria-hidden="true"></i> Raciocínio'
@@ -663,7 +670,7 @@ async function send(text: string): Promise<void> {
         }
         const pre = reasoningEl.querySelector('pre')
         if (pre) pre.textContent = reasoning
-        area.scrollTop = area.scrollHeight
+        messagesEl!.scrollTop = messagesEl!.scrollHeight
       },
     })
     // Empty model response (e.g. only reasoning, or silent refusal): shows an
@@ -672,7 +679,25 @@ async function send(text: string): Promise<void> {
     // BEFORE this check, so a silent/no-op return consumed the cost while the
     // user saw nothing).
     if (!response.trim()) {
-      notify(t('chat.noResponse'), 'erro')
+      // Diagnóstico do retorno vazio (bug 2026-08-30): se o modelo SÓ raciocinou,
+      // aponta o provável teto de tokens do raciocínio; se veio 200 vazio de vez,
+      // aponta provider+modelo. O motivo não fica mais silencioso.
+      const modelo = ai.model.trim() || defaultModel(ai.provider)
+      const soRaciocinou = reasoning.trim().length > 0
+      // Se houve raciocínio, PERSISTE a mensagem pra não se perder quando o
+      // render() reconstrói a lista (a bolha de stream é temporária).
+      if (soRaciocinou) {
+        addMessage(conversation.id, {
+          role: 'assistant',
+          content: t('chat.noResponse'),
+          reasoning: reasoning.trim(),
+          ts: new Date().toISOString(),
+        })
+      }
+      const msg = soRaciocinou
+        ? `${t('chat.noResponse')} — o modelo só raciocinou (${ai.provider}/${modelo}) e não devolveu texto final. Pode ser teto de tokens no raciocínio; tente de novo ou mude o modelo.`
+        : `${t('chat.noResponse')} — a IA voltou vazia (HTTP 200) em ${ai.provider}/${modelo}. Verifique o provider/modelo em Config → Fábula.`
+      notify(msg, 'erro')
       return
     }
     // A real answer arrived: charges the commands' mana NOW (per-command;
