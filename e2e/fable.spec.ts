@@ -410,6 +410,32 @@ test('fabula: resposta só-raciocínio (DeepSeek-R1, content vazio) exibe o raci
   await expect(bolha.locator('.fable-reasoning pre')).toContainText('Vou mapear os fluxos do desejo.')
 })
 
+test('fabula: /analisar no provider deepseek usa deepseek-chat (garantido); chat normal mantém deepseek-reasoner (bug 2026-08-30)', async ({ page }) => {
+  await semearChat(page) // provider deepseek, model '' → padrão deepseek-reasoner
+  const corpos: string[] = []
+  await page.route('**/api/ia', (rota) => {
+    corpos.push(rota.request().postData() ?? '')
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake('Resposta.') })
+  })
+
+  await page.goto('/#/today')
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click()
+  const input = page.locator('[data-fabula-input]')
+
+  input.fill('/analisar')
+  await input.press('Enter')
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
+  const analisar = JSON.parse(corpos[corpos.length - 1])
+  expect(analisar.model).toBe('deepseek-chat')
+
+  input.fill('olá')
+  await input.press('Enter')
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(2)
+  const normal = JSON.parse(corpos[corpos.length - 1])
+  expect(normal.model).toBe('deepseek-reasoner') // chat normal mantém o raciocínio
+})
+
 test('fabula: cada mensagem tem botão copiar (markdown; carta vira nome)', async ({ page, context }) => {
   await semear(page)
   await page.addInitScript(() => {

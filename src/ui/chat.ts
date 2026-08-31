@@ -582,6 +582,15 @@ async function send(text: string): Promise<void> {
   // to the Fable, and the app orchestrates the action on top (mana, invocation).
   const notes = collectCommandNotes(text, data)
 
+  // Commands that DEMAND a real answer (/analisar, /capturas) must not fall into
+  // the DeepSeek-R1 reasoning token ceiling — where the model "thinks" but
+  // returns empty final content (real bug 2026-08-30). For deepseek those use the
+  // plain chat model (guaranteed content); normal chat keeps the reasoning model.
+  const commandAnalysis = notes.analysisRequested || notes.capturesRequested
+  const aiForRequest = commandAnalysis && ai.provider === 'deepseek'
+    ? { ...ai, model: 'deepseek-chat' }
+    : ai
+
   // 1. push user (crude text — the command appears as typed)
   const userMsg: AiMessage = { role: 'user', content: text, ts: new Date().toISOString() }
   addMessage(conversation.id, userMsg)
@@ -636,7 +645,7 @@ async function send(text: string): Promise<void> {
     return last
   }
   try {
-    await sendToAI(ai, history, {
+    await sendToAI(aiForRequest, history, {
       onContent: (delta) => {
         response += delta
         // In-place update (no full re-render) to avoid losing focus / lag
@@ -682,7 +691,7 @@ async function send(text: string): Promise<void> {
       // Diagnóstico do retorno vazio (bug 2026-08-30): se o modelo SÓ raciocinou,
       // aponta o provável teto de tokens do raciocínio; se veio 200 vazio de vez,
       // aponta provider+modelo. O motivo não fica mais silencioso.
-      const modelo = ai.model.trim() || defaultModel(ai.provider)
+      const modelo = aiForRequest.model.trim() || defaultModel(aiForRequest.provider)
       const soRaciocinou = reasoning.trim().length > 0
       // Se houve raciocínio, PERSISTE a mensagem pra não se perder quando o
       // render() reconstrói a lista (a bolha de stream é temporária).
