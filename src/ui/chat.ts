@@ -618,9 +618,7 @@ async function send(text: string): Promise<void> {
   const invocationNote = invocationRequest ? prepareInvocation(invocationRequest) : null
   if (invocationNote) history.push({ role: 'system', content: invocationNote.note })
 
-  // 3b. notes of the (/) commands + diary mention reward — ready from the
-  // notasDeComando module (the Fable reads the diary on interaction and celebrates).
-  if (notes.mentionsNotice) notify(notes.mentionsNotice)
+  // 3b. notes of the (/) commands — ready from the notasDeComando module.
   history.push(...notes.system)
 
   // 4. streaming

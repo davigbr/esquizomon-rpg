@@ -9,7 +9,6 @@
 import type { AppData } from '../core/tipos'
 import { detectCommand } from './acoes'
 import { ANALYZE_COST, CAPTURES_COST } from '../core/jogo'
-import { processDiaryMentions } from '../core/recompensa'
 
 export interface CommandNotes {
   fableChoice: boolean
@@ -21,8 +20,6 @@ export interface CommandNotes {
   pendingDiscount: { cost: number; label: string } | null
   /** `system` messages to insert into the history (order already guaranteed). */
   system: Array<{ role: 'system'; content: string }>
-  /** Text of the diary-mention reward notice (for the chat to show). */
-  mentionsNotice: string | null
 }
 
 /** Builds the system notes + flags + discount of the turn's commands. */
@@ -56,22 +53,6 @@ export function collectCommandNotes(text: string, data: AppData): CommandNotes {
   }
 
   const system: Array<{ role: 'system'; content: string }> = []
-
-  // Card-mention reward in the diary (the Fable reads the diary on interaction).
-  let mentionsNotice: string | null = null
-  const mentions = processDiaryMentions()
-  if (mentions.xp > 0) {
-    mentionsNotice = mentions.leveledUp
-      ? `${mentions.names.join(', ')} no diário! +${mentions.xp} XP — você subiu de nível!`
-      : `${mentions.names.join(', ')} no diário! +${mentions.xp} XP`
-    system.push({
-      role: 'system',
-      content:
-        'O diário do jogador mencionou as cartas: ' + mentions.names.join(', ') +
-        `. O app já aplicou +${mentions.xp} XP de recompensa (menção de carta). ` +
-        'Aponte e celebre essa conexão com naturalidade, relacione a(s) carta(s) com o que foi vivido no diário e siga a conversa. Não invente cartas não mencionadas.',
-    })
-  }
 
   if (fableChoice) {
     system.push({
@@ -125,6 +106,5 @@ export function collectCommandNotes(text: string, data: AppData): CommandNotes {
     capturesRefused,
     pendingDiscount,
     system,
-    mentionsNotice,
   }
 }

@@ -692,7 +692,7 @@ test('hábito: marcar no dia anterior (ontem) marca retroativo e dá XP', async 
   await expect(page.locator('[data-habit="positivo"]')).toBeDisabled()
 })
 
-test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async ({ page }) => {
+test('fabula: Fábula NÃO dá mais XP por menção de carta (XP agora só no save do diário) (2026-08-30)', async ({ page }) => {
   await semearChat(page)
   const corpos: string[] = []
   await page.route('**/api/ia', (rota) => {
@@ -701,12 +701,14 @@ test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async 
   })
   const hoje = dataLocal()
   await page.goto('/#/today')
+  // semeia o diário DIRETO (sem saveEntry) → sem o XP de save; baseline xp=0
   await page.evaluate(
     async (h: string) => {
       const mod = await import('/src/stores/app')
       const d = mod.appStore.get()
       mod.appStore.set({
         ...d,
+        character: { ...d.character, xp: 0 },
         diary: [{ id: 'm1', date: h, title: 'teste', text: 'Hoje fui cercado pelo Ninho Enclausurado.' }],
       })
     },
@@ -717,24 +719,16 @@ test('fabula: menção de carta no diário dá +10 XP (uma vez por dia)', async 
   await page.locator('[data-fabula-input]').fill('oi')
   await page.keyboard.press('Enter')
   await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
-  const xp1 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').character.xp)
-  expect(xp1).toBeGreaterThanOrEqual(10)
-
-  // a Fábula foi avisada (nota de sistema) com o nome + o XP
+  // XP intacto: a Fábula NÃO concede mais XP por menção (só o save do diário)
+  const xp = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').character.xp)
+  expect(xp).toBe(0)
+  // e o prompt/nota de sistema não contém a nota dinâmica de recompensa da menção
   const corpo = JSON.parse(corpos[corpos.length - 1])
   const sistema = corpo.messages
     .filter((m: { role: string }) => m.role === 'system')
     .map((m: { content: string }) => m.content)
     .join('\n')
-  expect(sistema).toContain('Ninho Enclausurado')
-  expect(sistema).toContain('+10 XP')
-
-  // 2ª interação: não dá XP de novo (record diarioXp)
-  await page.locator('[data-fabula-input]').fill('oi de novo')
-  await page.keyboard.press('Enter')
-  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(2)
-  const xp2 = await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}').character.xp)
-  expect(xp2).toBe(xp1)
+  expect(sistema).not.toContain('mencionou as cartas')
 })
 
 test('diário: citar carta no diário dá +XP NA HORA DO SAVE (sem depender de conversar com a Fábula) e não dobra (bug 2026-08-30)', async ({ page }) => {
