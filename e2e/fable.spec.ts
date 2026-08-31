@@ -356,6 +356,36 @@ test('fabula: "invoca a carta X" executa no app, desconta mana e mostra a miniat
   await expect(page.locator('.fable-bubble--assistant img.fable-card')).toHaveCount(1)
 })
 
+test('fabula: resposta vazia da IA não cobra mana do /analisar (bug 2026-08-30)', async ({ page }) => {
+  await semearChat(page)
+  let chamada = 0
+  await page.route('**/api/ia', (rota) => {
+    chamada += 1
+    // 1ª: retorno vazio/silencioso (não mostra nada); 2ª: resposta real
+    const corpo = chamada === 1 ? '' : 'Aqui está a análise esquizoanalítica.'
+    void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: sseFake(corpo) })
+  })
+
+  await page.goto('/#/today')
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click()
+  const input = page.locator('[data-fabula-input]')
+  input.fill('/analisar')
+  await input.press('Enter')
+
+  // resposta vazia → NENHUMA bolha da Fábula e mana INTACTA (20/20)
+  await expect(page.locator('.fable-bubble--user')).toHaveCount(1)
+  await page.waitForTimeout(400)
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(0)
+  await expect(page.locator('[data-s-mana]')).toHaveText('Mana 20/20')
+
+  // resposta real → acontece o desconto normal (20 → 10)
+  input.fill('/analisar')
+  await input.press('Enter')
+  await expect(page.locator('.fable-bubble--assistant')).toHaveCount(1)
+  await expect(page.locator('[data-s-mana]')).toHaveText('Mana 10/20')
+})
+
 test('fabula: cada mensagem tem botão copiar (markdown; carta vira nome)', async ({ page, context }) => {
   await semear(page)
   await page.addInitScript(() => {

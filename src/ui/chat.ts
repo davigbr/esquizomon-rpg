@@ -666,19 +666,23 @@ async function send(text: string): Promise<void> {
         area.scrollTop = area.scrollHeight
       },
     })
-    // Response arrived: charges the commands' mana NOW (failure on return doesn't charge)
+    // Empty model response (e.g. only reasoning, or silent refusal): shows an
+    // error instead of saving an empty bubble (real bug 2026-08-12) AND does
+    // NOT charge the command's mana (real bug 2026-08-30: mana was charged
+    // BEFORE this check, so a silent/no-op return consumed the cost while the
+    // user saw nothing).
+    if (!response.trim()) {
+      notify(t('chat.noResponse'), 'erro')
+      return
+    }
+    // A real answer arrived: charges the commands' mana NOW (per-command;
+    // a failure on return — the catch below — doesn't charge).
     if (notes.pendingDiscount) {
       const p = appStore.get().character
       appStore.set({ ...appStore.get(), character: { ...p, mana: p.mana - notes.pendingDiscount.cost } })
       notify(`${notes.pendingDiscount.label} (−${notes.pendingDiscount.cost} mana)`)
       playSound('analise')
       notes.pendingDiscount = null
-    }
-    // Empty model response (e.g. only reasoning, or silent refusal): shows an
-    // error instead of saving an empty bubble (real bug 2026-08-12).
-    if (!response.trim()) {
-      notify(t('chat.noResponse'), 'erro')
-      return
     }
     // 4. executes the Fable's actions (marker [[acao:...]]) and saves the message.
     // Rule (2026-08-12): the marker ONLY executes when the turn is the Fable's
