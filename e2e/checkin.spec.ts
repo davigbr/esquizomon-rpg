@@ -77,3 +77,60 @@ test('sem pendentes: nenhum modal aparece no novo dia', async ({ page }) => {
   await expect(page.locator('#modal')).toBeHidden()
   await expect(page.locator('.checkin-item')).toHaveCount(0)
 })
+
+test('REG.: tarefas já feitas (sincronizadas de outro device) NÃO abrem a janela de check-in — day assenta sem dano (bug 2026-08-30)', async ({ page }) => {
+  await page.addInitScript(
+    ({ hoje, ontem }) => {
+      localStorage.setItem(
+        'esquizomon-rpg:v1',
+        JSON.stringify({
+          version: 3,
+          tasks: [
+            { id: 'r1', type: 'recorrente', title: 'Meditar', difficulty: 'facil', tags: [], agenda: { dias: [] }, history: [], createdAt: '2026-08-01T00:00:00Z', updatedAt: '2026-08-01T00:00:00Z' },
+            { id: 'u1', type: 'unica', title: 'Relatório', difficulty: 'facil', tags: [], dueDate: ontem, done: false, history: [], createdAt: '2026-08-01T00:00:00Z', updatedAt: '2026-08-01T00:00:00Z' },
+          ],
+          character: { nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20, exhausted: false, lastDay: hoje, cartas: [], invocations: {} },
+          settings: { tema: 'dark' },
+          log: [], conversations: [], diary: [],
+        }),
+      )
+    },
+    { hoje, ontem },
+  )
+  await page.goto('/#/today')
+  // boot SEM pendência (lastDay=hoje) → nenhuma janela abre no boot
+  await expect(page.locator('.checkin-item')).toHaveCount(0)
+
+  const r = await page.evaluate(async ({ hoje, ontem }) => {
+    // TUDO pela cadeia stores/app (o checkDaily lê pendingCheckin de lá) —
+    // importar stores/checkin direto criava uma 2ª instância de módulo no teste.
+    const stores = await import('/src/stores/app')
+    const { checkDaily } = await import('/src/ui/checkin')
+    // recua o dia p/ ontem e cria a pendência (como um boot em device atrasado)
+    stores.appStore.set({ ...stores.appStore.get(), character: { ...stores.appStore.get().character, lastDay: ontem } })
+    stores.renewDay()
+    const pendenteAntes = stores.pendingCheckin
+    // o sync traz de outro device a conclusão: r1 feita ontem, u1 feita (done)
+    const d = stores.appStore.get()
+    stores.appStore.set({
+      ...d,
+      tasks: d.tasks.map((t: any) =>
+        t.id === 'r1' ? { ...t, history: [ontem] } : t.id === 'u1' ? { ...t, done: true } : t,
+      ),
+    })
+    // re-exibe o check-in com os dados já sincronizados
+    checkDaily()
+    const d2 = stores.appStore.get()
+    return {
+      pendenteAntes: pendenteAntes !== null,
+      pendenteDepois: stores.pendingCheckin !== null,
+      lastDay: d2.character.lastDay,
+      abriuJanela: !!document.querySelector('.checkin-item'),
+    }
+  }, { hoje, ontem })
+
+  expect(r.pendenteAntes).toBe(true)    // havia pendência no "boot atrasado"
+  expect(r.abriuJanela).toBe(false)     // já com tudo feito, NÃO abre
+  expect(r.pendenteDepois).toBe(false)  // pendência limpa (settle)
+  expect(r.lastDay).toBe(hoje)          // o dia assentou (avançou) sem dano
+})

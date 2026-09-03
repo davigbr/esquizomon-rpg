@@ -3,7 +3,7 @@
  *  retroactively complete; daily damage only hits the unmarked ones. */
 
 import { openModal, closeModal } from './modal'
-import { appStore, finishCheckin, pendingCheckin } from '../stores/app'
+import { appStore, finishCheckin, pendingCheckin, settleAllDone } from '../stores/app'
 import { escapeHtml } from './util'
 import { difficultyMeta, formatLongDate, xpFor } from '../core/jogo'
 import { t } from '../i18n'
@@ -14,9 +14,19 @@ export function checkDaily(): void {
   if (!pend || pend.ids.length === 0) return
 
   const tasks = appStore.get().tasks.filter((t) => pend.ids.includes(t.id))
-  if (tasks.length === 0) return
+  // Re-deriva do estado ATUAL: o que já foi feito para a data do check-in (ex.:
+  // concluído noutro device e já sincronizado) não é perguntado de novo. Antes,
+  // tudo aparecia desmarcado mesmo feito fora (bug 2026-08-30).
+  const outstanding = tasks.filter((t) =>
+    t.type === 'recorrente' ? !t.history.includes(pend.date) : !t.done,
+  )
+  if (outstanding.length === 0) {
+    // tudo já está feito → nem abre a janela; assenta o dia sem dano
+    settleAllDone()
+    return
+  }
 
-  const items = tasks
+  const items = outstanding
     .map(
       (task) => `
       <label class="checkin-item">

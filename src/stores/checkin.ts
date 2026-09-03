@@ -85,6 +85,15 @@ export function renewDay(): void {
   finishDay(today)
 }
 
+/** Finishes the day WITHOUT damage and clears a pending check-in — used when
+ *  the outstanding tasks were already completed for the check-in date (e.g.
+ *  on another device and merged), so the window doesn't open and the day
+ *  settles (lastDay advances, mana/HP regenerate normally). */
+export function settleAllDone(): void {
+  pendingCheckin = null
+  finishDay(todayISO())
+}
+
 /** Check-in: marks the selected tasks in YESTERDAY (retroactive XP) and applies
  *  damage only to the recurring ones left unmarked. */
 export function finishCheckin(markedIds: string[]): void {
