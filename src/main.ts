@@ -248,6 +248,19 @@ void initAuth()
     checkDaily()
   })
 
+// Day rollover + check-in on RESUME too, not only at boot: if the app stays
+// open / is backgrounded across midnight and the user comes back on the NEXT
+// day, the new day's check-in must load then — otherwise a stale window remains
+// and the new pending never shows (bug 2026-08-30). `renewDay` is idempotent
+// (lastDay gate); `checkDaily` only opens when there's an outstanding pending
+// (its modal replaces any stale open one).
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    renewDay()
+    checkDaily()
+  }
+})
+
 /** "Last sync" item in the status bar (desktop, to the right). */
 function updateSyncStatus(): void {
   const el = document.querySelector<HTMLElement>('[data-s-sync]')

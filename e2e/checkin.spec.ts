@@ -134,3 +134,38 @@ test('REG.: tarefas já feitas (sincronizadas de outro device) NÃO abrem a jane
   expect(r.pendenteDepois).toBe(false)  // pendência limpa (settle)
   expect(r.lastDay).toBe(hoje)          // o dia assentou (avançou) sem dano
 })
+
+test('checkin: RESUMIR no dia seguinte (visibilidade) re-roda o dia e carrega o check-in (bug 2026-08-30)', async ({ page }) => {
+  await page.addInitScript(
+    ({ hoje, ontem }) => {
+      localStorage.setItem(
+        'esquizomon-rpg:v1',
+        JSON.stringify({
+          version: 3,
+          tasks: [
+            { id: 'r1', type: 'recorrente', title: 'Meditar', difficulty: 'facil', tags: [], agenda: { dias: [] }, history: [], createdAt: '2026-08-01T00:00:00Z', updatedAt: '2026-08-01T00:00:00Z' },
+          ],
+          character: { nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20, exhausted: false, lastDay: hoje, cartas: [], invocations: {} },
+          settings: { tema: 'dark' },
+          log: [], conversations: [], diary: [],
+        }),
+      )
+    },
+    { hoje, ontem },
+  )
+  await page.goto('/#/today')
+  // boot: lastDay = hoje → NENHUMA janela abre
+  await expect(page.locator('.checkin-item')).toHaveCount(0)
+
+  // o app foi para background e "amanheceu": agora lastDay é ontem (não rolou no
+  // boot que já passou). Ao voltar (fica visível), o re-roll do dia deve
+  // carregar o check-in.
+  await page.evaluate(async ({ ontem }) => {
+    const { appStore } = await import('/src/stores/app')
+    appStore.set({ ...appStore.get(), character: { ...appStore.get().character, lastDay: ontem } })
+    document.dispatchEvent(new Event('visibilitychange'))
+  }, { ontem })
+
+  await expect(page.locator('.checkin-item').first()).toBeVisible()
+  await expect(page.locator('[data-checkin-confirm]')).toHaveCount(1)
+})
