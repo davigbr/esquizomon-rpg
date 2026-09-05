@@ -2125,15 +2125,23 @@ select.field {
 }
 
 /* ========== Tela de morte (esgotado completo) ========== */
-.death-overlay {
+/* As classes aqui (morte-*) DEVEM casar com o markup do index.html — até
+ * 2026-09-05 estavam como "death-*" e não batiam, então o overlay perdia o
+ * position:fixed e renderizava solto no fluxo da página (bug de layout). */
+.morte-overlay {
   position: fixed;
   inset: 0;
   z-index: 300;
-  background: rgba(5, 5, 5, 0.92);
   display: grid;
   place-items: center;
   padding: 20px;
+  background: rgba(5, 5, 5, 0.92);
   animation: morte-fade 0.5s ease-out;
+}
+
+/* display:grid acima venceria o `hidden` do navegador — garante a ocultação. */
+.morte-overlay[hidden] {
+  display: none;
 }
 
 @keyframes morte-fade {
@@ -2145,7 +2153,7 @@ select.field {
   }
 }
 
-.death-card {
+.morte-card {
   background: var(--bg-secondary);
   border: 1px solid var(--accent-red);
   border-radius: 14px;
@@ -2160,25 +2168,25 @@ select.field {
   box-shadow: 0 0 40px rgba(200, 48, 48, 0.25);
 }
 
-.death-icon {
+.morte-icone {
   font-size: 44px;
   color: var(--accent-red);
 }
 
-.death-card h2 {
+.morte-card h2 {
   margin: 0;
   font-size: 22px;
   color: var(--text-primary);
 }
 
-.death-text {
+.morte-texto {
   margin: 0;
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.5;
 }
 
-.death-card {
+.morte-carta {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2186,18 +2194,18 @@ select.field {
   margin: 6px 0;
 }
 
-.death-card img {
+.morte-carta img {
   width: 130px;
   border-radius: 8px;
   border: 1px solid var(--border-gold);
 }
 
-.death-card span {
+.morte-carta span {
   font-size: 13px;
   color: var(--accent-gold);
 }
 
-.death-hint {
+.morte-dica {
   margin: 0;
   color: var(--text-muted);
   font-size: 12px;
