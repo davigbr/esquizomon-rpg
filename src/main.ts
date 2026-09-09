@@ -13,7 +13,7 @@ import { mountDiary } from './ui/views/diary'
 import { toggleChat, mountChat, reactToStoreChange } from './ui/chat'
 import { checkDaily } from './ui/checkin'
 import { initAuth } from './sync/auth'
-import { initSync, subscribeSync, getLastSync } from './sync/sync'
+import { initSync, syncNow, subscribeSync, getLastSync } from './sync/sync'
 import { mountAccountButton } from './ui/headerConta'
 import { loadDeck } from './core/baralho'
 import { onPersistFailure, initialTheme } from './db/storage'
@@ -254,10 +254,18 @@ void initAuth()
 // and the new pending never shows (bug 2026-08-30). `renewDay` is idempotent
 // (lastDay gate); `checkDaily` only opens when there's an outstanding pending
 // (its modal replaces any stale open one).
+// ⚠️ NEVER decide/save the day BEFORE a fresh sync on wake (the same principle
+// as boot): deciding on stale local data re-opened the check-in and stamped the
+// local salvoEm as "now" before the pull (bug 2026-09-09). So: pull first
+// (syncNow), then roll the day.
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
-    renewDay()
-    checkDaily()
+    void syncNow()
+      .catch(() => undefined)
+      .then(() => {
+        renewDay()
+        checkDaily()
+      })
   }
 })
 

@@ -7,6 +7,8 @@
  *  why data is lost/drifted between them.
  */
 
+import { APP_VERSION, APP_BUILD } from '../version'
+
 const LOG_KEY = 'esquizomon-rpg:sync-log'
 const MAX_SYNC_LOG = 800
 
@@ -17,12 +19,19 @@ export interface SyncLogEntry {
   event: string
   /** Human/technical detail — what happened, what was decided. */
   detail?: string
+  /** Version that recorded the event (stays constant across builds). */
+  ver?: string
+  /** BUILD (commit SHA) that recorded the event — the real stale-SW detector. */
+  build?: string
 }
 
 /** Appends an entry (most recent last) and trims to the cap. */
 export function logSync(event: string, detail?: string): void {
   try {
-    const next: SyncLogEntry[] = [...readSyncLog(), { ts: new Date().toISOString(), event, detail }]
+    const next: SyncLogEntry[] = [
+      ...readSyncLog(),
+      { ts: new Date().toISOString(), event, detail, ver: APP_VERSION, build: APP_BUILD },
+    ]
     const trimmed = next.slice(-MAX_SYNC_LOG)
     localStorage.setItem(LOG_KEY, JSON.stringify(trimmed))
     // eslint-disable-next-line no-console
@@ -62,6 +71,8 @@ export function exportSyncLog(): string {
   return JSON.stringify(
     {
       app: 'esquizomon-rpg',
+      version: APP_VERSION,
+      build: APP_BUILD,
       exportedAt: new Date().toISOString(),
       entries,
     },

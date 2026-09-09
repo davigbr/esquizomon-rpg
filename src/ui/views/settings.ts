@@ -13,6 +13,7 @@ import { currentSession } from '../../sync/auth'
 import { getBackups, onSessionChange, restoreBackup, subscribeSync, syncNow } from '../../sync/sync'
 import type { SyncState } from '../../sync/sync'
 import { clearSyncLog, exportSyncLog } from '../../sync/syncLog'
+import { APP_LABEL } from '../../version'
 import { openLoginModal } from '../loginModal'
 import { getLang, setLang, t } from '../../i18n'
 
@@ -146,6 +147,7 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
         <button class="btn" data-export-synclog title="${t('settings.syncLogHint')}"><i class="fa-solid fa-bug" aria-hidden="true"></i> ${t('settings.exportSyncLog')}</button>
         <button class="btn" data-clear-synclog><i class="fa-solid fa-eraser" aria-hidden="true"></i> ${t('settings.clearSyncLog')}</button>
       </div>
+      <div class="settings-hint settings-hint-row" style="margin-top:10px;opacity:.8"><i class="fa-solid fa-code-branch" aria-hidden="true"></i> ${t('settings.buildLabel')}: ${APP_LABEL}</div>
     </div>
 
     <div class="settings-section">
