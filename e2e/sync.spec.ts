@@ -74,6 +74,26 @@ test('REGRESSION: tombstone NUNCA é "settled" quando os 2 lados não têm a tas
   expect(r.tasks).toEqual(['a'])
 })
 
+test('sync: personagem NÃO regride — merge por progressão (nível/XP/lastDay máx, cartas união) (bug 2026-09-09)', async ({ page }) => {
+  await page.goto('/#/today')
+  const r = await page.evaluate(async () => {
+    const { mergeData } = await import('/src/core/syncMerge')
+    const base = { tasks: [], diary: [], conversations: [], log: [], settings: {}, version: 6 } as any
+    const char = (lvl: number, xp: number, lastDay: string, cards: string[]) => ({
+      level: lvl, xp, xpNext: 480, hp: 50, hpMax: 75, mana: 30, manaMax: 30, exhausted: false, lastDay, cards, invocations: {},
+    })
+    // mobile atrasado (nível 6, lastDay velho) vs nuvem avançada (nível 7, dia de hoje)
+    const local = { ...base, character: char(6, 420, '2026-09-03', ['carta-a']) }
+    const cloud = { ...base, character: char(7, 10, '2026-09-09', ['carta-b']) }
+    const f = mergeData(local, cloud) as any
+    return { level: f.character.level, xp: f.character.xp, lastDay: f.character.lastDay, cards: [...f.character.cards].sort() }
+  })
+  expect(r.level).toBe(7) // nunca regride pro lado velho (7→6)
+  expect(r.xp).toBe(10)
+  expect(r.lastDay).toBe('2026-09-09') // dia já resolvido não volta → sem check-in repetido
+  expect(r.cards).toEqual(['carta-a', 'carta-b']) // união: carta desbloqueada nunca se perde
+})
+
 test('sync: conflito na mesma tarefa vence a mais recente', async ({ page }) => {
   await page.goto('/#/today')
   const r = await page.evaluate(async () => {
