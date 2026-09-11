@@ -300,7 +300,6 @@ function habitCard(h: Task, isToday: boolean, isYesterday: boolean): string {
           <span class="badge badge--hab-neg" title="${t('today.negToday')}">−${todayNeg}</span>
           <span class="badge" title="${t('today.streak')}">seq ${streak}</span>
           ${h.tags.map((tag) => `<span class="badge badge--tag">#${escapeHtml(tag)}</span>`).join('')}
-          ${ageBadge(h)}
         </div>
       </div>
       <div class="task-actions">
@@ -316,6 +315,7 @@ function recurringCard(t: Task, date: string): string {
   const done = t.history.includes(date)
   const d = difficultyMeta(t.difficulty)
   const schedule = scheduleLabel(t)
+  const streak = calcStreak(t.history, date)
   const oldClass = ageClass(t)
   return `
     <div class="task-card${done ? ' done' : ''}${oldClass}" draggable="true" data-id="${t.id}">
@@ -326,8 +326,8 @@ function recurringCard(t: Task, date: string): string {
         <div class="task-meta">
           <span class="badge badge--${t.difficulty}">${d.label}</span>
           ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapeHtml(tag)}</span>`).join('')}
+          <span class="badge">seq ${streak}</span>
           ${schedule}
-          ${ageBadge(t)}
         </div>
       </div>
       <div class="task-actions">
@@ -352,7 +352,6 @@ function oneOffCard(t: Task, done: boolean): string {
           <span class="badge badge--${t.difficulty}">${d.label}</span>
           ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapeHtml(tag)}</span>`).join('')}
           ${due}
-          ${ageBadge(t)}
         </div>
       </div>
       <div class="task-actions">
@@ -380,12 +379,6 @@ function ageClass(t: Task): string {
   const days = daysSince(t.createdAt)
   if (days > 30) return ' tarefa-antiga'
   if (days > 14) return ' tarefa-velha'
-  return ''
-}
-
-function ageBadge(t: Task): string {
-  const days = daysSince(t.createdAt)
-  if (days > 30) return `<span class="badge">criada há ${days} dias</span>`
   return ''
 }
 

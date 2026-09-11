@@ -141,3 +141,36 @@ test('hábito: negativo marcado em ontem persiste e aparece ativo ao voltar para
   const cardVolta = page.locator('.habit-card', { hasText: 'Hábito ontem E2E' })
   await expect(cardVolta.locator('[data-habit="negativo"]')).toHaveClass(/active/)
 })
+
+test('recorrente: NÃO mostra "criada há X dias" e mostra seq/streak (2026-09-09)', async ({ page }) => {
+  function iso(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+  const hoje = iso(new Date())
+  const antiga = new Date()
+  antiga.setDate(antiga.getDate() - 40)
+  const dias = iso(antiga)
+  await page.addInitScript(
+    ({ hoje, dias }) => {
+      localStorage.setItem(
+        'esquizomon-rpg:v1',
+        JSON.stringify({
+          version: 3,
+          tasks: [{ id: 'r1', type: 'recorrente', title: 'Meditar', difficulty: 'facil', tags: [], agenda: { dias: [] }, history: [dias, hoje], createdAt: `${dias}T00:00:00Z`, updatedAt: `${dias}T00:00:00Z` }],
+          character: { nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20, exhausted: false, lastDay: hoje, cartas: [], invocations: {} },
+          settings: { tema: 'dark' },
+          log: [], conversations: [], diary: [],
+        }),
+      )
+    },
+    { hoje, dias },
+  )
+  await page.goto('/#/today')
+
+  const card = page.locator('.task-card', { hasText: 'Meditar' })
+  await expect(card).toBeVisible()
+  // sem o badge de idade, mesmo com 40+ dias de criação
+  await expect(card.locator('.task-meta')).not.toContainText('criada há')
+  // e com streak/sequência como nos hábitos
+  await expect(card.locator('.task-meta')).toContainText('seq ')
+})
