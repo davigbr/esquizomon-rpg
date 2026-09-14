@@ -24,3 +24,17 @@ test('sync log: events are recorded and NOT included in the synced blob', async 
   expect(r.exportHasApp).toBe(true)
   expect(typeof r.last?.event).toBe('string')
 })
+
+test('sync metadados: lastSync NÃO é zerado por mudança local — ícone não pisca pra "-" (bug 2026-09-09)', async ({ page }) => {
+  await page.goto('/#/today')
+  const r = await page.evaluate(async () => {
+    // semente: uma última sincronização já registrada
+    localStorage.setItem('esquizomon-rpg:sync', JSON.stringify({ salvoEm: '2026-09-01T00:00:00Z', lastSync: '2026-09-01T01:00:00Z' }))
+    // uma mudança local qualquer (autosave/status/sync) re-carimba o salvoEm
+    const { appStore } = await import('/src/stores/app')
+    appStore.set({ ...appStore.get() })
+    return JSON.parse(localStorage.getItem('esquizomon-rpg:sync') ?? '{}')
+  })
+  expect(r.lastSync).toBe('2026-09-01T01:00:00Z') // NÃO foi apagado (era o bug do "-")
+  expect(typeof r.salvoEm).toBe('string') // o salvoEm continua sendo carimbado normalmente
+})

@@ -217,7 +217,13 @@ deathContinue.addEventListener('click', () => {
 function renderKeepingFocus(fn: () => void): void {
   const el = document.activeElement
   const field = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el : null
+  // só campos que guardam texto digitado (evita mexer em checkbox/radio/botão)
+  const isTextable =
+    !!field &&
+    (field instanceof HTMLTextAreaElement ||
+      (field.type.length > 0 && ['text', 'search', 'url', 'tel', 'email', 'password', 'number', 'date', 'datetime-local', 'month', 'week', 'time'].includes(field.type)))
   let key: string | null = null
+  let value = ''
   let start = 0
   let end = 0
   let scrollTop = 0
@@ -227,14 +233,21 @@ function renderKeepingFocus(fn: () => void): void {
       const attr = field.getAttributeNames().find((a) => a.startsWith('data-'))
       if (attr) key = `[${attr}]`
     }
-    start = field.selectionStart ?? field.value.length
-    end = field.selectionEnd ?? field.value.length
-    scrollTop = field.scrollTop
+    if (isTextable) {
+      value = field.value
+      start = field.selectionStart ?? field.value.length
+      end = field.selectionEnd ?? field.value.length
+      scrollTop = field.scrollTop
+    }
   }
   fn()
   if (!key) return
   const fresh = document.querySelector(key)
   if (fresh instanceof HTMLInputElement || fresh instanceof HTMLTextAreaElement) {
+    // recupera o VALOR em andamento — o re-render recriava o campo com o valor
+    // do store (que ainda não tem o rascunho) e "apagava" o que o usuário
+    // digitou (bug 2026-09-09: desfocar parou, mas o texto sumia).
+    if (isTextable && fresh.value !== value) fresh.value = value
     fresh.focus()
     try {
       fresh.setSelectionRange(Math.min(start, fresh.value.length), Math.min(end, fresh.value.length))

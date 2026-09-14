@@ -928,7 +928,7 @@ test('config: rerolar baralho pede confirmação e mantém o total de cartas', a
     .toBe(antes)
 })
 
-test('chat: o input da Fábula mantém o foco através de um re-render de store (bug estrutural 2026-09-09)', async ({ page }) => {
+test('chat: o input da Fábula mantém foco E TEXTO através de um re-render de store (bug estrutural 2026-09-09)', async ({ page }) => {
   await semearChat(page)
   await page.goto('/#/today')
   await page.click('#fabula-toggle')
@@ -936,16 +936,15 @@ test('chat: o input da Fábula mantém o foco através de um re-render de store 
 
   const input = page.locator('[data-fabula-input]')
   await input.click()
+  await input.fill('mensagem em andamento') // rascunho que AINDA não foi pro store
   await expect(input).toBeFocused()
 
-  // re-render externo (sync/status) enquanto o input está focado
+  // re-render externo (sync/status) enquanto o input tem rascunho não salvo
   await page.evaluate(async () => {
     const { appStore } = await import('/src/stores/app')
     appStore.set({ ...appStore.get() })
   })
-  // o foco NÃO é roubado — dá pra digitar
+  // o foco E o texto digitado são preservados (antes o texto era apagado)
   await expect(input).toBeFocused()
-  await input.fill('mensagem no chat')
-  await expect(input).toHaveValue('mensagem no chat')
-  await expect(input).toBeFocused()
+  await expect(input).toHaveValue('mensagem em andamento')
 })
