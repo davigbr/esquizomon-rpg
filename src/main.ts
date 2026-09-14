@@ -208,17 +208,56 @@ deathContinue.addEventListener('click', () => {
 
 /* ---------- router ---------- */
 
-window.addEventListener('hashchange', () => mountRoute(currentRoute()))
+/** Runs a re-render while PRESERVING the caret/focus of whatever text field the
+ *  user had focused. The app rebuilds the route (and the Fable chat) on EVERY
+ *  store change; without this, any change (sync, status, autosave, another
+ *  device's merge) destroyed the focused <input>/<textarea> and the field kept
+ *  deselecting — impossible to type (structural bug 2026-09-09). We identify the
+ *  field by its #id or first data-* attribute and restore focus + selection. */
+function renderKeepingFocus(fn: () => void): void {
+  const el = document.activeElement
+  const field = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el : null
+  let key: string | null = null
+  let start = 0
+  let end = 0
+  let scrollTop = 0
+  if (field) {
+    if (field.id) key = `#${CSS.escape(field.id)}`
+    else {
+      const attr = field.getAttributeNames().find((a) => a.startsWith('data-'))
+      if (attr) key = `[${attr}]`
+    }
+    start = field.selectionStart ?? field.value.length
+    end = field.selectionEnd ?? field.value.length
+    scrollTop = field.scrollTop
+  }
+  fn()
+  if (!key) return
+  const fresh = document.querySelector(key)
+  if (fresh instanceof HTMLInputElement || fresh instanceof HTMLTextAreaElement) {
+    fresh.focus()
+    try {
+      fresh.setSelectionRange(Math.min(start, fresh.value.length), Math.min(end, fresh.value.length))
+    } catch {
+      /* some input types (date/number) don't support setSelectionRange */
+    }
+    fresh.scrollTop = scrollTop
+  }
+}
+
+window.addEventListener('hashchange', () => renderKeepingFocus(() => mountRoute(currentRoute())))
 
 /* re-render on state change, keeping the current route */
 appStore.subscribe(() => {
-  mountStatusBar()
-  mountRoute(currentRoute())
-  // death: shows the depleted screen with the lost card (once)
-  const death = consumeDeath()
-  if (death && deathOverlay.hidden) showDeath(death.cardId, death.cardName)
-  // the chat reads from appStore — re-renders to reflect external changes
-  reactToStoreChange()
+  renderKeepingFocus(() => {
+    mountStatusBar()
+    mountRoute(currentRoute())
+    // death: shows the depleted screen with the lost card (once)
+    const death = consumeDeath()
+    if (death && deathOverlay.hidden) showDeath(death.cardId, death.cardName)
+    // the chat reads from appStore — re-renders to reflect external changes
+    reactToStoreChange()
+  })
 })
 
 /* ---------- Fable chat (side panel) ---------- */

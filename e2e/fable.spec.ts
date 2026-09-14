@@ -927,3 +927,25 @@ test('config: rerolar baralho pede confirmação e mantém o total de cartas', a
     .poll(() => page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.character?.cards?.length ?? 0)))
     .toBe(antes)
 })
+
+test('chat: o input da Fábula mantém o foco através de um re-render de store (bug estrutural 2026-09-09)', async ({ page }) => {
+  await semearChat(page)
+  await page.goto('/#/today')
+  await page.click('#fabula-toggle')
+  await page.locator('[data-fabula-nova]').click() // cria a conversa (input habilita)
+
+  const input = page.locator('[data-fabula-input]')
+  await input.click()
+  await expect(input).toBeFocused()
+
+  // re-render externo (sync/status) enquanto o input está focado
+  await page.evaluate(async () => {
+    const { appStore } = await import('/src/stores/app')
+    appStore.set({ ...appStore.get() })
+  })
+  // o foco NÃO é roubado — dá pra digitar
+  await expect(input).toBeFocused()
+  await input.fill('mensagem no chat')
+  await expect(input).toHaveValue('mensagem no chat')
+  await expect(input).toBeFocused()
+})
