@@ -98,7 +98,7 @@ test('diário: importa crônicas em massa via markdown (e pula dias que já exis
   await expect(page.locator('.toast').last()).toContainText(hoje)
 })
 
-test('diário: o campo de TÍTULO mantém o foco através de um re-render (bug 2026-09-09)', async ({ page }) => {
+test('diário: o campo de TÍTULO mantém o foco através de um re-render COM dados novos (bug 2026-09-09)', async ({ page }) => {
   await page.goto('/#/diary')
   await page.locator('[data-dayry-new]').click()
   await page.waitForTimeout(120) // deixa o foco automático do editor (do '+') assentar
@@ -107,11 +107,12 @@ test('diário: o campo de TÍTULO mantém o foco através de um re-render (bug 2
   await title.click()
   await expect(title).toBeFocused()
 
-  // um re-render externo (ex.: sync/status) enquanto o título está focado:
+  // um re-render externo com dado REAL novo (ex.: XP de outra tarefa/sync):
   // a restauração de foco ANTES sempre ia pro textarea e roubava o campo.
   await page.evaluate(async () => {
     const { appStore } = await import('/src/stores/app')
-    appStore.set({ ...appStore.get() })
+    const d = appStore.get()
+    appStore.set({ ...d, character: { ...d.character, xp: (d.character?.xp ?? 0) + 1 } })
   })
   await expect(title).toBeFocused()
 
@@ -119,8 +120,21 @@ test('diário: o campo de TÍTULO mantém o foco através de um re-render (bug 2
   await title.fill('Crônica do dia')
   await page.evaluate(async () => {
     const { appStore } = await import('/src/stores/app')
-    appStore.set({ ...appStore.get() })
+    const d = appStore.get()
+    appStore.set({ ...d, character: { ...d.character, xp: (d.character?.xp ?? 0) + 1 } })
   })
   await expect(title).toHaveValue('Crônica do dia')
   await expect(title).toBeFocused()
+})
+
+test('re-render NÃO acontece com appStore.set no-op — só quando há dados novos (bug 2026-09-09)', async ({ page }) => {
+  await page.goto('/#/today')
+  const mesmaInstancia = await page.evaluate(async () => {
+    const { appStore } = await import('/src/stores/app')
+    const el = document.querySelector('[data-s-sync]') // canário: a status bar é reconstruída num re-render
+    const antes = el
+    appStore.set({ ...appStore.get() }) // NO-OP: dados idênticos → não deve re-renderizar
+    return document.querySelector('[data-s-sync]') === antes
+  })
+  expect(mesmaInstancia).toBe(true)
 })

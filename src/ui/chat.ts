@@ -126,6 +126,13 @@ function render(): void {
   suggestionIdx = 0
   const data: AppData = appStore.get()
   const conversations = data.conversations ?? []
+  // Preserva os RASCUNHOS do input e do título da conversa: todo render() aqui
+  // reconstrói o painel com campos vazios e apagava o que o usuário estava
+  // digitando (bug estrutural 2026-09-09). O envio zera inputEl.value ANTES de
+  // render(), então o rascunho capturado aqui já é "" nesse caso (não ressuscita
+  // mensagem enviada).
+  const draft = (inputEl?.value || '').slice()
+  const titleDraft = renaming ? (panel.querySelector<HTMLInputElement>('[data-fabula-titulo-input]')?.value ?? '') : ''
   // Auto-recovery (real bug 2026-08-12): if the active conversation id is ORPHAN
   // (e.g. import/export replaced the conversations, or old panel), selects the
   // most recent conversation instead of leaving the chat dead (input disabled).
@@ -212,6 +219,13 @@ function render(): void {
 
   cacheRefs()
   installHandlers(conversation)
+  // restaura os rascunhos nos campos recém-criados (só se não desabilitado e
+  // houver conteúdo — o envio zera o valor, então "" não ressurge).
+  if (inputEl && !inputEl.disabled && draft) inputEl.value = draft
+  if (renaming && titleDraft) {
+    const ti = panel.querySelector<HTMLInputElement>('[data-fabula-titulo-input]')
+    if (ti && !ti.disabled) ti.value = titleDraft
+  }
   scrollToEnd()
 }
 

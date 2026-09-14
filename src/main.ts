@@ -216,12 +216,14 @@ deathContinue.addEventListener('click', () => {
  *  field by its #id or first data-* attribute and restore focus + selection. */
 function renderKeepingFocus(fn: () => void): void {
   const el = document.activeElement
-  const field = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el : null
+  let field: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null = null
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) field = el
+  else if (el instanceof HTMLSelectElement) field = el
   // só campos que guardam texto digitado (evita mexer em checkbox/radio/botão)
   const isTextable =
     !!field &&
-    (field instanceof HTMLTextAreaElement ||
-      (field.type.length > 0 && ['text', 'search', 'url', 'tel', 'email', 'password', 'number', 'date', 'datetime-local', 'month', 'week', 'time'].includes(field.type)))
+    !(field instanceof HTMLSelectElement) &&
+    (field.type.length > 0 && ['text', 'search', 'url', 'tel', 'email', 'password', 'number', 'date', 'datetime-local', 'month', 'week', 'time'].includes(field.type))
   let key: string | null = null
   let value = ''
   let start = 0
@@ -234,10 +236,11 @@ function renderKeepingFocus(fn: () => void): void {
       if (attr) key = `[${attr}]`
     }
     if (isTextable) {
-      value = field.value
-      start = field.selectionStart ?? field.value.length
-      end = field.selectionEnd ?? field.value.length
-      scrollTop = field.scrollTop
+      const f = field as HTMLInputElement | HTMLTextAreaElement
+      value = f.value
+      start = f.selectionStart ?? f.value.length
+      end = f.selectionEnd ?? f.value.length
+      scrollTop = f.scrollTop
     }
   }
   fn()
@@ -255,13 +258,24 @@ function renderKeepingFocus(fn: () => void): void {
       /* some input types (date/number) don't support setSelectionRange */
     }
     fresh.scrollTop = scrollTop
+  } else if (fresh instanceof HTMLSelectElement) {
+    // seletores (Config: tema/idioma/padrões/IA): só devolve o foco —
+    // o valor vem do store (é a fonte de verdade pós-mudança).
+    fresh.focus()
   }
 }
 
 window.addEventListener('hashchange', () => renderKeepingFocus(() => mountRoute(currentRoute())))
 
-/* re-render on state change, keeping the current route */
+/* Guard: só re-renderiza quando HÁ dados novos. Antes, QUALQUER appStore.set
+ * (mesmo no-op / dado não relacionado à tela atual) reconstruía a rota inteira,
+ * o chat e a status bar — reconstruindo campos focados e rollando seletores.
+ * (bug 2026-09-09: "por que re-renderiza o tempo todo?".) */
+let lastStoreSig = '\u0000'
 appStore.subscribe(() => {
+  const sig = JSON.stringify(appStore.get())
+  if (sig === lastStoreSig) return
+  lastStoreSig = sig
   renderKeepingFocus(() => {
     mountStatusBar()
     mountRoute(currentRoute())
@@ -363,3 +377,6 @@ mountStatusBar()
 subscribeSync(updateSyncStatus)
 updateSyncStatus()
 mountRoute(currentRoute())
+// recorda o estado renderizado no boot: appStore.set no-op (ex.: sync sem
+// mudança) não re-renderiza nada a partir de agora
+lastStoreSig = JSON.stringify(appStore.get())

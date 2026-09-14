@@ -939,10 +939,11 @@ test('chat: o input da Fábula mantém foco E TEXTO através de um re-render de 
   await input.fill('mensagem em andamento') // rascunho que AINDA não foi pro store
   await expect(input).toBeFocused()
 
-  // re-render externo (sync/status) enquanto o input tem rascunho não salvo
+  // re-render externo com dado REAL novo (ex.: XP/sync) enquanto o input tem rascunho não salvo
   await page.evaluate(async () => {
     const { appStore } = await import('/src/stores/app')
-    appStore.set({ ...appStore.get() })
+    const d = appStore.get()
+    appStore.set({ ...d, character: { ...d.character, xp: (d.character?.xp ?? 0) + 1 } })
   })
   // o foco E o texto digitado são preservados (antes o texto era apagado)
   await expect(input).toBeFocused()
