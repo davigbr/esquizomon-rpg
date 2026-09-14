@@ -97,3 +97,30 @@ test('diário: importa crônicas em massa via markdown (e pula dias que já exis
   await expect(page.locator('.toast').last()).toContainText('1 pulada')
   await expect(page.locator('.toast').last()).toContainText(hoje)
 })
+
+test('diário: o campo de TÍTULO mantém o foco através de um re-render (bug 2026-09-09)', async ({ page }) => {
+  await page.goto('/#/diary')
+  await page.locator('[data-dayry-new]').click()
+  await page.waitForTimeout(120) // deixa o foco automático do editor (do '+') assentar
+
+  const title = page.locator('[data-dayry-title]')
+  await title.click()
+  await expect(title).toBeFocused()
+
+  // um re-render externo (ex.: sync/status) enquanto o título está focado:
+  // a restauração de foco ANTES sempre ia pro textarea e roubava o campo.
+  await page.evaluate(async () => {
+    const { appStore } = await import('/src/stores/app')
+    appStore.set({ ...appStore.get() })
+  })
+  await expect(title).toBeFocused()
+
+  // e digitar no título funciona (valor preservado após o re-render)
+  await title.fill('Crônica do dia')
+  await page.evaluate(async () => {
+    const { appStore } = await import('/src/stores/app')
+    appStore.set({ ...appStore.get() })
+  })
+  await expect(title).toHaveValue('Crônica do dia')
+  await expect(title).toBeFocused()
+})

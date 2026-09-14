@@ -316,6 +316,7 @@ export async function syncNow(force?: 'local' | 'nuvem'): Promise<void> {
       replaceData(merged)
       loading = false
       writeMeta({
+        ...readMeta(), // preserves lastSync — else the "last sync" icon flips to "-" (bug 2026-09-09)
         salvoEm: ((envelope.salvoEm ?? '') > localSavedAt ? envelope.salvoEm : localSavedAt) ?? undefined,
       })
       logSync('get', `applied merge to local (mergedTasks=${merged.tasks.length})`)
@@ -359,8 +360,8 @@ appStore.subscribe(() => {
     // becomes "local always wins" and the cloud (backup) gets overwritten needlessly.
     // The pull writes the cloud salvoEm explicitly.
     if (!loading) {
-      // REAL change: stamp the last-write-wins timestamp
-      writeMeta({ salvoEm: new Date().toISOString() })
+      // REAL change: stamp the last-write-wins timestamp (preserve lastSync)
+      writeMeta({ ...readMeta(), salvoEm: new Date().toISOString() })
       if (currentSession()) {
         pendingLocalChange = true
         logSync('change', `local change — scheduling send in ${DEBOUNCE_MS}ms (tasks=${appStore.get().tasks.length})`)

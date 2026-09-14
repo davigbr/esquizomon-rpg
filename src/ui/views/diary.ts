@@ -49,10 +49,16 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
     const titleValue = (root.querySelector<HTMLInputElement>('[data-dayry-title]')?.value ?? '')
     editActive = textValue !== lastRenderedContent.text || titleValue !== lastRenderedContent.title
   }
-  // Preserves caret/focus of the textarea if the re-render is only the autosave
-  // (value already saved → editActive false → full render).
-  const selectionBefore = editorEl ? { start: editorEl.selectionStart, end: editorEl.selectionEnd } : null
-  const focusBefore = !!editorEl && document.activeElement === editorEl
+  // Preserves caret/focus (title OR textarea) if the re-render caught the user
+  // mid-edit — the textarea-only restore used to STEAL focus from the title
+  // field and re-recreate it (bug 2026-09-09: editing the diary title kept
+  // deselecting the field).
+  const titleEl0 = root.querySelector<HTMLInputElement>('[data-dayry-title]')
+  const activeEl = document.activeElement
+  const wasEditor = !!editorEl && activeEl === editorEl
+  const wasTitle = !!titleEl0 && activeEl === titleEl0
+  const selEditor = wasEditor && editorEl ? { s: editorEl.selectionStart ?? 0, e: editorEl.selectionEnd ?? 0 } : null
+  const selTitle = wasTitle && titleEl0 ? { s: titleEl0.selectionStart ?? 0, e: titleEl0.selectionEnd ?? 0 } : null
   if (editActive && entryExists) {
     // updates only the side list + status; the editor stays intact
     const listEl = root.querySelector<HTMLElement>('.diary-files')
@@ -135,12 +141,19 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
   renderedDate = active
   lastRenderedContent = { text: entry?.text ?? '', title: entry?.title ?? '' }
 
-  // Restores caret/focus if the re-render caught the user mid-editor.
-  if (focusBefore && selectionBefore) {
+  // Restores caret/focus if the re-render caught the user mid-edit — on the
+  // SAME field they were using (title OR textarea), never a different one.
+  if (wasTitle && selTitle) {
+    const freshTitle = root.querySelector<HTMLInputElement>('[data-dayry-title]')
+    if (freshTitle) {
+      freshTitle.focus()
+      freshTitle.setSelectionRange(Math.min(selTitle.s, freshTitle.value.length), Math.min(selTitle.e, freshTitle.value.length))
+    }
+  } else if (wasEditor && selEditor) {
     const fresh = root.querySelector<HTMLTextAreaElement>('[data-dayry-editor]')
     if (fresh) {
       fresh.focus()
-      fresh.setSelectionRange(Math.min(selectionBefore.start, fresh.value.length), Math.min(selectionBefore.end, fresh.value.length))
+      fresh.setSelectionRange(Math.min(selEditor.s, fresh.value.length), Math.min(selEditor.e, fresh.value.length))
     }
   }
 }
