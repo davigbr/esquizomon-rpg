@@ -8,13 +8,13 @@ import type { AppData, Difficulty, Task, TaskType } from '../../core/tipos'
 import {
   addDays,
   calcStreak,
-  dayOfMonth,
-  dayOfWeek,
   daysSince,
   daysUntil,
   difficultyMeta,
   formatLongDate,
   formatWeekday,
+  recurrenceDue,
+  recurrenceOverdue,
   todayISO,
 } from '../../core/jogo'
 import { appStore, deleteTask, recordHabit, reorderTasks, tagsInUse, toggleOneOff, toggleRecurringToday, healWithMana, HEAL_MANA_COST } from '../../stores/app'
@@ -37,8 +37,6 @@ export function mountToday(root: HTMLElement, data: AppData): void {
   const isToday = visibleDate === todayReal
   const isYesterday = visibleDate === addDays(todayReal, -1)
   const label = isToday ? t('today.today') : isYesterday ? t('today.yesterday') : formatWeekday(visibleDate)
-  const weekday = dayOfWeek(new Date(visibleDate + 'T12:00:00'))
-  const dayOfMonthNum = dayOfMonth(new Date(visibleDate + 'T12:00:00'))
   const tags = tagsInUse(data)
 
   const passes = (t: Task): boolean => {
@@ -48,7 +46,7 @@ export function mountToday(root: HTMLElement, data: AppData): void {
   }
 
   const habits = data.tasks.filter((t) => t.type === 'habito' && passes(t))
-  const recurring = data.tasks.filter((t) => t.type === 'recorrente' && appliesToday(t, weekday, dayOfMonthNum) && passes(t))
+  const recurring = data.tasks.filter((t) => t.type === 'recorrente' && passes(t) && recurrenceDue(t, visibleDate))
   const oneOffs = data.tasks.filter((t) => t.type === 'unica' && passes(t))
   const pending = oneOffs.filter((t) => !t.done)
   const done = showDone ? oneOffs.filter((t) => t.done && t.history.includes(visibleDate)) : []
@@ -263,11 +261,6 @@ export function mountToday(root: HTMLElement, data: AppData): void {
   root.addEventListener('click', clickHandler)
 }
 
-function appliesToday(t: Task, weekday: number, dayOfMonthNum: number): boolean {
-  if (t.agenda?.daysOfMonth && t.agenda.daysOfMonth.length > 0) return t.agenda.daysOfMonth.includes(dayOfMonthNum)
-  return !t.agenda || t.agenda.days.length === 0 || t.agenda.days.includes(weekday)
-}
-
 function habitCard(h: Task, isToday: boolean, isYesterday: boolean): string {
   const d = difficultyMeta(h.difficulty)
   const streak = calcStreak(h.history, visibleDate)
@@ -311,28 +304,30 @@ function habitCard(h: Task, isToday: boolean, isYesterday: boolean): string {
   `
 }
 
-function recurringCard(t: Task, date: string): string {
-  const done = t.history.includes(date)
-  const d = difficultyMeta(t.difficulty)
-  const schedule = scheduleLabel(t)
-  const streak = calcStreak(t.history, date)
-  const oldClass = ageClass(t)
+function recurringCard(task: Task, date: string): string {
+  const done = task.history.includes(date)
+  const overdue = recurrenceOverdue(task, date)
+  const d = difficultyMeta(task.difficulty)
+  const schedule = scheduleLabel(task)
+  const streak = calcStreak(task.history, date)
+  const oldClass = ageClass(task)
   return `
-    <div class="task-card${done ? ' done' : ''}${oldClass}" draggable="true" data-id="${t.id}">
-      <button class="task-check${done ? ' marked' : ''}" data-toggle-rec data-id="${t.id}" aria-label="Concluir neste dia"><i class="fa-solid fa-check" aria-hidden="true"></i></button>
+    <div class="task-card${done ? ' done' : ''}${overdue ? ' overdue' : ''}${oldClass}" draggable="true" data-id="${task.id}">
+      <button class="task-check${done ? ' marked' : ''}" data-toggle-rec data-id="${task.id}" aria-label="Concluir neste dia"><i class="fa-solid fa-check" aria-hidden="true"></i></button>
       <div class="task-body">
-        <p class="task-title">${escapeHtml(t.title)}</p>
-        ${t.notes ? `<p class="task-notes">${renderNotes(t.notes)}</p>` : ''}
+        <p class="task-title">${escapeHtml(task.title)}</p>
+        ${task.notes ? `<p class="task-notes">${renderNotes(task.notes)}</p>` : ''}
         <div class="task-meta">
-          <span class="badge badge--${t.difficulty}">${d.label}</span>
-          ${t.tags.map((tag) => `<span class="badge badge--tag">#${escapeHtml(tag)}</span>`).join('')}
+          <span class="badge badge--${task.difficulty}">${d.label}</span>
+          ${overdue ? `<span class="badge badge--overdue" title="${t('today.overdueTitle')}"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i> ${t('today.overdue')}</span>` : ''}
+          ${task.tags.map((tag) => `<span class="badge badge--tag">#${escapeHtml(tag)}</span>`).join('')}
           <span class="badge">seq ${streak}</span>
           ${schedule}
         </div>
       </div>
       <div class="task-actions">
-        <button class="btn btn-icon" data-edit data-id="${t.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
-        <button class="btn btn-icon" data-delete data-id="${t.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-edit data-id="${task.id}" aria-label="Editar"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+        <button class="btn btn-icon" data-delete data-id="${task.id}" aria-label="Excluir"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       </div>
     </div>
   `

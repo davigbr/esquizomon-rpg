@@ -1,6 +1,6 @@
 /** Game constants — difficulty, multipliers (Habitica reference) and dates. */
 
-import type { Difficulty } from './tipos'
+import type { Agenda, Difficulty, Task } from './tipos'
 import { t, LOCALE, getLang } from '../i18n'
 
 export const DIFFICULTIES: ReadonlyArray<{
@@ -181,6 +181,61 @@ export function dayOfWeek(d: Date = new Date()): number {
 
 export function dayOfMonth(d: Date = new Date()): number {
   return d.getDate()
+}
+
+/* ---------- recurring-task schedule + deferral (2026-09-14) ---------- */
+
+/** True if a weekly/monthly agenda applies on a given ISO date. `daysOfMonth`
+ *  (monthly) wins over `days` (weekly); empty agenda = every day. */
+export function agendaApplies(agenda: Agenda | undefined, iso: string): boolean {
+  if (agenda?.daysOfMonth && agenda.daysOfMonth.length > 0) return agenda.daysOfMonth.includes(dayOfMonth(new Date(iso + 'T12:00:00')))
+  if (!agenda || agenda.days.length === 0) return true
+  return agenda.days.includes(dayOfWeek(new Date(iso + 'T12:00:00')))
+}
+
+/** Daily recurring = empty agenda (applies every day). Weekly/monthly have a
+ *  non-empty schedule and defer when missed (see recurrenceDue). */
+export function isDailyRecurring(t: Task): boolean {
+  return !t.agenda || (t.agenda.days.length === 0 && !t.agenda.daysOfMonth?.length)
+}
+
+/** Most recent scheduled date ≤ `iso` for a weekly/monthly task (or `iso` itself
+ *  when it IS scheduled). Ignores dates before `createdAt` — a freshly created
+ *  task never defers before its first scheduled day. Null if there is none. */
+export function lastScheduledOnOrBefore(t: Task, iso: string): string | null {
+  const created = (t.createdAt || iso).slice(0, 10)
+  let cur = iso
+  // bounded walk: a weekly gap ≤ 6 days; a monthly gap ≤ ~31 (day 31 in a
+  // shorter month jumps to the previous valid one). 62 is comfortably enough.
+  for (let i = 0; i < 62; i++) {
+    if (cur < created) return null
+    if (agendaApplies(t.agenda, cur)) return cur
+    cur = addDays(cur, -1)
+  }
+  return null
+}
+
+/** Weekly/monthly deferral: the current occurrence shows (pending, possibly
+ *  overdue) on EVERY day from its scheduled date until it's completed. Once
+ *  completed it stops until the next scheduled date. A task completed ON `iso`
+ *  still shows that day (as done), so the checkbox isn't a flicker. Daily tasks
+ *  keep their current always-visible behavior. Never returns "two copies": one
+ *  task = one card (single row in data.tasks). */
+export function recurrenceDue(t: Task, iso: string): boolean {
+  if (isDailyRecurring(t)) return true
+  if (t.history.includes(iso)) return true // completed on this day → show as done
+  const S = lastScheduledOnOrBefore(t, iso)
+  if (!S) return false
+  // the occurrence for S is still open iff no completion happened in [S, iso]
+  return !t.history.some((h) => h >= S && h <= iso)
+}
+
+/** True when the task is shown-but-PENDING (not completed today) and its
+ *  scheduled day already passed — i.e. it's overdue/deferred, worth a cue. */
+export function recurrenceOverdue(t: Task, iso: string): boolean {
+  if (isDailyRecurring(t) || t.history.includes(iso)) return false
+  const S = lastScheduledOnOrBefore(t, iso)
+  return !!S && S < iso
 }
 
 /** Days (integer) until a future date; negative = already due. */

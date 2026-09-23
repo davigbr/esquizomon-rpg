@@ -581,6 +581,20 @@ body {
   font-size: 11px;
 }
 
+.badge--overdue {
+  color: #e0a050;
+  border-color: #6a4a20;
+}
+[data-theme='light'] .badge--overdue {
+  color: #a06820;
+  border-color: #d8a060;
+}
+/* recorrente semanal/mensal atrasada (dia agendado passou): destaque sutil */
+.task-card.overdue {
+  outline: 1px dashed rgba(224, 160, 80, 0.5);
+  outline-offset: -1px;
+}
+
 /* ========== Botões ========== */
 .btn {
   display: inline-flex;
