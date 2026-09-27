@@ -1,4 +1,6 @@
-/** E2E — diário: criar entrada, editar markdown, autosave, preview (Ver), persistência e import em massa. */
+/** E2E — diário (timeline): captura de notas rápidas (várias por dia, XP 1×/dia,
+ *  menção de carta dá XP no save), crônica diária (modal markdown, autosave,
+ *  preview, exclusão) e import em massa. */
 import { test, expect } from '@playwright/test'
 
 const TEXTO = 'linha um\nlinha dois\n\nparágrafo com **negrito** e *itálico*\n\n- item 1\n- item 2'
@@ -14,67 +16,151 @@ function dataLocal(offsetDias = 0): string {
 const hoje = dataLocal()
 const ontem = dataLocal(-1)
 
-test('diário: cria entrada, digita markdown, autosave, Ver (preview) e reload', async ({ page }) => {
-  await page.goto('/#/diary')
-  await page.locator('[data-dayry-new]').click()
+/** Lê um campo do estado salvo (localStorage do app). */
+function readState(page: import('@playwright/test').Page, path: string): Promise<unknown> {
+  return page.evaluate((p) => {
+    const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')
+    return p.split('.').reduce<unknown>((acc, k) => (acc as Record<string, unknown>)?.[k], d)
+  }, path)
+}
 
+test('diário: captura várias notas no mesmo dia (Enter salva, campo limpa e mantém o foco)', async ({ page }) => {
+  await page.goto('/#/diary')
+  const input = page.locator('[data-note-input]')
+
+  await input.fill('Primeira nota da manhã')
+  await input.press('Enter')
+  const card = page.locator('[data-note]').first()
+  await expect(card).toContainText('Primeira nota da manhã')
+  // campo limpo e ainda focado — captura em sequência
+  await expect(input).toHaveValue('')
+  await expect(input).toBeFocused()
+
+  // segunda nota do MESMO dia
+  await input.fill('Lembrete: ligar pro orientador')
+  await input.press('Enter')
+  await expect(page.locator('[data-note]')).toHaveCount(2)
+  await expect(page.locator('[data-note]').first()).toContainText('Lembrete: ligar pro orientador')
+  // empilha na seção de HOJE
+  const notaEmHoje = page.locator('.note-card').first().locator('xpath=ancestor::*[@data-day]')
+  await expect(notaEmHoje).toHaveAttribute('data-day', hoje)
+
+  // persiste no reload
+  await page.reload()
+  await expect(page.locator('[data-note]')).toHaveCount(2)
+})
+
+test('diário: XP +5 POR NOTA — múltiplas notas no mesmo dia somam (editar a mesma nota não re-rende)', async ({ page }) => {
+  await page.goto('/#/diary')
+  const input = page.locator('[data-note-input]')
+
+  await input.fill('nota um')
+  await input.press('Enter')
+  await expect.poll(() => readState(page, 'character.xp')).toBe(5)
+
+  // segunda nota do MESMO dia também rende
+  await input.fill('nota dois')
+  await input.press('Enter')
+  await expect.poll(() => readState(page, 'character.xp')).toBe(10)
+
+  // terceira nota → 15
+  await input.fill('nota três')
+  await input.press('Enter')
+  await expect.poll(() => readState(page, 'character.xp')).toBe(15)
+
+  // editar a MESMA nota não re-rende (dedup por registro)
+  await page.locator('[data-note]').first().click()
+  await page.locator('[data-note-edit]').fill('nota três editada')
+  await page.locator('[data-note-save]').click()
+  await page.waitForTimeout(300)
+  expect(await readState(page, 'character.xp')).toBe(15)
+})
+
+test('diário: menção de carta numa NOTA dá +XP no save (e não dobra no mesmo dia)', async ({ page }) => {
+  // aguarda o baralho carregar (main.ts carrega async no boot)
+  await page.goto('/#/diary')
+  await expect
+    .poll(() => page.evaluate(async () => (await import('/src/core/baralho')).allCards().length))
+    .toBeGreaterThan(0)
+
+  const input = page.locator('[data-note-input]')
+  await input.fill('Ninho Enclausurado me visitou na rua.')
+  await input.press('Enter')
+  // +5 do registro + 10 da menção
+  await expect.poll(() => readState(page, 'character.xp')).toBe(15)
+
+  // re-salvar a MESMA nota (edição) → não dobra (dedup diaryXp por dia)
+  await page.locator('[data-note]').first().click()
+  await page.locator('[data-note-edit]').fill('Ninho Enclausurado, de novo, na rua.')
+  await page.locator('[data-note-save]').click()
+  await page.waitForTimeout(300)
+  expect(await readState(page, 'character.xp')).toBe(15)
+})
+
+test('diário: edita e exclui uma nota pela sheet', async ({ page }) => {
+  await page.goto('/#/diary')
+  await page.locator('[data-note-input]').fill('nota temporária')
+  await page.locator('[data-note-input]').press('Enter')
+
+  // edita
+  await page.locator('[data-note]').first().click()
+  await page.locator('[data-note-edit]').fill('nota editada')
+  await page.locator('[data-note-save]').click()
+  await expect(page.locator('#modal')).toBeHidden()
+  await expect(page.locator('[data-note]').first()).toContainText('nota editada')
+  await expect.poll(() => readState(page, 'notes.0.text')).toBe('nota editada')
+
+  // exclui com confirmação
+  await page.locator('[data-note]').first().click()
+  await page.locator('[data-note-delete]').click()
+  await page.locator('[data-modal-confirm]').click()
+  await expect(page.locator('#modal')).toBeHidden()
+  await expect(page.locator('[data-note]')).toHaveCount(0)
+  expect(await readState(page, 'notes.length')).toBe(0)
+})
+
+test('diário: crônica via modal — markdown, autosave, preview (Ver) e reload', async ({ page }) => {
+  await page.goto('/#/diary')
+  await page.locator('[data-dayry-cronica]').first().click()
   const editor = page.locator('[data-dayry-editor]')
   await expect(editor).toBeVisible()
 
-  // digita markdown (textarea nativo)
   await editor.fill(TEXTO)
+  await page.locator('[data-dayry-save]').click()
+  await expect(page.locator('#modal')).toBeHidden()
 
-  // autosave (debounce 800ms) persiste o texto exato
-  await expect
-    .poll(async () => {
-      return page.evaluate(() => {
-        const d = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')
-        return d?.diary?.[0]?.text ?? ''
-      })
-    })
-    .toBe(TEXTO)
+  // persiste como entrada do dia (autosave de 800ms + save explícito)
+  await expect.poll(() => readState(page, 'diary.0.text')).toBe(TEXTO)
 
-  // toggle Ver → preview renderiza negrito, itálico e lista
+  // card da crônica aparece no dia com o snippet
+  await expect(page.locator('[data-dayry-cronica-card]').first()).toContainText('negrito')
+
+  // reabre e usa Ver (preview renderiza markdown)
+  await page.locator('[data-dayry-cronica-card]').first().click()
   await page.locator('[data-dayry-toggle]').click()
   await expect(page.locator('[data-dayry-preview] strong')).toHaveText('negrito')
   await expect(page.locator('[data-dayry-preview] em')).toHaveText('itálico')
   await expect(page.locator('[data-dayry-preview] li')).toHaveCount(2)
-  await expect(page.locator('[data-dayry-preview]')).toContainText('linha um')
-
-  // toggle Editar → textarea de volta com foco
-  await page.locator('[data-dayry-toggle]').click()
-  await expect(page.locator('[data-dayry-editor]')).toBeVisible()
-
-  // reload → texto persiste
-  await page.reload()
-  await expect(page.locator('[data-dayry-editor]')).toHaveValue(TEXTO)
 })
 
-test('diário: excluir entrada com confirmação', async ({ page }) => {
+test('diário: excluir crônica com confirmação', async ({ page }) => {
   await page.goto('/#/diary')
-  await page.locator('[data-dayry-new]').click()
+  await page.locator('[data-dayry-cronica]').first().click()
   await page.locator('[data-dayry-editor]').fill('conteúdo que será excluído')
-  await expect
-    .poll(async () =>
-      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.diary ?? []).length),
-    )
-    .toBe(1)
+  await page.locator('[data-dayry-save]').click()
+  await expect.poll(() => readState(page, 'diary.length')).toBe(1)
 
+  await page.locator('[data-dayry-cronica-card]').first().click()
   await page.locator('[data-dayry-delete]').click()
   await page.locator('[data-modal-confirm]').click()
-
-  await expect(page.locator('[data-dayry-editor]')).toHaveValue('')
-  await expect
-    .poll(async () =>
-      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.diary ?? []).length),
-    )
-    .toBe(0)
+  await expect(page.locator('#modal')).toBeHidden()
+  await expect(page.locator('[data-dayry-cronica-card]')).toHaveCount(0)
+  await expect.poll(() => readState(page, 'diary.length')).toBe(0)
 })
 
 test('diário: importa crônicas em massa via markdown (e pula dias que já existem)', async ({ page }) => {
   await page.goto('/#/diary')
 
-  // abre o modal de importação e cola markdown com 2 entradas
   await page.locator('[data-dayry-import]').click()
   const markdown = `## ${ontem}\n**Ontem**\nPrimeira crônica importada.\n\n## ${hoje}\n**Hoje**\nSegunda crônica importada.\n\n- lista\n- markdown`
   await page.locator('[data-import-text]').fill(markdown)
@@ -84,10 +170,9 @@ test('diário: importa crônicas em massa via markdown (e pula dias que já exis
   await expect(page.locator('#modal')).toBeHidden()
   await expect(page.locator('.toast').last()).toContainText('2 importada')
 
-  // as entradas aparecem na lista e a mais recente fica aberta no editor
-  await expect(page.locator('.diary-files')).toContainText('Hoje')
-  await expect(page.locator('.diary-files')).toContainText('Ontem')
-  await expect(page.locator('[data-dayry-editor]')).toHaveValue(/Segunda crônica importada/)
+  // as crônicas viram cards na timeline (uma por dia importado)
+  await expect(page.locator('[data-dayry-cronica-card]')).toHaveCount(2)
+  await expect(page.locator('.diary-timeline')).toContainText('Primeira crônica importada')
 
   // reimportar o mesmo dia → pula (1/dia), modal fecha de novo
   await page.locator('[data-dayry-import]').click()
@@ -98,33 +183,20 @@ test('diário: importa crônicas em massa via markdown (e pula dias que já exis
   await expect(page.locator('.toast').last()).toContainText(hoje)
 })
 
-test('diário: o campo de TÍTULO mantém o foco através de um re-render COM dados novos (bug 2026-09-09)', async ({ page }) => {
+test('diário: o campo de captura mantém o foco e o valor através de um re-render COM dados novos (bug 2026-09-09)', async ({ page }) => {
   await page.goto('/#/diary')
-  await page.locator('[data-dayry-new]').click()
-  await page.waitForTimeout(120) // deixa o foco automático do editor (do '+') assentar
+  const input = page.locator('[data-note-input]')
+  await input.fill('rascunho sendo digitado…')
+  await expect(input).toBeFocused()
 
-  const title = page.locator('[data-dayry-title]')
-  await title.click()
-  await expect(title).toBeFocused()
-
-  // um re-render externo com dado REAL novo (ex.: XP de outra tarefa/sync):
-  // a restauração de foco ANTES sempre ia pro textarea e roubava o campo.
+  // re-render externo com dado REAL novo (ex.: XP de outra tarefa/sync)
   await page.evaluate(async () => {
     const { appStore } = await import('/src/stores/app')
     const d = appStore.get()
     appStore.set({ ...d, character: { ...d.character, xp: (d.character?.xp ?? 0) + 1 } })
   })
-  await expect(title).toBeFocused()
-
-  // e digitar no título funciona (valor preservado após o re-render)
-  await title.fill('Crônica do dia')
-  await page.evaluate(async () => {
-    const { appStore } = await import('/src/stores/app')
-    const d = appStore.get()
-    appStore.set({ ...d, character: { ...d.character, xp: (d.character?.xp ?? 0) + 1 } })
-  })
-  await expect(title).toHaveValue('Crônica do dia')
-  await expect(title).toBeFocused()
+  await expect(input).toBeFocused()
+  await expect(input).toHaveValue('rascunho sendo digitado…')
 })
 
 test('re-render NÃO acontece com appStore.set no-op — só quando há dados novos (bug 2026-09-09)', async ({ page }) => {

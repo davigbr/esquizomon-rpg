@@ -1,11 +1,9 @@
 /** Diary domain (1 entry per day). */
 
 import type { DiaryEntry } from '../core/tipos'
-import { newId, XP_PER_DAILY_LOG } from '../core/jogo'
-import { appStore, addLog } from './base'
-import { gainXP } from './personagem'
-import { processDiaryMentions } from '../core/recompensa'
-import { notify } from '../ui/toast'
+import { newId } from '../core/jogo'
+import { appStore } from './base'
+import { rewardCardMentions, rewardDiaryLog } from './diaryRewards'
 import type { Result } from './base'
 
 export function currentDiary(): DiaryEntry[] {
@@ -34,8 +32,8 @@ export function saveEntry(date: string, fields: { title?: string; text: string }
     if (fields.title !== undefined) patch.title = fields.title
     const updated: DiaryEntry = { ...current, ...patch }
     saveDiary(currentDiary().map((e) => (e.id === current.id ? updated : e)))
-    rewardLog(date, realText)
-    recompensarMencoesCarta()
+    rewardDiaryLog(`cronica:${date}`, realText)
+    rewardCardMentions()
     return updated
   }
   const created: DiaryEntry = {
@@ -46,36 +44,13 @@ export function saveEntry(date: string, fields: { title?: string; text: string }
     createdAt: new Date().toISOString(),
   }
   saveDiary([created, ...currentDiary()])
-  rewardLog(date, realText)
-  recompensarMencoesCarta()
+  rewardDiaryLog(`cronica:${date}`, realText)
+  rewardCardMentions()
   return created
-}
-
-/** XP for logging the diary: 1×/day, only when it gains REAL text (the empty
- *  creation of the editor when opening the page does NOT count). Dedup via diaryLogXp. */
-function rewardLog(date: string, realText: string): void {
-  if (!realText) return
-  const d = appStore.get()
-  if (d.diaryLogXp?.[date]) return
-  appStore.set({ ...d, diaryLogXp: { ...(d.diaryLogXp ?? {}), [date]: true } })
-  gainXP(XP_PER_DAILY_LOG)
-  addLog('sistema', `Registrou o diário (+${XP_PER_DAILY_LOG} XP)`)
-  notify(`Diário registrado! +${XP_PER_DAILY_LOG} XP`)
 }
 
 export function deleteEntry(id: string): void {
   saveDiary(currentDiary().filter((e) => e.id !== id))
-}
-
-/** Card mentions in the diary grant XP immediately on save (bug 2026-08-30:
- *  before, the reward only happened when the Fable read the diary in a chat —
- *  so citing a card and never chatting gave nothing). `diaryXp` keeps it once. */
-function recompensarMencoesCarta(): void {
-  const r = processDiaryMentions()
-  if (r.xp > 0) {
-    addLog('sistema', `Carta(s) citada(s) no diário: ${r.names.join(', ')} (+${r.xp} XP)`)
-    notify(`Carta(s) citada(s) no diário: ${r.names.join(', ')} (+${r.xp} XP)`)
-  }
 }
 
 /** Moves an entry to another date (respecting 1/day). Returns result. */
@@ -121,7 +96,7 @@ export function importDiary(
   }
   if (imported.length > 0) {
     saveDiary([...imported, ...diary])
-    recompensarMencoesCarta()
+    rewardCardMentions()
   }
   return { imported: imported.length, skipped, invalid }
 }

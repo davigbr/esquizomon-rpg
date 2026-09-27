@@ -3316,45 +3316,163 @@ body.fable-open .container {
   border-color: var(--border-gold);
 }
 
-/* ========== Diário (lista de arquivos + editor markdown) ========== */
+/* ========== Diário — timeline de notas rápidas + crônica diária ========== */
 
-.diary-layout {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 16px;
-  align-items: start;
+.view-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
 }
 
-/* --- lista de arquivos (esquerda) --- */
-.diary-list {
+/* --- captura rápida (topo, sempre visível) --- */
+.diary-capture {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 760px;
+  margin: 0 auto 20px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  position: sticky;
-  top: 120px; /* abaixo navbar + status bar */
-  max-height: calc(100vh - 140px);
-  overflow-y: auto;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.diary-capture:focus-within {
+  border-color: var(--accent-gold);
+}
+.diary-capture-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 16px; /* >=16px evita o zoom automático do iOS */
+  padding: 8px 4px;
+}
+.diary-capture-input::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.diary-capture-btn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: none;
+  background: var(--accent-gold);
+  color: #0a0a0a;
+  font-size: 14px;
+}
+.diary-capture-btn:hover {
+  filter: brightness(1.08);
 }
 
-.diary-list-header {
+/* --- timeline: dias empilhados (mais recente no topo) --- */
+.diary-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.timeline-day {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.timeline-day-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 2px 4px 4px;
+  gap: 10px;
   border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+.timeline-day-label {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.timeline-day-label h2 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-gold);
+  white-space: nowrap;
+}
+.timeline-day-sub {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.timeline-day-head .btn-pequeno {
+  flex-shrink: 0;
+  border-color: color-mix(in srgb, var(--border-gold) 55%, var(--border-color));
+  color: var(--accent-gold);
+}
+.timeline-day-head .btn-pequeno:hover {
+  background: color-mix(in srgb, var(--accent-gold) 14%, transparent);
 }
 
-.diary-list-buttons {
+/* --- cartões de nota --- */
+.timeline-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.note-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.note-card:hover {
+  border-color: var(--border-gold);
+  background: var(--bg-card);
+}
+.note-time {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+  min-width: 40px;
+}
+.note-text {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-width: 0;
+}
+
+/* --- card da crônica (destaque do dia) --- */
+.note-card--cronica {
+  flex-direction: column;
+  gap: 6px;
+  border-color: color-mix(in srgb, var(--border-gold) 45%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-gold) 6%, var(--bg-secondary));
+}
+.note-cronica-label {
   display: flex;
   align-items: center;
-  gap: 4px;
-}
-
-.diary-list-title {
+  gap: 8px;
   font-family: var(--font-display);
   font-size: 12px;
   font-weight: 700;
@@ -3362,135 +3480,80 @@ body.fable-open .container {
   text-transform: uppercase;
   color: var(--accent-gold);
 }
-
-.diary-new {
-  width: 26px;
-  height: 26px;
-  font-size: 13px;
-  border-color: var(--border-gold);
-  color: var(--accent-gold);
+.note-cronica-snippet {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.note-cronica-snippet--vazio {
+  font-style: italic;
+  color: var(--text-muted);
 }
 
-.diary-new:hover {
-  background: var(--accent-gold);
-  color: #0a0a0a;
-}
-
-.diary-import {
-  width: 26px;
-  height: 26px;
-  font-size: 12px;
-}
-
-.diary-import:hover {
-  background: var(--accent-gold);
-  color: #0a0a0a;
-}
-
-.diary-files {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
+/* --- estado vazio --- */
 .diary-empty {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   font-style: italic;
-  padding: 14px 8px;
+  padding: 26px 16px;
   text-align: center;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
-.diary-file {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 7px 9px;
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
-}
-
-.diary-file:hover {
-  background: var(--bg-card);
-}
-
-.diary-file--active {
-  background: var(--bg-card);
-  border-color: var(--border-gold);
-}
-
-.diary-file-data {
-  font-size: 11px;
+/* --- sheet de edição de nota --- */
+.diary-sheet-meta {
+  font-size: 12.5px;
   color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
+  margin: -8px 0 12px;
+}
+.diary-sheet-textarea {
+  width: 100%;
+  min-height: 120px;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.55;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+.form-spacer {
+  flex: 1;
 }
 
-.diary-file-title {
-  font-size: 13px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.diary-file--active .diary-file-title {
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-/* --- editor (direita) --- */
-.diary-editor {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 16px 18px;
+/* --- editor da crônica (modal) --- */
+.diary-chronicle {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-height: 480px;
+  gap: 8px;
+}
+.diary-chronicle .diary-title {
+  font-size: 17px;
+}
+.diary-editor-area--modal {
+  min-height: 220px;
+  max-height: 44vh;
+}
+.diary-editor-area--modal .diary-textarea {
+  min-height: 200px;
 }
 
-.diary-editor-header {
+/* toolbar do editor (Ver/Editar + status do autosave) */
+.diary-editor-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  flex-wrap: wrap;
 }
-
-.diary-editor-data {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.badge--hoje {
-  background: var(--accent-gold);
-  color: #0a0a0a;
-  border: none;
-  font-weight: 600;
-}
-
-.diary-editor-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .diary-status {
   font-size: 11px;
   color: var(--text-muted);
 }
 
+/* título da crônica */
 .diary-title {
   background: transparent;
   color: var(--text-primary);
@@ -3498,33 +3561,25 @@ body.fable-open .container {
   border-bottom: 1px solid var(--border-color);
   border-radius: 0;
   padding: 6px 2px;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   font-family: inherit;
   width: 100%;
   box-sizing: border-box;
 }
-
 .diary-title:focus {
   outline: none;
   border-bottom-color: var(--accent-gold);
 }
-
 .diary-title::placeholder {
   color: var(--text-muted);
   font-weight: 400;
 }
 
 /* --- área de edição (textarea + preview) --- */
-.diary-tools {
-  display: flex;
-  justify-content: flex-end;
-  margin: 2px 0 6px;
-}
-
 .diary-editor-area {
   flex: 1;
-  min-height: 320px;
+  min-height: 300px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -3532,11 +3587,10 @@ body.fable-open .container {
   display: flex;
   flex-direction: column;
 }
-
 .diary-textarea {
   flex: 1;
   width: 100%;
-  min-height: 320px;
+  min-height: 300px;
   box-sizing: border-box;
   resize: vertical;
   border: none;
@@ -3548,18 +3602,16 @@ body.fable-open .container {
   font-size: 13.5px;
   line-height: 1.7;
 }
-
 .diary-textarea:focus {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent-gold) 55%, transparent);
   border-radius: 8px;
 }
-
 .diary-textarea::placeholder {
   color: var(--text-muted);
   font-style: italic;
 }
 
-/* preview (modo Ver) */
+/* preview (modo Ver — também usado no modal da crônica) */
 .diary-preview {
   flex: 1;
   overflow-y: auto;
@@ -3568,7 +3620,6 @@ body.fable-open .container {
   line-height: 1.75;
   color: var(--text-primary);
 }
-
 .diary-preview h1,
 .diary-preview h2,
 .diary-preview h3 {
@@ -3577,33 +3628,26 @@ body.fable-open .container {
   margin: 0.7em 0 0.35em;
   color: var(--text-primary);
 }
-
 .diary-preview h1 {
   font-size: 1.55em;
 }
-
 .diary-preview h2 {
   font-size: 1.28em;
 }
-
 .diary-preview h3 {
   font-size: 1.1em;
 }
-
 .diary-preview p {
   margin: 0 0 0.8em;
 }
-
 .diary-preview ul,
 .diary-preview ol {
   margin: 0 0 0.8em;
   padding-left: 1.5em;
 }
-
 .diary-preview li {
   margin: 0.2em 0;
 }
-
 .diary-preview blockquote {
   border-left: 3px solid var(--border-gold);
   margin: 0 0 0.8em;
@@ -3611,7 +3655,6 @@ body.fable-open .container {
   color: var(--text-secondary);
   font-style: italic;
 }
-
 .diary-preview pre {
   background: rgba(0, 0, 0, 0.3);
   border-radius: 6px;
@@ -3619,32 +3662,26 @@ body.fable-open .container {
   overflow-x: auto;
   margin: 0 0 0.8em;
 }
-
 [data-theme='light'] .diary-preview pre {
   background: rgba(0, 0, 0, 0.06);
 }
-
 .diary-preview pre code {
   background: none;
   padding: 0;
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 12.5px;
 }
-
 .diary-preview strong {
   font-weight: 700;
 }
-
 .diary-preview em {
   font-style: italic;
 }
-
 .diary-preview a {
   color: var(--accent-gold);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-
 .diary-preview code {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 0.92em;
@@ -3652,20 +3689,17 @@ body.fable-open .container {
   border-radius: 3px;
   padding: 1px 5px;
 }
-
 [data-theme='light'] .diary-preview code {
   background: rgba(0, 0, 0, 0.06);
 }
-
 .diary-preview-empty {
   color: var(--text-muted);
   font-style: italic;
 }
-
 .diary-hint {
   font-size: 11px;
+  margin: 4px 0 0;
 }
-
 .diary-hint code {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 0.95em;
@@ -3674,45 +3708,22 @@ body.fable-open .container {
   border-radius: 3px;
   padding: 1px 5px;
 }
-
-/* --- responsivo: empilha em telas estreitas --- */
-@media (max-width: 900px) {
-  .diary-layout {
-    grid-template-columns: 1fr;
-  }
-  .diary-list {
-    position: static;
-    max-height: 220px;
-  }
-}
-
-/* input de data no cabeçalho do editor */
-.diary-data-input {
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 4px 8px;
+.diary-import {
+  width: 30px;
+  height: 30px;
   font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
+}
+.diary-import:hover {
+  background: var(--accent-gold);
+  color: #0a0a0a;
 }
 
-.diary-data-input:hover {
-  border-color: var(--border-gold);
-}
-
-.diary-data-input:focus {
-  outline: none;
-  border-color: var(--accent-gold);
-}
-
-.diary-data-input::-webkit-calendar-picker-indicator {
-  filter: invert(0.7);
-}
-
-[data-theme='light'] .diary-data-input::-webkit-calendar-picker-indicator {
-  filter: none;
+/* rota diário no mobile: status globais escondidos (o toast cobre o feedback
+   de XP) → mais vertical pra capturar notas */
+@media (max-width: 900px) {
+  body.rota-diario #status-bar {
+    display: none;
+  }
 }
 
 /* ---------- conta e sincronização ---------- */

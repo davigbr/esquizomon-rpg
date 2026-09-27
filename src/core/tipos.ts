@@ -170,13 +170,30 @@ export interface AppData {
   /** Deleted conversations (id → date): tombstone so the merge doesn't
    *  re-add a conversation a device already deleted (mirrors deletedTasks). */
   deletedConversations?: Record<string, string>
-  /** Ship log (1 entry per day, text/voice). Persisted. */
+  /** Ship log (1 entry per day — the daily chronicle). Persisted. */
   diary?: DiaryEntry[]
+  /** Quick notes (many per day). Persisted. */
+  notes?: DiaryNote[]
   /** Mentions of cards already rewarded per day (date → card ids).
    *  Avoids granting XP twice for the same mention. */
   diaryXp?: Record<string, string[]>
   /** Days where logging the diary already yielded XP (date → true, 1×/day). */
   diaryLogXp?: Record<string, boolean>
+}
+
+/** Quick note of the diary — captured fast, several per day. */
+export interface DiaryNote {
+  id: string
+  /** Note date (YYYY-MM-DD) — the day it belongs to. */
+  date: string
+  /** Local time of capture (HH:MM). */
+  time: string
+  /** Note text (plain, may be short). */
+  text: string
+  /** ISO creation timestamp. */
+  createdAt: string
+  /** ISO of last edit (undefined if never edited). */
+  updatedAt?: string
 }
 
 export const DATA_VERSION = 3

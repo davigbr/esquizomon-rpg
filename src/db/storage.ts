@@ -1,6 +1,6 @@
 /** Versioned persistence + safe wrapper (in-memory fallback when localStorage is blocked). */
 
-import type { AiConfig, AiMessage, AiProvider, AppData, Character, CompletionReward, Conversation, DiaryEntry, LogEvent, LogType, Settings, Task, Theme } from '../core/tipos'
+import type { AiConfig, AiMessage, AiProvider, AppData, Character, CompletionReward, Conversation, DiaryEntry, DiaryNote, LogEvent, LogType, Settings, Task, Theme } from '../core/tipos'
 import { DATA_VERSION, STORAGE_KEY, THEME_KEY } from '../core/tipos'
 import { hpMaxFor, initialCharacter, manaMaxFor, xpNextFor } from '../core/jogo'
 
@@ -340,6 +340,42 @@ function normalizeDiary(v: unknown): DiaryEntry[] {
   return out
 }
 
+/** Limit of quick notes kept (enough for several per day over years). */
+export const MAX_NOTES = 3000
+
+function normalizeNote(v: unknown): DiaryNote | null {
+  if (!isObject(v)) return null
+  const id = str(v, 'id', 'id')
+  const rawDate = field<unknown>(v, 'date', 'data')
+  const date = typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : null
+  const rawTime = field<unknown>(v, 'time', 'hora')
+  const time = typeof rawTime === 'string' && /^\d{1,2}:\d{2}$/.test(rawTime) ? rawTime : '00:00'
+  if (!id || !date) return null
+  return {
+    id,
+    date,
+    time,
+    text: str(v, 'text', 'texto') ?? '',
+    createdAt: str(v, 'createdAt', 'criadaEm') ?? new Date(date).toISOString(),
+    updatedAt: str(v, 'updatedAt', 'editadaEm'),
+  }
+}
+
+function normalizeNotes(v: unknown): DiaryNote[] {
+  if (!Array.isArray(v)) return []
+  const out: DiaryNote[] = []
+  const seen = new Set<string>()
+  for (const n of v) {
+    const note = normalizeNote(n)
+    if (!note) continue
+    if (seen.has(note.id)) continue
+    seen.add(note.id)
+    out.push(note)
+    if (out.length >= MAX_NOTES) break
+  }
+  return out
+}
+
 /** Validates and normalizes raw data (from localStorage or import). Null if irreparable. */
 export function normalizeData(raw: unknown): AppData | null {
   if (!isObject(raw)) return null
@@ -353,6 +389,7 @@ export function normalizeData(raw: unknown): AppData | null {
   const log = normalizeLog(field<unknown>(b, 'log', 'log'))
   const conversations = normalizeConversations(field<unknown>(b, 'conversations', 'conversas'))
   const diary = normalizeDiary(field<unknown>(b, 'diary', 'diario'))
+  const notes = normalizeNotes(field<unknown>(b, 'notes', 'notes'))
   return {
     version: DATA_VERSION,
     tasks,
@@ -361,6 +398,7 @@ export function normalizeData(raw: unknown): AppData | null {
     log,
     conversations,
     diary,
+    notes,
     deletedTasks: normalizeStringMap(field<unknown>(b, 'deletedTasks', 'tarefasExcluidas')),
     deletedConversations: normalizeStringMap(field<unknown>(b, 'deletedConversations', 'conversasExcluidas')),
     diaryXp: normalizeDiaryXp(field<unknown>(b, 'diaryXp', 'diarioXp')),
@@ -378,12 +416,17 @@ function normalizeStringMap(x: unknown): Record<string, string> {
   return out
 }
 
-/** `diaryLogXp`: date → true (already yielded diary-log XP). Filters junk. */
+/** `diaryLogXp`: entity key → true (already yielded diary-log XP). Keys are
+ *  `nota:<id>` or `cronica:<date>`. Old blobs stored `date → true` (1 grant per
+ *  day): those MIGRATE to the chronicle of that date, so old chronicles don't
+ *  re-yield. Filters junk. */
 function normalizeDiaryLogXp(x: unknown): Record<string, boolean> {
   if (!x || typeof x !== 'object') return {}
   const out: Record<string, boolean> = {}
-  for (const [date, ok] of Object.entries(x)) {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && ok) out[date] = true
+  for (const [k, ok] of Object.entries(x)) {
+    if (!ok) continue
+    const key = /^\d{4}-\d{2}-\d{2}$/.test(k) ? `cronica:${k}` : k
+    out[key] = true
   }
   return out
 }
@@ -434,6 +477,7 @@ export function emptyState(): AppData {
     log: [],
     conversations: [],
     diary: [],
+    notes: [],
     deletedTasks: {},
     deletedConversations: {},
     diaryXp: {},

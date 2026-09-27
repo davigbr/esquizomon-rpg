@@ -162,9 +162,9 @@ test('fabula: prompt injeta {resumo}, cartas desbloqueadas e o protocolo de invo
   await page.locator('[data-resumo]').fill('Vivo com a Aline e duas gatas.')
   await page.locator('[data-resumo]').blur()
   await page.goto('/#/diary')
-  await page.locator('[data-dayry-new]').click()
+  await page.locator('[data-dayry-cronica]').first().click()
   await page.locator('[data-dayry-editor]').fill('Hoje lembrei do Ninho Enclausurado.')
-  await page.keyboard.press('Tab')
+  await page.locator('[data-dayry-save]').click()
 
   const prompt = await page.evaluate(async () => {
     const { buildSystemPrompt } = await import('/src/ia/prompt')
@@ -204,12 +204,12 @@ test('fabula: marcador [[acao:invocar]] é extraído e removido do texto', async
 test('fabula: as últimas entradas do diário entram NA ÍNTEGRA no prompt (sem truncar)', async ({ page }) => {
   await semear(page)
   await page.goto('/#/diary')
-  await page.locator('[data-dayry-new]').click()
+  await page.locator('[data-dayry-cronica]').first().click()
 
   // entrada longa (bem acima do antigo corte de 600 chars)
   const longo = 'A'.repeat(800) + ' FIM-DO-REGISTRO-INTEGRO'
   await page.locator('[data-dayry-editor]').fill(longo)
-  await page.keyboard.press('Tab')
+  await page.locator('[data-dayry-save]').click()
 
   await expect
     .poll(() =>
@@ -737,22 +737,22 @@ test('diário: citar carta no diário dá +XP NA HORA DO SAVE (sem depender de c
   const r = await page.evaluate(async () => {
     const { appStore } = await import('/src/stores/app')
     const { saveEntry } = await import('/src/stores/diary')
-    const { XP_PER_DAILY_LOG } = await import('/src/core/jogo')
+    const { XP_PER_LOG } = await import('/src/core/jogo')
     const { XP_PER_MENTION } = await import('/src/core/recompensa')
     appStore.set({ ...appStore.get(), character: { ...appStore.get().character, xp: 0 } })
-    // salva um dia SEM carta → só o XP diário
+    // salva um dia SEM carta → só o XP do registro
     saveEntry('2026-01-01', { text: 'dia simples' })
     const xpSimples = appStore.get().character.xp
-    // salva OUTRO dia citando a carta → XP diário + 10 da menção
+    // salva OUTRO dia citando a carta → XP do registro + 10 da menção
     saveEntry('2026-01-02', { text: 'Hoje fui cercado pelo Ninho Enclausurado.' })
     const xpCitei = appStore.get().character.xp
-    // re-salva o mesmo dia citando de novo → NÃO dá de novo (dedup diaryXp)
+    // re-salva o mesmo dia citando de novo → NÃO dá de novo (dedup por registro + diaryXp)
     saveEntry('2026-01-02', { text: 'Ninho Enclausurado de novo' })
     const xpDnv = appStore.get().character.xp
-    return { xpSimples, xpCitei, xpDnv, XP_PER_DAILY_LOG, XP_PER_MENTION }
+    return { xpSimples, xpCitei, xpDnv, XP_PER_LOG, XP_PER_MENTION }
   })
-  expect(r.xpSimples).toBe(r.XP_PER_DAILY_LOG) // dia simples = só o XP do diário
-  expect(r.xpCitei).toBe(r.xpSimples + r.XP_PER_DAILY_LOG + r.XP_PER_MENTION) // +10 da menção no save
+  expect(r.xpSimples).toBe(r.XP_PER_LOG) // dia simples = só o XP do registro
+  expect(r.xpCitei).toBe(r.xpSimples + r.XP_PER_LOG + r.XP_PER_MENTION) // +10 da menção no save
   expect(r.xpDnv).toBe(r.xpCitei) // re-salvar não dobra
 })
 

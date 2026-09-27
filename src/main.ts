@@ -34,6 +34,8 @@ function currentRoute(): Route {
 
 function mountRoute(route: Route): void {
   const data = appStore.get()
+  // rota diário no mobile esconde a status bar (body.rota-diario → CSS)
+  document.body.classList.toggle('rota-diario', route === 'diary')
   switch (route) {
     case 'today':
       mountToday(root, data)

@@ -43,8 +43,9 @@ export function damageFor(difficulty: Difficulty): number {
  *  damage too"). The fixed constant DANO_HABITO_NEGATIVO was REMOVED —
  *  callers use `damageFor(task.difficulty)`. */
 
-/** XP for logging the diary (once per day — writing the chronicle). */
-export const XP_PER_DAILY_LOG = 5
+/** XP for logging the diary — PER RECORD (each note and each chronicle; many
+ *  per day). Re-saving the SAME record doesn't yield again. */
+export const XP_PER_LOG = 5
 
 /** HP regeneration per day — fraction of hpMax (slow, 5%). */
 export const HP_REGEN_PER_DAY = 0.05

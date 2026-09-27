@@ -2,8 +2,8 @@
  *  `buildDiaryContext(dados)` feeds the `{diario}` placeholder (persona);
  *  `buildContext(dados)` is the game state (always injected after the persona). */
 
-import type { AppData } from '../core/tipos'
-import { listDiary } from '../stores/app'
+import type { AppData, DiaryEntry, DiaryNote } from '../core/tipos'
+import { appStore } from '../stores/app'
 import { todayISO } from '../core/jogo'
 import type { Card } from '../core/baralho'
 import deckData from '../data/deck.json'
@@ -15,16 +15,47 @@ const deck = deckData as Card[]
  *  IN FULL (no truncation — the user's decision: the Fable really reads the diary). */
 const RECENT_DIARY_IN_CONTEXT = 5
 
-/** Last N diary entries as text ({diario} placeholder) — in full. */
+/** Last N diary days as text ({diario} placeholder) — in full. The chronicle
+ *  and the quick notes of the same day are grouped together. */
 export function buildDiaryContext(): string {
-  const recentDiary = listDiary({ limit: RECENT_DIARY_IN_CONTEXT })
-    .map((e) => {
-      const title = e.title ? ` — ${e.title}` : ''
-      return `- [${e.date}]${title}\n${e.text}`
+  const d = appStore.get()
+  const byDate = new Map<string, { chronicle?: DiaryEntry; notes: DiaryNote[] }>()
+  for (const e of d.diary ?? []) {
+    const g = byDate.get(e.date) ?? { notes: [] }
+    g.chronicle = e
+    byDate.set(e.date, g)
+  }
+  for (const n of d.notes ?? []) {
+    const g = byDate.get(n.date) ?? { notes: [] }
+    g.notes.push(n)
+    byDate.set(n.date, g)
+  }
+  const dates = [...byDate.keys()].sort().reverse().slice(0, RECENT_DIARY_IN_CONTEXT)
+
+  if (dates.length === 0) {
+    return `- sem entradas ainda
+
+O diário tem mais entradas além das ${RECENT_DIARY_IN_CONTEXT} mostradas acima. Se o jogador perguntar sobre algo que pode estar numa entrada antiga, diga que não viu essa entrada ainda e peça a data ou o tema — ou sugira abrir a página Diário.`
+  }
+
+  const recentDiary = dates
+    .map((date) => {
+      const g = byDate.get(date)!
+      const parts: string[] = []
+      if (g.chronicle) {
+        const title = g.chronicle.title ? ` — ${g.chronicle.title}` : ''
+        parts.push(`Crônica:${title}\n${g.chronicle.text}`)
+      }
+      const noteLines = g.notes
+        .slice()
+        .sort((a, b) => a.time.localeCompare(b.time))
+        .map((n) => `- (${n.time}) ${n.text}`)
+      if (noteLines.length > 0) parts.push(`Notas do dia:\n${noteLines.join('\n')}`)
+      return `[${date}]\n${parts.join('\n\n')}`
     })
     .join('\n\n')
 
-  return `${recentDiary || '- sem entradas ainda'}
+  return `${recentDiary}
 
 O diário tem mais entradas além das ${RECENT_DIARY_IN_CONTEXT} mostradas acima. Se o jogador perguntar sobre algo que pode estar numa entrada antiga, diga que não viu essa entrada ainda e peça a data ou o tema — ou sugira abrir a página Diário.`
 }

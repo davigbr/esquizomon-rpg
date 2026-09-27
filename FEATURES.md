@@ -22,9 +22,12 @@
 - 65 cartas; iniciais 5M+1C+1A, +2 por nível, completo no nível 30 (~1 ano)
 - Galeria (desbloqueadas primeiro, bloqueadas com cadeado + nome), modal com invocação por mana, custo crescente por re-invocação
 
-### Diário (Fase 3)
-- 1 entrada/dia, editor markdown live preview (linhas vivas), autosave, voz (Web Speech API, 100% local)
-- Mover entre datas respeitando 1/dia; Fábula lê as últimas 3 entradas no contexto da IA
+### Diário (Fase 3 + timeline 2026-09-27)
+- **Timeline de notas rápidas** (múltiplas por dia): campo de captura no topo (Enter/Done salva), cards com hora, edição/exclusão por sheet (modal); a seção de HOJE sempre aparece
+- **Crônica diária** (1/dia, opcional): card destacado no dia + editor markdown em modal (autosave, Ver/Editar, excluir); import em massa continua (só crônicas)
+- XP: +5 POR REGISTRO (cada nota e cada crônica rendem; várias por dia); editar o mesmo registro não re-rende; menção de carta +10 no save (dedup por dia)
+- Fábula lê os últimos 5 dias (crônica + notas agrupadas) na íntegra
+- Dados: `notes[]` (merge por id no sync) + `diary[]` (1/dia, merge por data); status bar escondida na rota diário no mobile (≤900px)
 
 ### Chat da Fábula (Fase 4)
 - BYOK (DeepSeek / OpenCode Zen Go) via Netlify Function reusada em dev como middleware Vite (mesma URL `/api/ia`)

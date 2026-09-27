@@ -9,7 +9,7 @@
  *   order only decides character/settings (non-granular objects).
  * - No global overwrite: items from distinct sides never get lost.
  */
-import type { AppData, Task, DiaryEntry, Conversation, LogEvent, Character } from './tipos'
+import type { AppData, Task, DiaryEntry, DiaryNote, Conversation, LogEvent, Character } from './tipos'
 
 const tsOf = (x: { updatedAt?: string; createdAt?: string }): string => x.updatedAt ?? x.createdAt ?? ''
 
@@ -93,6 +93,7 @@ function mergeCharacter(a: Partial<Character> | undefined, b: Partial<Character>
 export function mergeData(local: AppData, cloud: AppData): AppData {
   const tasks = mergeByKey<Task>(local.tasks, cloud.tasks, (t) => t.id, tsOf)
   const diary = mergeByKey<DiaryEntry>(local.diary ?? [], cloud.diary ?? [], (e) => e.date, tsOf)
+  const notes = mergeByKey<DiaryNote>(local.notes ?? [], cloud.notes ?? [], (n) => n.id, tsOf)
   const conversations = mergeByKey<Conversation>(local.conversations ?? [], cloud.conversations ?? [], (c) => c.id, (c) => c.updatedAt)
   const log = mergeLog(local.log ?? [], cloud.log ?? [])
 
@@ -123,6 +124,7 @@ export function mergeData(local: AppData, cloud: AppData): AppData {
     character: mergeCharacter(local.character, cloud.character),
     tasks: tasksWithDeletion,
     diary,
+    notes,
     conversations: conversationsWithDeletion,
     log,
     deletedTasks: settledDeleted,

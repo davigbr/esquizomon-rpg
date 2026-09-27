@@ -38,11 +38,29 @@ export function processDiaryMentions(): MentionResult {
 
   for (const entry of entries) {
     if (!entry || typeof entry.text !== 'string') continue
-    const awarded = already[entry.date] ?? []
+    // in-progress record: the scan ahead may have awarded cards to this date
+    const awarded = newAlready[entry.date] ?? already[entry.date] ?? []
     const text = `${entry.title ?? ''}\n${entry.text}`.toLowerCase()
     for (const card of deck) {
       if (!awarded.includes(card.id) && text.includes(card.name.toLowerCase())) {
         newAlready[entry.date] = [...(newAlready[entry.date] ?? [...awarded]), card.id]
+        if (!detected.includes(card.name)) detected.push(card.name)
+        total += XP_PER_MENTION
+        changed = true
+      }
+    }
+  }
+
+  // Quick notes mention cards too — same per-DATE dedup (a card cited in a
+  // note AND the chronicle of the same day gives XP only once).
+  for (const note of d.notes ?? []) {
+    if (!note || typeof note.text !== 'string') continue
+    // in-progress record: previous notes/chronicle of the same date count
+    const awarded = newAlready[note.date] ?? already[note.date] ?? []
+    const text = note.text.toLowerCase()
+    for (const card of deck) {
+      if (!awarded.includes(card.id) && text.includes(card.name.toLowerCase())) {
+        newAlready[note.date] = [...(newAlready[note.date] ?? [...awarded]), card.id]
         if (!detected.includes(card.name)) detected.push(card.name)
         total += XP_PER_MENTION
         changed = true
