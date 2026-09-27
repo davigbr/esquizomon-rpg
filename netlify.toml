@@ -5,6 +5,13 @@
   command = "npm run build"
   publish = "dist"
 
+# A chave pública VAPID é PÚBLICA por design (vai no bundle do cliente, push.ts)
+# — o scanner do Netlify a acusa porque VAPID_PUBLIC_KEY está marcada como
+# secret no env do site. Isenta só ELA: a privada (VAPID_PRIVATE_KEY) segue
+# protegida e continua bloqueando o build se vazar pro repo.
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "VAPID_PUBLIC_KEY"
+
 [functions]
   # Funções em netlify/functions, runtime default (Node 20).
   directory = "netlify/functions"
