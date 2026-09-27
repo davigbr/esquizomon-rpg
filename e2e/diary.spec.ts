@@ -183,6 +183,85 @@ test('diário: importa crônicas em massa via markdown (e pula dias que já exis
   await expect(page.locator('.toast').last()).toContainText(hoje)
 })
 
+test('diário: crônica salva SEM título e sem IA — o título vira a DATA', async ({ page }) => {
+  await page.goto('/#/diary')
+  await page.locator('[data-dayry-cronica]').first().click()
+  await page.locator('[data-dayry-editor]').fill('Dia comum, sem título na crônica.')
+  await page.locator('[data-dayry-save]').click()
+  const dataTitulo = `${hoje.slice(8, 10)}/${hoje.slice(5, 7)}/${hoje.slice(0, 4)}`
+  await expect.poll(() => readState(page, 'diary.0.title')).toBe(dataTitulo)
+})
+
+test('diário: crônica sem título COM IA ligada — título vira UMA palavra da IA', async ({ page }) => {
+  await page.addInitScript((h) => {
+    localStorage.setItem(
+      'esquizomon-rpg:v1',
+      JSON.stringify({
+        version: 3,
+        tasks: [],
+        character: {
+          nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20,
+          exhausted: false, lastDay: h, cartas: [], invocations: {},
+        },
+        settings: { tema: 'dark', ai: { provider: 'deepseek', model: 'deepseek-chat', apiKey: 'chave-teste', systemPrompt: '' } },
+        log: [],
+        conversations: [],
+        diary: [],
+        notes: [],
+      }),
+    )
+  }, hoje)
+  await page.route('**/api/ia', (rota) => {
+    const body = JSON.parse(rota.request().postData() ?? '{}')
+    if (body.stream === false) {
+      void rota.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ choices: [{ message: { content: 'Vórtice' } }] }),
+      })
+    } else {
+      void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: 'data: [DONE]\n\n' })
+    }
+  })
+  await page.goto('/#/diary')
+  await page.locator('[data-dayry-cronica]').first().click()
+  await page.locator('[data-dayry-editor]').fill('Acordei tarde, escrevi, atendi.')
+  await page.locator('[data-dayry-save]').click()
+  await expect.poll(() => readState(page, 'diary.0.title')).toBe('Vórtice')
+  // feedback do título sugerido
+  await expect(page.locator('.toast').last()).toContainText('Título sugerido')
+})
+
+test('diário: crônica sem título COM IA mas falha na resposta — título vira a DATA', async ({ page }) => {
+  await page.addInitScript((h) => {
+    localStorage.setItem(
+      'esquizomon-rpg:v1',
+      JSON.stringify({
+        version: 3,
+        tasks: [],
+        character: {
+          nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20,
+          exhausted: false, lastDay: h, cartas: [], invocations: {},
+        },
+        settings: { tema: 'dark', ai: { provider: 'deepseek', model: 'deepseek-chat', apiKey: 'chave-teste', systemPrompt: '' } },
+        log: [],
+        conversations: [],
+        diary: [],
+        notes: [],
+      }),
+    )
+  }, hoje)
+  await page.route('**/api/ia', (rota) => {
+    void rota.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: { message: 'boom' } }) })
+  })
+  await page.goto('/#/diary')
+  await page.locator('[data-dayry-cronica]').first().click()
+  await page.locator('[data-dayry-editor]').fill('Texto que vai receber a data como título.')
+  await page.locator('[data-dayry-save]').click()
+  const dataTitulo = `${hoje.slice(8, 10)}/${hoje.slice(5, 7)}/${hoje.slice(0, 4)}`
+  await expect.poll(() => readState(page, 'diary.0.title')).toBe(dataTitulo)
+})
+
 test('diário: o campo de captura mantém o foco e o valor através de um re-render COM dados novos (bug 2026-09-09)', async ({ page }) => {
   await page.goto('/#/diary')
   const input = page.locator('[data-note-input]')

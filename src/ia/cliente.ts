@@ -169,9 +169,20 @@ function fetchMessage(err: unknown): string {
 /** Connection test (blocking call, no streaming). */
 export async function testConnection(ia: AiConfig): Promise<string> {
   if (ia.provider === 'nenhum') throw new AiError('Escolha um provider.')
+  return chatOnce(ia, [{ role: 'user', content: 'Responda apenas: ok' }], TEST_TIMEOUT_MS)
+}
+
+/** Single NON-streaming completion — small tasks (title suggestion, tests).
+ *  Same /api/ia contract with `stream: false`. */
+export async function chatOnce(
+  ia: AiConfig,
+  messages: ChatMessage[],
+  timeoutMs = 15_000,
+): Promise<string> {
+  if (ia.provider === 'nenhum') throw new AiError('Escolha um provider.')
   const model = ia.model.trim() || defaultModel(ia.provider)
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), TEST_TIMEOUT_MS)
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const res = await fetch('/api/ia', {
       method: 'POST',
@@ -180,7 +191,7 @@ export async function testConnection(ia: AiConfig): Promise<string> {
       body: JSON.stringify({
         provider: ia.provider,
         model: model,
-        messages: [{ role: 'user', content: 'Responda apenas: ok' }],
+        messages: messages,
         apiKey: ia.apiKey,
         stream: false,
       }),

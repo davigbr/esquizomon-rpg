@@ -14,9 +14,13 @@ import { escapeHtml } from '../util'
 import { renderMarkdown } from '../editorMd'
 import { t } from '../../i18n'
 import { parseDiaryMarkdown } from '../importDiario'
+import { suggestChronicleTitle } from '../../ia/titulo'
 
 /** Autosave debounce of the chronicle editor (modal). */
 const AUTOSAVE_MS = 800
+
+/** Dates whose chronicle title is being suggested (avoid parallel calls). */
+const pendingTitles = new Set<string>()
 
 interface DayGroup {
   date: string
@@ -259,11 +263,40 @@ function openChronicle(date: string): void {
       timer = null
     }
     const current = appStore.get().diary?.find((e) => e.date === date)
-    if (areaEl.value === (current?.text ?? '') && titleEl.value === (current?.title ?? '')) return
-    if (areaEl.value.trim() || titleEl.value.trim()) {
-      saveEntry(date, { title: titleEl.value, text: areaEl.value })
+    const currentTitle = current?.title ?? ''
+    // título existente nunca é apagado por um input vazio (a IA/garantia de
+    // data pode ter preenchido o título entre o autosave e o save do usuário)
+    const titleToSave = titleEl.value ? titleEl.value : currentTitle
+    if (areaEl.value === (current?.text ?? '') && titleToSave === currentTitle) return
+    if (areaEl.value.trim() || titleToSave.trim()) {
+      saveEntry(date, { title: titleToSave, text: areaEl.value })
       if (statusEl) statusEl.textContent = t('diary.saved', { hora: horaLocal() })
+      // sem título fornecido → sugere um (IA: 1 palavra; sem IA: a data)
+      if (!titleEl.value.trim() && !currentTitle.trim() && areaEl.value.trim()) void ensureTitle()
     }
+  }
+
+  /** Titles an untitled chronicle — one word from the AI, or the date when the
+   *  AI is off / fails. Runs on save; never overwrites a title the user typed
+   *  (checked before AND after the async call). */
+  async function ensureTitle(): Promise<void> {
+    if (!titleEl) return
+    if (pendingTitles.has(date)) return
+    const entry = appStore.get().diary?.find((e) => e.date === date)
+    if (!entry || entry.title.trim()) return
+    if (titleEl.value.trim()) return // usuário digitou um título entretanto
+    const text = entry.text.trim()
+    if (!text) return
+    pendingTitles.add(date)
+    const word = await suggestChronicleTitle(text)
+    pendingTitles.delete(date)
+    const cur = appStore.get().diary?.find((e) => e.date === date)
+    if (!cur || cur.title.trim()) return
+    if (titleEl.value.trim()) return // digitou enquanto a IA pensava — prevalece
+    const finalTitle = word ?? `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`
+    saveEntry(date, { title: finalTitle, text: cur.text })
+    titleEl.value = finalTitle
+    if (word) notify(t('diary.titleSuggested', { titulo: word }))
   }
 
   modalBody.querySelector('[data-dayry-toggle]')?.addEventListener('click', () => {

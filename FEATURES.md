@@ -26,6 +26,7 @@
 - **Timeline de notas rápidas** (múltiplas por dia): campo de captura no topo (Enter/Done salva), cards com hora, edição/exclusão por sheet (modal); a seção de HOJE sempre aparece
 - **Crônica diária** (1/dia, opcional): card destacado no dia + editor markdown em modal (autosave, Ver/Editar, excluir); import em massa continua (só crônicas)
 - XP: +5 POR REGISTRO (cada nota e cada crônica rendem; várias por dia); editar o mesmo registro não re-rende; menção de carta +10 no save (dedup por dia)
+- Crônica salva SEM título: com IA ligada, a IA escolhe UMA palavra como título (toast "Título sugerido pela IA"); com IA desligada ou falha, o título vira a DATA (dd/mm/aaaa). Título digitado pelo usuário sempre prevalece.
 - Fábula lê os últimos 5 dias (crônica + notas agrupadas) na íntegra
 - Dados: `notes[]` (merge por id no sync) + `diary[]` (1/dia, merge por data); status bar escondida na rota diário no mobile (≤900px)
 
