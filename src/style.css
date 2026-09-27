@@ -3843,3 +3843,17 @@ body.fable-open .container {
 #conta-toggle.logged {
   color: var(--accent-gold);
 }
+
+.push-horarios { display: flex; gap: 8px; flex-wrap: wrap; }
+.push-horario { flex: 1; min-width: 110px; }
+/* Mesma caixa de aviso do .settings-notice, mas com classe própria: a suíte
+   E2E depende de .settings-notice ser ÚNICO (conta/sync) — estrito. */
+.push-notice {
+  background: color-mix(in srgb, var(--accent-gold) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-gold) 30%, transparent);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}

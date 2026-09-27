@@ -21,6 +21,17 @@
   to = "/.netlify/functions/ia"
   status = 200
 
+# Push: cadastro/cancelamento de assinaturas de notificação.
+[[redirects]]
+  from = "/api/push"
+  to = "/.netlify/functions/push"
+  status = 200
+
+# Lembretes diários (push): roda a cada minuto e dispara quem tiver o horário
+# batendo. Em UTC (fuso do servidor); o offset do device está em cada assinatura.
+[functions."reminders"]
+  schedule = "* * * * *"
+
 # SPA: rotas do hash-router não precisam de fallback (são client-side),
 # mas qualquer URL desconhecida volta pro index.html pro PWA/sw.
 [[redirects]]

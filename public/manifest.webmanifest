@@ -2,8 +2,10 @@
   "name": "Esquizomon RPG — Crônicas Monstruosas Cotidianas",
   "short_name": "Esquizomon RPG",
   "description": "Tarefas e organização pessoal com camada de jogo e narrativa, inspirado no baralho Esquizomon.",
+  "id": "/",
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
   "lang": "pt-BR",
@@ -31,6 +33,22 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/today.png",
+      "sizes": "824x1830",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Hoje"
+    },
+    {
+      "src": "/screenshots/settings.png",
+      "sizes": "824x1830",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Configurações"
     }
   ]
 }

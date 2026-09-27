@@ -16,6 +16,18 @@ import { clearSyncLog, exportSyncLog } from '../../sync/syncLog'
 import { APP_LABEL } from '../../version'
 import { openLoginModal } from '../loginModal'
 import { getLang, setLang, t } from '../../i18n'
+import {
+  getPushSettings,
+  setPushSettings,
+  hasPushSupport,
+  permissionState,
+  isSubscribed,
+  enableNotifications,
+  disableNotifications,
+  installAvailable,
+  requestInstall,
+  setInstallChangedCb,
+} from '../../sync/push'
 
 const DEFAULT_AI: AiConfig = {
   provider: 'nenhum',
@@ -130,6 +142,8 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
 
     ${accountSection()}
 
+    ${pushSection()}
+
     <div class="settings-section">
       <h3>${t('settings.data')}</h3>
       <p>${t('settings.dataSub')}</p>
@@ -213,6 +227,8 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
   installAIHandlers(root)
 
   installAccountHandlers(root)
+
+  installPushHandlers(root)
 
   root.querySelector('[data-export]')!.addEventListener('click', () => {
     const json = exportJSON()
@@ -523,5 +539,178 @@ function installAccountHandlers(root: HTMLElement): void {
 
   root.querySelector('[data-syncnow]')?.addEventListener('click', () => {
     void syncNow()
+  })
+}
+
+/* ---------- notificações (push) e instalação do PWA ---------- */
+
+const MAX_HORARIOS = 3
+
+function minToTime(min: number): string {
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+function timeToMin(v: string): number | null {
+  const [h, m] = v.split(':').map(Number)
+  if (!Number.isFinite(h) || !Number.isFinite(m) || h < 0 || h > 23 || m < 0 || m > 59) return null
+  return h * 60 + m
+}
+
+/** Seção de Configurações: push (lembretes diários) + botão de instalação. */
+function pushSection(): string {
+  const horarios = getPushSettings().horarios
+  const times = [0, 1, 2]
+    .map((i) => (horarios[i] !== undefined ? minToTime(horarios[i]!) : ''))
+    .map((v) => `<input type="time" class="filter-input push-horario" data-push-horario value="${v}" />`)
+    .join('')
+
+  return `
+    <div class="settings-section">
+      <h3><i class="fa-solid fa-bell" aria-hidden="true"></i> Notificações e instalação</h3>
+      <p class="push-notice">Lembretes diários no celular. Como o app guarda seus dados só no seu aparelho, o lembrete é uma cutucada genérica — nunca o conteúdo das suas tarefas.</p>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Notificações</div>
+          <div class="settings-hint" data-push-status>Verificando…</div>
+        </div>
+        <button class="btn" data-push-action>Ativar</button>
+      </div>
+      <div class="settings-row settings-row--stacked" data-push-horarios-wrap hidden>
+        <div>
+          <div class="settings-label">Horários do lembrete diário</div>
+          <div class="settings-hint">Até ${MAX_HORARIOS} horários. O lembrete chega como notificação, mesmo com o app fechado.</div>
+        </div>
+        <div class="push-horarios">${times}</div>
+      </div>
+      <div class="settings-actions">
+        <button class="btn btn--primary" data-pwa-install hidden><i class="fa-solid fa-download" aria-hidden="true"></i> Instalar o app no celular</button>
+        <span class="settings-hint" data-pwa-hint></span>
+      </div>
+    </div>
+  `
+}
+
+function renderPushState(root: HTMLElement): void {
+  const statusEl = root.querySelector<HTMLElement>('[data-push-status]')
+  const actionEl = root.querySelector<HTMLButtonElement>('[data-push-action]')
+  const wrapEl = root.querySelector<HTMLElement>('[data-push-horarios-wrap]')
+  if (!statusEl || !actionEl || !wrapEl) return
+
+  if (!hasPushSupport() || !import.meta.env.PROD) {
+    statusEl.textContent = import.meta.env.PROD
+      ? 'Seu navegador não suporta notificações.'
+      : 'Disponível na versão publicada (notificações só funcionam em produção).'
+    actionEl.hidden = true
+    wrapEl.hidden = true
+    return
+  }
+
+  const perm = permissionState()
+  if (perm === 'denied') {
+    statusEl.textContent = 'Bloqueadas no navegador (desbloqueie nas configurações dele).'
+    actionEl.hidden = true
+    wrapEl.hidden = true
+    return
+  }
+  if (perm === 'default' && !('Notification' in window)) {
+    statusEl.textContent = 'Indisponível.'
+    actionEl.hidden = true
+    wrapEl.hidden = true
+    return
+  }
+
+  void isSubscribed().then((sub) => {
+    if (sub) {
+      const n = getPushSettings().horarios.length
+      statusEl.textContent = n > 0 ? `Ativas — ${n} lembrete${n === 1 ? '' : 's'} por dia.` : 'Ativas — configure os horários abaixo.'
+      actionEl.textContent = 'Desativar'
+      wrapEl.hidden = false
+    } else {
+      statusEl.textContent = perm === 'default' ? 'Desativadas — toque em Ativar para permitir.' : 'Desativadas.'
+      actionEl.textContent = 'Ativar'
+      wrapEl.hidden = true
+    }
+  })
+}
+
+function installPushHandlers(root: HTMLElement): void {
+  const actionEl = root.querySelector<HTMLButtonElement>('[data-push-action]')
+  const horarioEls = Array.from(root.querySelectorAll<HTMLInputElement>('[data-push-horario]'))
+  const installEl = root.querySelector<HTMLButtonElement>('[data-pwa-install]')
+  const installHintEl = root.querySelector<HTMLElement>('[data-pwa-hint]')
+
+  function readHorarios(): number[] {
+    return horarioEls
+      .map((el) => timeToMin(el.value))
+      .filter((n): n is number => n !== null)
+      .slice(0, MAX_HORARIOS)
+  }
+
+  function refreshInstallButton(available: boolean): void {
+    if (!installEl || !installHintEl) return
+    if (available) {
+      installEl.hidden = false
+      installHintEl.textContent = ''
+    } else if ((navigator as unknown as { standalone?: boolean })?.standalone || matchMedia('(display-mode: standalone)').matches) {
+      installEl.hidden = true
+      installHintEl.textContent = 'Feito! O app já está instalado.'
+    }
+  }
+
+  // O main.ts repassa o beforeinstallprompt → mostra/oculta o botão na hora.
+  setInstallChangedCb((available) => refreshInstallButton(available))
+  refreshInstallButton(installAvailable())
+
+  renderPushState(root)
+
+  actionEl?.addEventListener('click', async () => {
+    if (!actionEl) return
+    const ativo = actionEl.textContent === 'Desativar'
+    if (ativo) {
+      const ok = await confirm('Desativar as notificações do Esquizomon? Você deixa de receber os lembretes diários.', 'Desativar')
+      if (ok) {
+        await disableNotifications()
+        notify('Notificações desativadas.')
+        renderPushState(root)
+      }
+      return
+    }
+    actionEl.disabled = true
+    actionEl.textContent = 'Pedindo permissão…'
+    const h = horarioEls.map((el) => timeToMin(el.value)).filter((n): n is number => n !== null)
+    const res = await enableNotifications(h)
+    actionEl.disabled = false
+    notify(res.ok ? 'Notificações ativadas!' : (res.reason ?? 'Não deu certo.'), res.ok ? 'ok' : 'erro')
+    renderPushState(root)
+  })
+
+  horarioEls.forEach((el) => {
+    el.addEventListener('change', () => {
+      const h = readHorarios()
+      if (h.length === 0) {
+        notify('Adicione ao menos um horário (ou desative as notificações).')
+        return
+      }
+      setPushSettings({ horarios: h })
+      void isSubscribed().then((sub) => {
+        if (sub) {
+          void enableNotifications(h).then((res2) => {
+            notify(res2.ok ? 'Horários atualizados.' : (res2.reason ?? 'Não consegui atualizar no servidor.'), res2.ok ? 'ok' : 'erro')
+          })
+        } else {
+          notify('Horários salvos — ative as notificações para valerem.')
+        }
+      })
+    })
+  })
+
+  installEl?.addEventListener('click', async () => {
+    const outcome = await requestInstall()
+    if (outcome === 'accepted') {
+      notify('App instalado! Procure o ícone do Esquizomon na tela inicial.')
+      installEl.hidden = true
+    }
   })
 }

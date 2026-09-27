@@ -31,6 +31,15 @@
 - Multi-conversa persistida (30×200), raciocínio colapsável, painel redimensionável
 - System prompt texto livre + botão "Restaurar padrão"
 
+### PWA e notificações (2026-10)
+- Manifest com `id`, `display_override`, screenshots reais de instalação (Playwright, `scripts/capture-pwa-screenshots.mjs`)
+- Instalação: `beforeinstallprompt` capturado → botão "Instalar o app no celular" em Configurações; some após instalar
+- Push (lembrete diário **genérico** — restrição local-first: o servidor nunca recebe dados de tarefas):
+  - Cliente `src/sync/push.ts`: permissão → assinatura → `/api/push` (grava em Blobs: horários + offset UTC do device)
+  - Scheduled Function `reminders` (cron `* * * * *`): converte UTC→horário local e dispara push (web-push, VAPID)
+  - Configurações: ativar/desativar + até 3 horários; clique na notificação reabre o app
+- **Env vars obrigatórias no Netlify:** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (mailto:)
+
 ---
 
 ## 🔜 Mapa do mundo

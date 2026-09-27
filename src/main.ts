@@ -14,6 +14,7 @@ import { toggleChat, mountChat, reactToStoreChange } from './ui/chat'
 import { checkDaily } from './ui/checkin'
 import { initAuth } from './sync/auth'
 import { initSync, syncNow, subscribeSync, getLastSync } from './sync/sync'
+import { captureInstallPrompt, notifyInstalled } from './sync/push'
 import { mountAccountButton } from './ui/headerConta'
 import { loadDeck } from './core/baralho'
 import { onPersistFailure, initialTheme } from './db/storage'
@@ -370,6 +371,11 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     void navigator.serviceWorker.register('/sw.js')
   })
 }
+
+/* ---------- PWA: instalação (prompt nativo) ---------- */
+
+window.addEventListener('beforeinstallprompt', captureInstallPrompt)
+window.addEventListener('appinstalled', () => notifyInstalled())
 
 applyInitialTheme()
 applyLangAttr()
