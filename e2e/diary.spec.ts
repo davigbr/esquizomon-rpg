@@ -262,6 +262,19 @@ test('diário: crônica sem título COM IA mas falha na resposta — título vir
   await expect.poll(() => readState(page, 'diary.0.title')).toBe(dataTitulo)
 })
 
+test('diário: caret do editor de crônica NÃO pula pro início após autosave/re-render (bug 2026-09-27)', async ({ page }) => {
+  await page.goto('/#/diary')
+  await page.locator('[data-dayry-cronica]').first().click()
+  const editor = page.locator('[data-dayry-editor]')
+  await editor.click()
+  await page.keyboard.type('xyz')
+  await expect.poll(() => editor.evaluate((t) => (t as HTMLTextAreaElement).selectionStart)).toBe(3)
+  // espera o autosave (800ms) + re-render
+  await page.waitForTimeout(1600)
+  await expect.poll(() => editor.evaluate((t) => (t as HTMLTextAreaElement).selectionStart)).toBe(3)
+  await expect.poll(() => editor.evaluate((t) => (t as HTMLTextAreaElement).value)).toBe('xyz')
+})
+
 test('diário: o campo de captura mantém o foco e o valor através de um re-render COM dados novos (bug 2026-09-09)', async ({ page }) => {
   await page.goto('/#/diary')
   const input = page.locator('[data-note-input]')

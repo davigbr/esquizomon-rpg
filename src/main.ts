@@ -226,7 +226,9 @@ function renderKeepingFocus(fn: () => void): void {
   const isTextable =
     !!field &&
     !(field instanceof HTMLSelectElement) &&
-    (field.type.length > 0 && ['text', 'search', 'url', 'tel', 'email', 'password', 'number', 'date', 'datetime-local', 'month', 'week', 'time'].includes(field.type))
+    (field instanceof HTMLTextAreaElement ||
+      (field.type.length > 0 &&
+        ['text', 'search', 'url', 'tel', 'email', 'password', 'number', 'date', 'datetime-local', 'month', 'week', 'time'].includes(field.type)))
   let key: string | null = null
   let value = ''
   let start = 0
