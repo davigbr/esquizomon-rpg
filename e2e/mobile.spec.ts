@@ -64,6 +64,47 @@ test('mobile: swipe NÃO navega com modal aberto, com a Fábula aberta ou em ges
   await expect(page).toHaveURL(/#\/diary$/)
 })
 
+test('mobile: transição direcional — arrasto segue o dedo, desistência volta com spring, troca anima', async ({ page }) => {
+  const cdp = await page.context().newCDPSession(page)
+  const appTransform = () => page.evaluate(() => getComputedStyle(document.getElementById('app')!).transform)
+  async function arrastar(pts: Array<{ x: number; y: number }>, soltar: boolean): Promise<void> {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 300, y: 400, id: 1 }] })
+    for (const p of pts) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: p.x, y: p.y, id: 1 }] })
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: soltar ? [{ x: 300, y: 400, id: 1 }] : [] })
+    await page.waitForTimeout(120)
+  }
+
+  await page.goto('/#/today')
+
+  // 1) arrasto curto (abaixo do limiar) → página segue o dedo, depois volta
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 300, y: 400, id: 1 }] })
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 280, y: 400, id: 1 }] })
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 260, y: 400, id: 1 }] })
+  expect(await appTransform()).not.toBe('none') // segue o dedo
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await expect(page).toHaveURL(/#\/today$/) // não navegou
+  await expect.poll(appTransform).toBe('none') // spring voltou ao repouso
+
+  // 2) swipe esquerdo commitado → avança com a classe de entrada (vem da direita)
+  await arrastar([{ x: 240, y: 400 }, { x: 180, y: 400 }, { x: 100, y: 400 }], false)
+  await expect(page).toHaveURL(/#\/diary$/)
+  await expect(page.locator('#app')).toHaveClass(/route-in-next/)
+  expect(await page.evaluate(() => getComputedStyle(document.getElementById('app')!).animationName)).toBe('rota-entra-direita')
+
+  // 3) volta com swipe direito → classe de retorno (vem da esquerda)
+  await arrastar([{ x: 360, y: 400 }, { x: 420, y: 400 }, { x: 500, y: 400 }], false)
+  await expect(page).toHaveURL(/#\/today$/)
+  await expect(page.locator('#app')).toHaveClass(/route-in-prev/)
+  expect(await page.evaluate(() => getComputedStyle(document.getElementById('app')!).animationName)).toBe('rota-entra-esquerda')
+
+  // 4) clique no menu também anima (avanço)
+  await page.click('[data-rota="cards"]')
+  await expect(page).toHaveURL(/#\/cards$/)
+  await expect(page.locator('#app')).toHaveClass(/route-in-next/)
+})
+
 test('mobile: navbar vira menu somente de ícones (rótulos escondidos)', async ({ page }) => {
   await page.goto('/#/today')
   const rotulo = page.locator('[data-rota="today"] .nav-text')

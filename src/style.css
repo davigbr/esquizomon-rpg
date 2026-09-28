@@ -2563,6 +2563,48 @@ select.field {
   }
 }
 
+/* ========== Transição entre abas (swipe/menu) ========== */
+/* Só anima em troca de ROTA (hashchange); re-renders por save/sync não têm
+   a classe. A página nova entra deslizando do lado correspondente à direção
+   (avanço → vem da direita; volta → vem da esquerda) com fade + escala sutil. */
+#app.route-in-next,
+#app.route-in-prev {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+#app.route-in-next {
+  animation-name: rota-entra-direita;
+}
+#app.route-in-prev {
+  animation-name: rota-entra-esquerda;
+}
+@keyframes rota-entra-direita {
+  from {
+    transform: translateX(56px);
+    opacity: 0.15;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes rota-entra-esquerda {
+  from {
+    transform: translateX(-56px);
+    opacity: 0.15;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #app.route-in-next,
+  #app.route-in-prev {
+    animation: none;
+  }
+}
+
 /* ========== Painel do chat da Fábula ========== */
 
 #fabula-panel {

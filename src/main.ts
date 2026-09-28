@@ -21,6 +21,7 @@ import { onPersistFailure, initialTheme } from './db/storage'
 import { notify } from './ui/toast'
 import { applyLangAttr, t, LOCALE, getLang } from './i18n'
 import { installSwipeNavigation } from './ui/swipe'
+import { installRouteTransition } from './ui/transicao'
 
 const root = document.getElementById('app')!
 const navLinks = document.querySelectorAll<HTMLAnchorElement>('[data-rota]')
@@ -390,6 +391,8 @@ updateSyncStatus()
 mountRoute(currentRoute())
 // swipe horizontal entre abas (mobile): esquerda = próxima, direita = anterior
 installSwipeNavigation(currentRoute)
+// transição direcional na troca de aba (desliza do lado do gesto/menu)
+installRouteTransition(currentRoute)
 // recorda o estado renderizado no boot: appStore.set no-op (ex.: sync sem
 // mudança) não re-renderiza nada a partir de agora
 lastStoreSig = JSON.stringify(appStore.get())
