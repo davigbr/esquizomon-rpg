@@ -400,7 +400,7 @@ test('diário: MIGRAÇÃO — crônica antiga (diary) vira NOTA com título pres
   await expect(page.locator('.diary-timeline')).toContainText('Meu dia')
 })
 
-test('diário desktop: timeline mais larga (920px) e notas em GRADE — mobile mantém coluna única', async ({ page }) => {
+test('diário desktop: timeline mais larga (920px) e notas em coluna ÚNICA — mobile mantém coluna única', async ({ page }) => {
   // DESKTOP (1440×900)
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/#/diary')
@@ -417,14 +417,13 @@ test('diário desktop: timeline mais larga (920px) e notas em GRADE — mobile m
     return {
       timelineMax: tl ? getComputedStyle(tl).maxWidth : null,
       notesDisplay: cs.display,
-      notesCols: cs.gridTemplateColumns,
     }
   })
   expect(desktop.timelineMax).toBe('920px')
-  expect(desktop.notesDisplay).toBe('grid')
-  expect(desktop.notesCols.split(' ').length).toBe(2)
+  // coluna única em qualquer largura (grade removida — preferência do usuário)
+  expect(desktop.notesDisplay).toBe('flex')
 
-  // MOBILE (390×844) — coluna única estreita intacta
+  // MOBILE (390×844) — coluna única intacta
   await page.setViewportSize({ width: 390, height: 844 })
   await page.reload()
   const mobile = await page.evaluate(() => {
@@ -434,12 +433,10 @@ test('diário desktop: timeline mais larga (920px) e notas em GRADE — mobile m
     return {
       timelineMax: tl ? getComputedStyle(tl).maxWidth : null,
       notesDisplay: cs.display,
-      notesCols: cs.gridTemplateColumns,
     }
   })
   expect(mobile.timelineMax).toBe('760px')
   expect(mobile.notesDisplay).toBe('flex')
-  expect(mobile.notesCols.split(' ').length).toBeGreaterThanOrEqual(1)
 })
 
 test('re-render NÃO acontece com appStore.set no-op — só quando há dados novos (bug 2026-09-09)', async ({ page }) => {

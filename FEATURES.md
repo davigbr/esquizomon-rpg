@@ -28,7 +28,7 @@
 - Título da nota editável pela sheet; botão "gerar título com IA" (📝 wand) ao lado direito do campo do título, visível APENAS com a IA (BYOK) ligada — gera UMA palavra do texto atual sob demanda. Se a IA falha, o toast mostra o MOTIVO real (HTTP/chave/modelo/timeout), não um genérico; timeout do título é 40s (modelos de raciocínio).
 - **Localização (cidade)**: ao registrar uma NOTA, o browser pede permissão UMA vez e o app grava só o NOME da cidade (geolocalização + reverse-geocode BigDataCloud, sem chave, pt-BR). Coordenadas jamais persistem; se a permissão for negada ou o serviço cair → sem cidade, silencioso (sem prompt repetido na sessão). Cidade aparece nos cards e entra no contexto da Fábula ("em {cidade}"). Import em lote NÃO preenche localização. A cidade é EDITÁVEL (no sheet da nota) e dá pra limpar (campo vazio).
 - Fábula lê os últimos 5 dias (NOTAS agrupadas, na íntegra, com título/cidade/hora)
-- Layout desktop do diário: timeline mais larga (920px) e notas em GRADE (2 col ≥1100px, 3 col ≥1600px); mobile/tablet mantém coluna única estreita (760px)
+- Layout desktop do diário: timeline mais larga (920px) e notas em coluna única (grade removida — preferência do usuário); mobile/tablet mantém coluna única estreita (760px)
 - Dados: `notes[]` (merge por id no sync; campo `diary` ficou peso-morto p/ não quebrar merge/import); status bar escondida na rota diário no mobile (≤900px). Exclusões criam TOMBSTONE de sync (`deletedNotes`) — nota excluída nunca volta via nuvem.
 
 ### Chat da Fábula (Fase 4)
