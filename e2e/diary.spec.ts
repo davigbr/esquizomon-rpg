@@ -362,6 +362,25 @@ test('diário: editar a cidade de uma nota pelo sheet (e editar o texto NÂO apa
   await expect.poll(() => readState(page, 'notes.0.cidade')).toBe(undefined)
 })
 
+test('diário: nota sem cidade — abrir o sheet PRÉ-PREENDE com a cidade atual', async ({ page }) => {
+  await page.addInitScript((hoje) => {
+    const k = 'esquizomon-rpg:v1'
+    const d = JSON.parse(localStorage.getItem(k) ?? 'null') || { version: 3, character: { xp: 0, hp: 10, mana: 10, level: 1 } }
+    d.notes = [{ id: 'n-sem-cidade', date: hoje, time: '09:00', text: 'nota ainda sem cidade', createdAt: new Date().toISOString() }]
+    localStorage.setItem(k, JSON.stringify(d))
+  }, hoje)
+  await page.goto('/#/diary')
+  await page.context().grantPermissions(['geolocation'], { origin: new URL(page.url()).origin })
+  await page.context().setGeolocation({ latitude: -30.0346, longitude: -51.2177 })
+  await page.route('**/reverse-geocode-client*', (rota) =>
+    rota.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ city: 'Porto Alegre' }) }),
+  )
+  // abrir o sheet da nota sem cidade → campo já vem preenchido (e persistido)
+  await page.locator('[data-note]').first().click()
+  await expect(page.locator('[data-note-city]')).toHaveValue('Porto Alegre', { timeout: 5000 })
+  await expect.poll(() => readState(page, 'notes.0.cidade')).toBe('Porto Alegre')
+})
+
 test('diário: editar a cidade da crônica pelo modal', async ({ page }) => {
   await page.goto('/#/diary')
   await page.locator('[data-dayry-cronica]').first().click()
@@ -400,6 +419,25 @@ test('diário: editar sobre o título AUTOMÁTICO substitui — não concatena (
   await page.keyboard.type('Encontro do grupo')
   await page.locator('[data-dayry-save]').click()
   await expect.poll(() => readState(page, 'diary.0.title')).toBe('Encontro do grupo')
+})
+
+test('diário: excluir a ÚLTIMA crônica NÃO a recria — autosave pendente não ressuscita (bug 2026-09-28)', async ({ page }) => {
+  await page.goto('/#/diary')
+  // cria a crônica de hoje (save + fecha) — delete só existe se a entrada existia ao abrir
+  await page.locator('[data-dayry-cronica]').first().click()
+  await page.locator('[data-dayry-editor]').fill('crônica que será excluída')
+  await page.locator('[data-dayry-save]').click()
+  await expect.poll(() => readState(page, 'diary.0.date')).toBe(hoje)
+  // reabre (entrada existe → botão de excluir) e agenda UM autosave NOVO
+  await page.locator('[data-dayry-cronica]').first().click()
+  await page.locator('[data-dayry-editor]').type(' mais uma palavra')
+  // exclui ANTES de o autosave (800ms) disparar
+  await page.locator('[data-dayry-delete]').click()
+  await page.locator('[data-modal-confirm]').click()
+  await expect.poll(() => readState(page, 'diary')).toHaveLength(0)
+  // espera passar o debounce do autosave pendente — a crônica NÃO pode voltar
+  await page.waitForTimeout(2000)
+  await expect.poll(() => readState(page, 'diary')).toHaveLength(0)
 })
 
 test('re-render NÃO acontece com appStore.set no-op — só quando há dados novos (bug 2026-09-09)', async ({ page }) => {

@@ -15,6 +15,7 @@ import { renderMarkdown } from '../editorMd'
 import { t } from '../../i18n'
 import { parseDiaryMarkdown } from '../importDiario'
 import { suggestChronicleTitle } from '../../ia/titulo'
+import { getCity } from '../../core/localizacao'
 
 /** Autosave debounce of the chronicle editor (modal). */
 const AUTOSAVE_MS = 800
@@ -145,6 +146,23 @@ function cidadeHtml(cidade?: string): string {
     : ''
 }
 
+/** Pre-fills the city field of a NEW record (nota/crônica) right when its
+ *  editor opens: if the record has no cidade yet, ask geolocation and fill the
+ *  field (and persist). Never overwrites what the user already typed. */
+async function preSelecionaCidade(
+  record: { id?: string; date?: string; cidade?: string },
+  inputEl: HTMLInputElement | null,
+  kind: 'nota' | 'cronica',
+): Promise<void> {
+  if (!inputEl || record.cidade) return
+  const cidade = await getCity()
+  if (!cidade) return
+  if (inputEl.value.trim()) return // usuário já digitou — não sobrescreve
+  inputEl.value = cidade
+  if (kind === 'nota' && record.id) setNoteCidade(record.id, cidade)
+  else if (kind === 'cronica' && record.date) setEntryCidade(record.date, cidade)
+}
+
 /** Capture: Enter/Done or + saves a TODAY note and keeps the field focused for
  *  rapid multi-note entry. The input is BLURRED before the save so the global
  *  re-render wrapper does NOT restore the typed text; the fresh input is then
@@ -198,6 +216,12 @@ function openNoteSheet(note: DiaryNote): void {
       <button class="btn btn-primary" data-note-save>${t('diary.saveNote')}</button>
     </div>
   `)
+  // nota nova (sem cidade) → pré-preenche o campo com a localização atual
+  void preSelecionaCidade(
+    { id: note.id, cidade: note.cidade },
+    modalBody.querySelector<HTMLInputElement>('[data-note-city]'),
+    'nota',
+  )
   modalBody.querySelector('[data-note-save]')?.addEventListener('click', () => {
     const el = modalBody.querySelector<HTMLTextAreaElement>('[data-note-edit]')
     const text = el?.value ?? ''
@@ -273,10 +297,14 @@ function openChronicle(date: string): void {
   const areaEl = modalBody.querySelector<HTMLTextAreaElement>('[data-dayry-editor]')
   const titleEl = modalBody.querySelector<HTMLInputElement>('[data-dayry-title]')
   const cityEl = modalBody.querySelector<HTMLInputElement>('[data-dayry-city]')
+  // crônica nova (sem cidade) → pré-preenche o campo com a localização atual
+  if (cityEl && !entry?.cidade) void preSelecionaCidade({ date, cidade: undefined }, cityEl, 'cronica')
   const previewEl = modalBody.querySelector<HTMLElement>('[data-dayry-preview]')
   const statusEl = modalBody.querySelector<HTMLElement>('[data-cronica-status]')
   let isPreview = false
   let timer: ReturnType<typeof setTimeout> | null = null
+  // a crônica foi excluída neste modal — um autosave pendente NÃO pode recriá-la
+  let deleted = false
   const horaLocal = () => new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }).slice(0, 5)
 
   if (entry?.updatedAt) {
@@ -285,7 +313,7 @@ function openChronicle(date: string): void {
   }
 
   function saveNow(): void {
-    if (!areaEl || !titleEl) return
+    if (deleted || !areaEl || !titleEl) return
     if (timer) {
       clearTimeout(timer)
       timer = null
@@ -389,6 +417,11 @@ function openChronicle(date: string): void {
   modalBody.querySelector('[data-dayry-delete]')?.addEventListener('click', () => {
     void confirm(t('diary.deleteMsg'), t('diary.delete')).then((ok) => {
       if (!ok) return
+      deleted = true
+      if (timer) {
+        clearTimeout(timer)
+        timer = null
+      }
       deleteEntry(entry!.id)
       closeModal()
       notify(t('diary.deleted'))
