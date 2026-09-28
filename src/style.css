@@ -3471,6 +3471,32 @@ body.fable-open .container {
   flex-direction: column;
   gap: 8px;
 }
+
+/* Desktop: aproveita a largura — timeline mais larga e notas em grade.
+   Mobile/tablet (<=900px) mantém a coluna única estreita do jeito que ficou bom. */
+@media (min-width: 901px) {
+  .diary-capture {
+    max-width: 920px;
+  }
+
+  .diary-timeline {
+    max-width: 920px;
+  }
+}
+
+@media (min-width: 1100px) {
+  .timeline-notes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .timeline-notes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 .note-card {
   display: flex;
   align-items: flex-start;

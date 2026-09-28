@@ -545,6 +545,48 @@ test('diário: excluir crônica e nota cria TOMBSTONE de sync (registros removid
   await expect.poll(async () => Object.keys((await readState(page, 'deletedNotes')) ?? {}).length).toBeGreaterThan(0)
 })
 
+test('diário desktop: timeline mais larga (920px) e notas em GRADE — mobile mantém coluna única', async ({ page }) => {
+  // DESKTOP (1440×900)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/#/diary')
+  const input = page.locator('[data-note-input]')
+  for (let i = 0; i < 3; i++) {
+    await input.fill(`nota desktop ${i + 1}`)
+    await input.press('Enter')
+  }
+  await expect(page.locator('[data-note]')).toHaveCount(3)
+  const desktop = await page.evaluate(() => {
+    const tl = document.querySelector('.diary-timeline') as HTMLElement
+    const notes = document.querySelector('.timeline-notes') as HTMLElement
+    const cs = getComputedStyle(notes)
+    return {
+      timelineMax: tl ? getComputedStyle(tl).maxWidth : null,
+      notesDisplay: cs.display,
+      notesCols: cs.gridTemplateColumns,
+    }
+  })
+  expect(desktop.timelineMax).toBe('920px')
+  expect(desktop.notesDisplay).toBe('grid')
+  expect(desktop.notesCols.split(' ').length).toBe(2)
+
+  // MOBILE (390×844) — coluna única estreita intacta
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload()
+  const mobile = await page.evaluate(() => {
+    const tl = document.querySelector('.diary-timeline') as HTMLElement
+    const notes = document.querySelector('.timeline-notes') as HTMLElement
+    const cs = getComputedStyle(notes)
+    return {
+      timelineMax: tl ? getComputedStyle(tl).maxWidth : null,
+      notesDisplay: cs.display,
+      notesCols: cs.gridTemplateColumns,
+    }
+  })
+  expect(mobile.timelineMax).toBe('760px')
+  expect(mobile.notesDisplay).toBe('flex')
+  expect(mobile.notesCols.split(' ').length).toBeGreaterThanOrEqual(1)
+})
+
 test('re-render NÃO acontece com appStore.set no-op — só quando há dados novos (bug 2026-09-09)', async ({ page }) => {
   await page.goto('/#/today')
   const mesmaInstancia = await page.evaluate(async () => {
