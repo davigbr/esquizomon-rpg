@@ -26,3 +26,36 @@ test('REGRESSION: desmarcar gutia updatedAt e vence o merge (última interação
   expect(r.history).toEqual([])
   expect(r.updatedAt).toBe('2026-01-03T00:00:00Z')
 })
+
+test('REGRESSION: excluir crônica/nota cria TOMBSTONE e o merge NÃO a ressuscita (bug 2026-09-28)', async ({ page }) => {
+  await page.goto('/#/today')
+  const r = await page.evaluate(async () => {
+    const { mergeData } = await import('/src/core/syncMerge')
+    // nuvem ainda tem os registros (o PUT do delete não chegou / device antigo)…
+    const nuvem: any = {
+      tasks: [],
+      diary: [{ id: 'c1', date: '2026-09-28', title: 'C', text: 'x', createdAt: '2026-09-28T00:00:00Z' }],
+      notes: [{ id: 'n1', date: '2026-09-28', time: '09:00', text: 'nota', createdAt: '2026-09-28T00:00:00Z' }],
+      conversations: [], log: [], version: 3,
+    }
+    // …mas o local JÁ excluiu (sem os registros, com tombstone)
+    const local: any = {
+      tasks: [], diary: [], notes: [], conversations: [], log: [], version: 3,
+      deletedDiaryEntries: { c1: '2026-09-28T10:00:00Z' },
+      deletedNotes: { n1: '2026-09-28T10:00:00Z' },
+    }
+    const merged = mergeData(local, nuvem) as any
+    return {
+      diary: merged.diary.length,
+      notes: merged.notes.length,
+      tDiary: !!merged.deletedDiaryEntries?.c1,
+      tNotes: !!merged.deletedNotes?.n1,
+    }
+  })
+  // a crônica e a nota excluídas NÃO voltam mesmo com a nuvem ainda guardando cópias
+  expect(r.diary).toBe(0)
+  expect(r.notes).toBe(0)
+  // os tombstones persistem no merge (nunca são descartados)
+  expect(r.tDiary).toBe(true)
+  expect(r.tNotes).toBe(true)
+})

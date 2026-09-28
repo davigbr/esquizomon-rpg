@@ -30,7 +30,7 @@
 - **Localização (cidade)**: ao registrar nota ou crônica, o browser pede permissão UMA vez e o app grava só o NOME da cidade (geolocalização + reverse-geocode BigDataCloud, sem chave, pt-BR). Coordenadas jamais persistem; se a permissão for negada ou o serviço cair → sem cidade, silencioso (sem prompt repetido na sessão). Cidade aparece nos cards e entra no contexto da Fábula ("em {cidade}"). Import em lote NÃO preenche localização. A cidade é EDITÁVEL (nota no sheet, crônica no modal) e dá pra limpar (campo vazio).
 - Título da crônica editável; quando é título AUTOMÁTICO (data ou palavra da IA), tocar no campo seleciona tudo — digitar SUBSTITUI em vez de concatenar (bug 2026-09-28; no iOS o cursor entraria no fim).
 - Fábula lê os últimos 5 dias (crônica + notas agrupadas) na íntegra
-- Dados: `notes[]` (merge por id no sync) + `diary[]` (1/dia, merge por data); status bar escondida na rota diário no mobile (≤900px)
+- Dados: `notes[]` (merge por id no sync) + `diary[]` (1/dia, merge por data); status bar escondida na rota diário no mobile (≤900px). Exclusões criam TOMBSTONE de sync (`deletedNotes`/`deletedDiaryEntries`) — crônica/nota excluída nunca volta via nuvem (bug 2026-09-28).
 
 ### Chat da Fábula (Fase 4)
 - BYOK (DeepSeek / OpenCode Zen Go) via Netlify Function reusada em dev como middleware Vite (mesma URL `/api/ia`)

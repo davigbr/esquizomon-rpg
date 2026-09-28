@@ -119,16 +119,30 @@ export function mergeData(local: AppData, cloud: AppData): AppData {
   const settledDeletedConv: Record<string, string> = deletedConv
   const conversationsWithDeletion = conversations.filter((c) => !deletedConvIds.has(c.id))
 
+  // Tombstones for diary entries and notes (mirrors tasks/conversations): a
+  // chronicle/note deleted on ANY device never comes back. The union is kept
+  // forever (never settled — see the deletedTasks comment above). Bug 2026-09-28:
+  // diary/notes had NO tombstone, so the periodic pull re-added a record the
+  // user had JUST deleted when the cloud still held a copy.
+  const deletedDiary = { ...(local.deletedDiaryEntries ?? {}), ...(cloud.deletedDiaryEntries ?? {}) }
+  const deletedDiaryIds = new Set(Object.keys(deletedDiary))
+  const diaryWithDeletion = diary.filter((e) => !deletedDiaryIds.has(e.id))
+  const deletedNotes = { ...(local.deletedNotes ?? {}), ...(cloud.deletedNotes ?? {}) }
+  const deletedNoteIds = new Set(Object.keys(deletedNotes))
+  const notesWithDeletion = notes.filter((n) => !deletedNoteIds.has(n.id))
+
   return {
     ...local,
     character: mergeCharacter(local.character, cloud.character),
     tasks: tasksWithDeletion,
-    diary,
-    notes,
+    diary: diaryWithDeletion,
+    notes: notesWithDeletion,
     conversations: conversationsWithDeletion,
     log,
     deletedTasks: settledDeleted,
     deletedConversations: settledDeletedConv,
+    deletedDiaryEntries: deletedDiary,
+    deletedNotes: deletedNotes,
     diaryXp: { ...(cloud.diaryXp ?? {}), ...(local.diaryXp ?? {}) },
     diaryLogXp: { ...(cloud.diaryLogXp ?? {}), ...(local.diaryLogXp ?? {}) },
   }

@@ -170,6 +170,14 @@ export interface AppData {
   /** Deleted conversations (id → date): tombstone so the merge doesn't
    *  re-add a conversation a device already deleted (mirrors deletedTasks). */
   deletedConversations?: Record<string, string>
+  /** Deleted diary ENTRIES (entry id → date): tombstone so the merge doesn't
+   *  re-add a chronicle a device already deleted (mirrors deletedTasks).
+   *  Keyed by entry id (reusing a delete won't happen — a date can be
+   *  re-created later with a NEW id and still survive). */
+  deletedDiaryEntries?: Record<string, string>
+  /** Deleted quick NOTES (note id → date): tombstone so the merge doesn't
+   *  re-add a note a device already deleted (mirrors deletedTasks). */
+  deletedNotes?: Record<string, string>
   /** Ship log (1 entry per day — the daily chronicle). Persisted. */
   diary?: DiaryEntry[]
   /** Quick notes (many per day). Persisted. */

@@ -4,6 +4,7 @@ import type { DiaryNote } from '../core/tipos'
 import { newId, todayISO } from '../core/jogo'
 import { getCity } from '../core/localizacao'
 import { appStore } from './base'
+import { flushSend } from '../sync/sync'
 import { rewardCardMentions, rewardDiaryLog } from './diaryRewards'
 
 export function currentNotes(): DiaryNote[] {
@@ -72,7 +73,14 @@ function attachNoteCity(id: string): void {
 
 export function deleteNote(id: string): void {
   const data = appStore.get()
-  appStore.set({ ...data, notes: (data.notes ?? []).filter((n) => n.id !== id) })
+  // tombstone: the merge must not re-add an already-deleted note
+  appStore.set({
+    ...data,
+    notes: (data.notes ?? []).filter((n) => n.id !== id),
+    deletedNotes: { ...(data.deletedNotes ?? {}), [id]: new Date().toISOString() },
+  })
+  // flush: guarantee the tombstone reaches the cloud right away (not via debounce)
+  void flushSend()
 }
 
 /** Sets (or clears, with empty/whitespace) the city of a note. Metadata edit —

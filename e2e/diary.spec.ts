@@ -440,6 +440,31 @@ test('diário: excluir a ÚLTIMA crônica NÃO a recria — autosave pendente n�
   await expect.poll(() => readState(page, 'diary')).toHaveLength(0)
 })
 
+test('diário: excluir crônica e nota cria TOMBSTONE de sync (registros removidos do estado)', async ({ page }) => {
+  await page.goto('/#/diary')
+  // cria uma crônica e uma nota
+  await page.locator('[data-dayry-cronica]').first().click()
+  await page.locator('[data-dayry-editor]').fill('crônica p/ teste de tombstone')
+  await page.locator('[data-dayry-save]').click()
+  await page.locator('[data-note-input]').fill('nota p/ teste de tombstone')
+  await page.locator('[data-note-input]').press('Enter')
+  await expect.poll(() => readState(page, 'diary.0.date')).toBe(hoje)
+  await expect.poll(() => readState(page, 'notes.0.text')).toContain('tombstone')
+  // apaga a nota (sheet → excluir)
+  await page.locator('[data-note]').first().click()
+  await page.locator('[data-note-delete]').click()
+  await page.locator('[data-modal-confirm]').click()
+  // apaga a crônica (modal → excluir)
+  await page.locator('[data-dayry-cronica]').first().click()
+  await page.locator('[data-dayry-delete]').click()
+  await page.locator('[data-modal-confirm]').click()
+  // registros removidos + tombstone criado (o merge não pode ressuscitar)
+  await expect.poll(() => readState(page, 'diary')).toHaveLength(0)
+  await expect.poll(() => readState(page, 'notes')).toHaveLength(0)
+  await expect.poll(async () => Object.keys((await readState(page, 'deletedDiaryEntries')) ?? {}).length).toBeGreaterThan(0)
+  await expect.poll(async () => Object.keys((await readState(page, 'deletedNotes')) ?? {}).length).toBeGreaterThan(0)
+})
+
 test('re-render NÃO acontece com appStore.set no-op — só quando há dados novos (bug 2026-09-09)', async ({ page }) => {
   await page.goto('/#/today')
   const mesmaInstancia = await page.evaluate(async () => {

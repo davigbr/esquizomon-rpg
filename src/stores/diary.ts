@@ -4,6 +4,7 @@ import type { DiaryEntry } from '../core/tipos'
 import { newId } from '../core/jogo'
 import { getCity } from '../core/localizacao'
 import { appStore } from './base'
+import { flushSend } from '../sync/sync'
 import { rewardCardMentions, rewardDiaryLog } from './diaryRewards'
 import type { Result } from './base'
 
@@ -66,7 +67,17 @@ function attachEntryCity(date: string): void {
 }
 
 export function deleteEntry(id: string): void {
-  saveDiary(currentDiary().filter((e) => e.id !== id))
+  const data = appStore.get()
+  const entry = (data.diary ?? []).find((e) => e.id === id)
+  if (!entry) return
+  // tombstone: the merge must not re-add an already-deleted chronicle
+  appStore.set({
+    ...data,
+    diary: (data.diary ?? []).filter((e) => e.id !== id),
+    deletedDiaryEntries: { ...(data.deletedDiaryEntries ?? {}), [entry.id]: new Date().toISOString() },
+  })
+  // flush: guarantee the tombstone reaches the cloud right away (not via debounce)
+  void flushSend()
 }
 
 /** Sets (or clears, with empty/whitespace) the city of the day's chronicle.
