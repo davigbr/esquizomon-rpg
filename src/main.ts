@@ -20,6 +20,7 @@ import { loadDeck } from './core/baralho'
 import { onPersistFailure, initialTheme } from './db/storage'
 import { notify } from './ui/toast'
 import { applyLangAttr, t, LOCALE, getLang } from './i18n'
+import { installSwipeNavigation } from './ui/swipe'
 
 const root = document.getElementById('app')!
 const navLinks = document.querySelectorAll<HTMLAnchorElement>('[data-rota]')
@@ -387,6 +388,8 @@ mountStatusBar()
 subscribeSync(updateSyncStatus)
 updateSyncStatus()
 mountRoute(currentRoute())
+// swipe horizontal entre abas (mobile): esquerda = próxima, direita = anterior
+installSwipeNavigation(currentRoute)
 // recorda o estado renderizado no boot: appStore.set no-op (ex.: sync sem
 // mudança) não re-renderiza nada a partir de agora
 lastStoreSig = JSON.stringify(appStore.get())

@@ -3,6 +3,67 @@ import { test, expect } from '@playwright/test'
 /** Spec mobile (390×844): menu só de ícones e Fábula como página fullscreen. */
 test.use({ viewport: { width: 390, height: 844 } })
 
+test('mobile: swipe esquerdo/direito alterna entre as abas (Hoje→Diário→Cartas→Jogo→Histórico)', async ({ page }) => {
+  const cdp = await page.context().newCDPSession(page)
+  async function swipe(dx: number): Promise<void> {
+    const y = 400
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 300, y, id: 1 }] })
+    for (let x = 300; Math.abs(x - 300) < Math.abs(dx); x += dx / 4) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y, id: 1 }] })
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 300 + dx, y, id: 1 }] })
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await page.waitForTimeout(150)
+  }
+
+  await page.goto('/#/today')
+  await swipe(-200)
+  await expect(page).toHaveURL(/#\/diary$/)
+  await swipe(-200)
+  await expect(page).toHaveURL(/#\/cards$/)
+  await swipe(-200)
+  await expect(page).toHaveURL(/#\/sheet$/)
+  await swipe(-200)
+  await expect(page).toHaveURL(/#\/history$/)
+  // volta
+  await swipe(200)
+  await expect(page).toHaveURL(/#\/sheet$/)
+  await swipe(200)
+  await expect(page).toHaveURL(/#\/cards$/)
+})
+
+test('mobile: swipe NÃO navega com modal aberto, com a Fábula aberta ou em gesto vertical', async ({ page }) => {
+  const cdp = await page.context().newCDPSession(page)
+  async function swipe(dx: number, dy = 0): Promise<void> {
+    const y = 400
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 300, y, id: 1 }] })
+    for (let i = 1; i <= 4; i++) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 300 + (dx * i) / 4, y: y + (dy * i) / 4, id: 1 }] })
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await page.waitForTimeout(150)
+  }
+
+  await page.goto('/#/today')
+  // gesto DOMINANTEMENTE vertical (scroll) não navega
+  await swipe(120, 260)
+  await expect(page).toHaveURL(/#\/today$/)
+  // chama a Fábula → swipe não navega
+  await page.click('#fabula-toggle')
+  await swipe(-200)
+  await expect(page).toHaveURL(/#\/today$/)
+  // fecha pelo botão do próprio painel (fullscreen cobre o nav no mobile)
+  await page.click('[data-fable-close]')
+  await expect(page.locator('#fabula-panel')).not.toHaveClass(/open/)
+  await page.waitForTimeout(400)
+  // modal aberto (diário → crônica) → swipe não navega
+  await page.goto('/#/diary')
+  await page.locator('[data-dayry-cronica]').first().click()
+  await expect(page.locator('#modal')).toBeVisible()
+  await swipe(-200)
+  await expect(page).toHaveURL(/#\/diary$/)
+})
+
 test('mobile: navbar vira menu somente de ícones (rótulos escondidos)', async ({ page }) => {
   await page.goto('/#/today')
   const rotulo = page.locator('[data-rota="today"] .nav-text')
