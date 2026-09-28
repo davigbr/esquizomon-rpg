@@ -232,6 +232,55 @@ test('diário: crônica sem título COM IA ligada — título vira UMA palavra d
   await expect(page.locator('.toast').last()).toContainText('Título sugerido')
 })
 
+test('diário: botão "gerar título com IA" VISÍVEL com IA ligada — clicar gera e salva o título', async ({ page }) => {
+  await page.addInitScript((h) => {
+    localStorage.setItem(
+      'esquizomon-rpg:v1',
+      JSON.stringify({
+        version: 3,
+        tasks: [],
+        character: {
+          nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20,
+          exhausted: false, lastDay: h, cartas: [], invocations: {},
+        },
+        settings: { tema: 'dark', ai: { provider: 'deepseek', model: 'deepseek-chat', apiKey: 'chave', systemPrompt: '' } },
+        log: [],
+        conversations: [],
+        diary: [],
+        notes: [],
+      }),
+    )
+  }, hoje)
+  await page.route('**/api/ia', (rota) => {
+    const body = JSON.parse(rota.request().postData() ?? '{}')
+    if (body.stream === false) {
+      void rota.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ choices: [{ message: { content: 'Vórtice' } }] }),
+      })
+    } else {
+      void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: 'data: [DONE]\n\n' })
+    }
+  })
+  await page.goto('/#/diary')
+  await page.locator('[data-dayry-cronica]').first().click()
+  const btn = page.locator('[data-dayry-title-ai]')
+  await expect(btn).toBeVisible()
+  await page.locator('[data-dayry-editor]').fill('Texto do dia que recebe um título gerado sob demanda.')
+  await btn.click()
+  // a IA preenche o campo e salva a crônica com o título gerado
+  await expect(page.locator('[data-dayry-title]')).toHaveValue('Vórtice')
+  await expect.poll(() => readState(page, 'diary.0.title')).toBe('Vórtice')
+  await expect(page.locator('.toast').last()).toContainText('Título sugerido')
+})
+
+test('diário: botão "gerar título com IA" INVISÍVEL sem a IA (BYOK) ligada', async ({ page }) => {
+  await page.goto('/#/diary')
+  await page.locator('[data-dayry-cronica]').first().click()
+  await expect(page.locator('[data-dayry-title-ai]')).toHaveCount(0)
+})
+
 test('diário: crônica sem título COM IA mas falha na resposta — título vira a DATA', async ({ page }) => {
   await page.addInitScript((h) => {
     localStorage.setItem(

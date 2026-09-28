@@ -14,7 +14,7 @@ import { escapeHtml } from '../util'
 import { renderMarkdown } from '../editorMd'
 import { t } from '../../i18n'
 import { parseDiaryMarkdown } from '../importDiario'
-import { suggestChronicleTitle } from '../../ia/titulo'
+import { aiEnabled, suggestChronicleTitle } from '../../ia/titulo'
 import { getCity } from '../../core/localizacao'
 
 /** Autosave debounce of the chronicle editor (modal). */
@@ -266,12 +266,17 @@ function openChronicle(date: string): void {
   const entry = appStore.get().diary?.find((e) => e.date === date)
   const title = entry?.title ?? ''
   const text = entry?.text ?? ''
+  // o botão "gerar título com IA" aparece apenas com a IA (BYOK) ativada
+  const aiOn = aiEnabled(appStore.get().settings.ai)
 
   openModal(`
     <h2>${t('diary.chronicle')} — ${escapeHtml(formatLongDate(date))}</h2>
     <div class="diary-chronicle">
-      <input class="diary-title" data-dayry-title type="text" placeholder="${t('diary.chronicleTitle')}" maxlength="120"
-        value="${escapeHtml(title)}" autocomplete="off" aria-label="${t('diary.chronicleTitle')}" />
+      <div class="diary-title-row">
+        <input class="diary-title" data-dayry-title type="text" placeholder="${t('diary.chronicleTitle')}" maxlength="120"
+          value="${escapeHtml(title)}" autocomplete="off" aria-label="${t('diary.chronicleTitle')}" />
+        ${aiOn ? `<button class="btn btn-icon diary-title-ai" data-dayry-title-ai type="button" title="${t('diary.titleGenerate')}" aria-label="${t('diary.titleGenerate')}"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></button>` : ''}
+      </div>
       <input class="diary-city-input" data-dayry-city type="text" value="${escapeHtml(entry?.cidade ?? '')}"
         placeholder="${t('diary.cityPlaceholder')}" maxlength="60" autocomplete="off" autocapitalize="words"
         spellcheck="false" enterkeyhint="done" aria-label="${t('diary.city')}" />
@@ -410,6 +415,34 @@ function openChronicle(date: string): void {
     titleInput.addEventListener('pointerup', selectAllIfAutoTitle)
     titleInput.addEventListener('touchend', selectAllIfAutoTitle)
   }
+
+  // Botão "gerar título com IA": sugere UMA palavra do texto atual e preenche o
+  // campo (e salva). Só é renderizado com a IA ativada (ver markup).
+  modalBody.querySelector<HTMLButtonElement>('[data-dayry-title-ai]')?.addEventListener('click', () => {
+    const btn = modalBody.querySelector<HTMLButtonElement>('[data-dayry-title-ai]')
+    if (!btn || btn.disabled) return
+    const draft = areaEl?.value.trim() ?? ''
+    if (!draft) {
+      notify(t('diary.needText'), 'erro')
+      return
+    }
+    btn.disabled = true
+    void suggestChronicleTitle(draft).then((word) => {
+      btn.disabled = false
+      if (!word) {
+        notify(t('diary.titleGenerateFail'), 'erro')
+        return
+      }
+      if (titleEl) {
+        titleEl.value = word
+        autoTitled.add(date)
+        titleEl.select()
+      }
+      saveEntry(date, { title: word, text: draft })
+      if (statusEl) statusEl.textContent = t('diary.saved', { hora: horaLocal() })
+      notify(t('diary.titleSuggested', { titulo: word }))
+    })
+  })
   modalBody.querySelector('[data-dayry-save]')?.addEventListener('click', () => {
     saveNow()
     closeModal()

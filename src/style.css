@@ -3640,6 +3640,37 @@ body.fable-open .container {
   font-weight: 400;
 }
 
+/* Linha que agrupa o título + botão "gerar título com IA" (só com BYOK) */
+.diary-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.diary-title-row .diary-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.diary-title-ai {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: var(--text-primary);
+  background: var(--card-elevated);
+  border: 1px solid var(--border-color);
+}
+
+.diary-title-ai:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.diary-title-ai:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Campo de cidade (notas e crônicas) — metadado, linha curta */
 .diary-city-input {
   background: transparent;
