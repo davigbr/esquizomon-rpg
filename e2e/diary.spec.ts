@@ -281,6 +281,37 @@ test('diário: botão "gerar título com IA" INVISÍVEL sem a IA (BYOK) ligada',
   await expect(page.locator('[data-dayry-title-ai]')).toHaveCount(0)
 })
 
+test('diário: botão "gerar título com IA" mostra o MOTIVO real quando a IA falha (não o genérico)', async ({ page }) => {
+  await page.addInitScript((h) => {
+    localStorage.setItem(
+      'esquizomon-rpg:v1',
+      JSON.stringify({
+        version: 3,
+        tasks: [],
+        character: {
+          nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20,
+          exhausted: false, lastDay: h, cartas: [], invocations: {},
+        },
+        settings: { tema: 'dark', ai: { provider: 'deepseek', model: 'deepseek-chat', apiKey: 'chave-invalida', systemPrompt: '' } },
+        log: [],
+        conversations: [],
+        diary: [],
+        notes: [],
+      }),
+    )
+  }, hoje)
+  // upstream devolve 401 → o AiError carrega "Falha na chamada (HTTP 401)"
+  await page.route('**/api/ia', (rota) => {
+    void rota.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Invalid Authentication' } }) })
+  })
+  await page.goto('/#/diary')
+  await page.locator('[data-dayry-cronica]').first().click()
+  await page.locator('[data-dayry-editor]').fill('Um texto cujo título a IA não consegue gerar por chave inválida.')
+  await page.locator('[data-dayry-title-ai]').click()
+  // o toast mostra o motivo real do upstream (Não mostra genérico)
+  await expect(page.locator('.toast').first()).toContainText('Invalid Authentication')
+})
+
 test('diário: crônica sem título COM IA mas falha na resposta — título vira a DATA', async ({ page }) => {
   await page.addInitScript((h) => {
     localStorage.setItem(

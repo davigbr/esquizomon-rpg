@@ -358,7 +358,12 @@ function openChronicle(date: string): void {
     const text = entry.text.trim()
     if (!text) return
     pendingTitles.add(date)
-    const word = await suggestChronicleTitle(text)
+    let word: string | null = null
+    try {
+      word = await suggestChronicleTitle(text)
+    } catch {
+      word = null // IA falhou — autosave cai pra data silenciosamente
+    }
     pendingTitles.delete(date)
     const cur = appStore.get().diary?.find((e) => e.date === date)
     if (!cur || cur.title.trim()) return
@@ -427,21 +432,28 @@ function openChronicle(date: string): void {
       return
     }
     btn.disabled = true
-    void suggestChronicleTitle(draft).then((word) => {
-      btn.disabled = false
-      if (!word) {
-        notify(t('diary.titleGenerateFail'), 'erro')
-        return
+    void (async () => {
+      try {
+        const word = await suggestChronicleTitle(draft)
+        if (!word) {
+          notify(t('diary.titleGenerateFail'), 'erro')
+          return
+        }
+        if (titleEl) {
+          titleEl.value = word
+          autoTitled.add(date)
+          titleEl.select()
+        }
+        saveEntry(date, { title: word, text: draft })
+        if (statusEl) statusEl.textContent = t('diary.saved', { hora: horaLocal() })
+        notify(t('diary.titleSuggested', { titulo: word }))
+      } catch (err) {
+        // o AiError (cliente) traz o motivo real em pt — mostre-o no lugar do genérico
+        notify(err instanceof Error && err.message ? err.message : t('diary.titleGenerateFail'), 'erro')
+      } finally {
+        btn.disabled = false
       }
-      if (titleEl) {
-        titleEl.value = word
-        autoTitled.add(date)
-        titleEl.select()
-      }
-      saveEntry(date, { title: word, text: draft })
-      if (statusEl) statusEl.textContent = t('diary.saved', { hora: horaLocal() })
-      notify(t('diary.titleSuggested', { titulo: word }))
-    })
+    })()
   })
   modalBody.querySelector('[data-dayry-save]')?.addEventListener('click', () => {
     saveNow()
