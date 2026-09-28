@@ -12,6 +12,7 @@ import { notify } from '../toast'
 import { escapeHtml } from '../util'
 import { t } from '../../i18n'
 import { parseDiaryMarkdown } from '../importDiario'
+import { renderMarkdown } from '../editorMd'
 import { aiEnabled, suggestChronicleTitle } from '../../ia/titulo'
 import { getCity } from '../../core/localizacao'
 
@@ -96,7 +97,7 @@ function noteHtml(n: DiaryNote): string {
       <time class="note-time">${escapeHtml(n.time)}</time>
       <div class="note-body">
         ${n.title ? `<p class="note-title">${escapeHtml(n.title)}</p>` : ''}
-        <p class="note-text">${escapeHtml(n.text)}</p>
+        <div class="note-rendered">${renderMarkdown(n.text)}</div>
         ${cidadeHtml(n.cidade)}
       </div>
     </article>
@@ -162,7 +163,10 @@ function openNoteSheet(note: DiaryNote): void {
   const aiOn = aiEnabled(appStore.get().settings.ai)
   openModal(`
     <h2>${t('diary.editNote')}</h2>
-    <p class="diary-sheet-meta">${escapeHtml(note.time)} · ${escapeHtml(formatLongDate(note.date))}</p>
+    <div class="diary-meta-row">
+      <label>${t('diary.noteDate')}<input class="diary-date" data-note-date-input type="date" value="${escapeHtml(note.date)}" aria-label="${t('diary.noteDate')}" /></label>
+      <label>${t('diary.noteTime')}<input class="diary-date" data-note-time-input type="time" value="${escapeHtml(note.time)}" aria-label="${t('diary.noteTime')}" /></label>
+    </div>
     <div class="form-group">
       <label for="diary-note-title">${t('diary.noteTitle')}</label>
       <div class="diary-title-row">
@@ -230,7 +234,15 @@ function openNoteSheet(note: DiaryNote): void {
     }
     const title = modalBody.querySelector<HTMLInputElement>('[data-note-title]')?.value
     const cityEl = modalBody.querySelector<HTMLInputElement>('[data-note-city]')
-    saveNote({ id: note.id, text, title })
+    const dateEl = modalBody.querySelector<HTMLInputElement>('[data-note-date-input]')
+    const timeEl = modalBody.querySelector<HTMLInputElement>('[data-note-time-input]')
+    saveNote({
+      id: note.id,
+      text,
+      title,
+      date: dateEl?.value || undefined,
+      time: timeEl?.value || undefined,
+    })
     setNoteCidade(note.id, cityEl?.value)
     closeModal()
   })

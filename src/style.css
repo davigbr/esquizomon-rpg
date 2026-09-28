@@ -3548,6 +3548,118 @@ body.fable-open .container {
   word-break: break-word;
 }
 
+/* Markdown renderizado DENTRO do card da nota (2026-09-28) */
+.note-rendered {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  min-width: 0;
+  word-break: break-word;
+}
+
+.note-rendered > :first-child {
+  margin-top: 0;
+}
+
+.note-rendered > :last-child {
+  margin-bottom: 0;
+}
+
+.note-rendered p {
+  margin: 4px 0;
+}
+
+.note-rendered h1,
+.note-rendered h2,
+.note-rendered h3 {
+  font-size: 14px;
+  margin: 6px 0 2px;
+  color: var(--text-primary);
+}
+
+.note-rendered ul,
+.note-rendered ol {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.note-rendered li {
+  margin: 2px 0;
+}
+
+.note-rendered code {
+  background: rgba(var(--rgb-inset, 0), 0, 0, 0.06);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.note-rendered pre {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 8px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 13px;
+}
+
+.note-rendered blockquote {
+  margin: 4px 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--border-color);
+  color: var(--text-muted);
+}
+
+.note-rendered table {
+  border-collapse: collapse;
+  margin: 6px 0;
+}
+
+.note-rendered th,
+.note-rendered td {
+  border: 1px solid var(--border-color);
+  padding: 3px 6px;
+  font-size: 13px;
+}
+
+.note-rendered a {
+  color: var(--accent-gold);
+  text-decoration: underline;
+}
+
+/* Data/hora editáveis da nota (sheet) — 2026-09-28 */
+.diary-meta-row {
+  display: flex;
+  gap: 18px;
+  margin: 4px 0 12px;
+}
+
+.diary-meta-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.diary-date {
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  padding: 4px 2px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.diary-date:focus {
+  outline: none;
+  border-bottom-color: var(--accent-gold);
+}
+
 /* --- card da crônica (destaque do dia) --- */
 .note-card--cronica {
   flex-direction: column;

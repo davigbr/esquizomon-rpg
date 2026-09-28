@@ -36,6 +36,7 @@ export function saveNote(input: { text: string; title?: string; id?: string; dat
       ...existing,
       text: input.text,
       time: input.time ?? existing.time,
+      date: input.date ?? existing.date,
       title: input.title !== undefined ? (input.title.trim() || undefined) : existing.title,
       updatedAt: now,
     }

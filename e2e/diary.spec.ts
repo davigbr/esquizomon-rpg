@@ -400,6 +400,40 @@ test('diário: MIGRAÇÃO — crônica antiga (diary) vira NOTA com título pres
   await expect(page.locator('.diary-timeline')).toContainText('Meu dia')
 })
 
+test('diário: a DATA e a HORA da nota são editáveis — a nota muda de dia', async ({ page }) => {
+  await page.goto('/#/diary')
+  await page.locator('[data-note-input]').fill('nota que vai mudar de dia')
+  await page.locator('[data-note-input]').press('Enter')
+  await page.locator('[data-note]').first().click()
+  // edita a data (para ontem) e a hora
+  await page.locator('[data-note-date-input]').fill(ontem)
+  await page.locator('[data-note-time-input]').fill('07:15')
+  await page.locator('[data-note-save]').click()
+  await expect(page.locator('#modal')).toBeHidden()
+  await expect.poll(() => readState(page, 'notes.0.date')).toBe(ontem)
+  await expect.poll(() => readState(page, 'notes.0.time')).toBe('07:15')
+  // a nota agora vive no dia de ONTEM, não mais em HOJE
+  await expect(page.locator(`[data-note][data-note-date="${ontem}"]`)).toHaveCount(1)
+  await expect(page.locator(`[data-note][data-note-date="${hoje}"]`)).toHaveCount(0)
+})
+
+test('diário: markdown da nota é renderizado no card (negrito, itálico, lista)', async ({ page }) => {
+  await page.goto('/#/diary')
+  await page.locator('[data-note-input]').fill('nota md')
+  await page.locator('[data-note-input]').press('Enter')
+  await page.locator('[data-note]').first().click()
+  // entra via sheet (texto longo com markdown, sem o cap de 500 da captura)
+  await page.locator('[data-note-edit]').fill('**negrito** e *itálico*\n\n- item um\n- item dois\n\n`código`')
+  await page.locator('[data-note-save]').click()
+  const card = page.locator('[data-note]').first()
+  await expect(card.locator('strong')).toHaveText('negrito')
+  await expect(card.locator('em')).toHaveText('itálico')
+  await expect(card.locator('li')).toHaveCount(2)
+  await expect(card.locator('code')).toHaveText('código')
+  // o markdown vai pro storage em texto bruto, renderizado só na exibição
+  await expect.poll(() => readState(page, 'notes.0.text')).toBe('**negrito** e *itálico*\n\n- item um\n- item dois\n\n`código`')
+})
+
 test('diário desktop: timeline mais larga (920px) e notas em coluna ÚNICA — mobile mantém coluna única', async ({ page }) => {
   // DESKTOP (1440×900)
   await page.setViewportSize({ width: 1440, height: 900 })
