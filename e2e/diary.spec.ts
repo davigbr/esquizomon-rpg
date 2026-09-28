@@ -119,120 +119,33 @@ test('diário: edita e exclui uma nota pela sheet', async ({ page }) => {
   expect(await readState(page, 'notes.length')).toBe(0)
 })
 
-test('diário: crônica via modal — markdown, autosave, preview (Ver) e reload', async ({ page }) => {
-  await page.goto('/#/diary')
-  await page.locator('[data-dayry-cronica]').first().click()
-  const editor = page.locator('[data-dayry-editor]')
-  await expect(editor).toBeVisible()
 
-  await editor.fill(TEXTO)
-  await page.locator('[data-dayry-save]').click()
-  await expect(page.locator('#modal')).toBeHidden()
 
-  // persiste como entrada do dia (autosave de 800ms + save explícito)
-  await expect.poll(() => readState(page, 'diary.0.text')).toBe(TEXTO)
 
-  // card da crônica aparece no dia com o snippet
-  await expect(page.locator('[data-dayry-cronica-card]').first()).toContainText('negrito')
 
-  // reabre e usa Ver (preview renderiza markdown)
-  await page.locator('[data-dayry-cronica-card]').first().click()
-  await page.locator('[data-dayry-toggle]').click()
-  await expect(page.locator('[data-dayry-preview] strong')).toHaveText('negrito')
-  await expect(page.locator('[data-dayry-preview] em')).toHaveText('itálico')
-  await expect(page.locator('[data-dayry-preview] li')).toHaveCount(2)
-})
-
-test('diário: excluir crônica com confirmação', async ({ page }) => {
-  await page.goto('/#/diary')
-  await page.locator('[data-dayry-cronica]').first().click()
-  await page.locator('[data-dayry-editor]').fill('conteúdo que será excluído')
-  await page.locator('[data-dayry-save]').click()
-  await expect.poll(() => readState(page, 'diary.length')).toBe(1)
-
-  await page.locator('[data-dayry-cronica-card]').first().click()
-  await page.locator('[data-dayry-delete]').click()
-  await page.locator('[data-modal-confirm]').click()
-  await expect(page.locator('#modal')).toBeHidden()
-  await expect(page.locator('[data-dayry-cronica-card]')).toHaveCount(0)
-  await expect.poll(() => readState(page, 'diary.length')).toBe(0)
-})
-
-test('diário: importa crônicas em massa via markdown (e pula dias que já existem)', async ({ page }) => {
+test('diário: importa registros em massa via markdown (cada dia vira uma NOTA com título)', async ({ page }) => {
   await page.goto('/#/diary')
 
   await page.locator('[data-dayry-import]').click()
-  const markdown = `## ${ontem}\n**Ontem**\nPrimeira crônica importada.\n\n## ${hoje}\n**Hoje**\nSegunda crônica importada.\n\n- lista\n- markdown`
+  const markdown = `## ${ontem}\n**Ontem**\nPrimeira nota importada.\n\n## ${hoje}\n**Hoje**\nSegunda nota importada.\n\n- lista\n- markdown`
   await page.locator('[data-import-text]').fill(markdown)
   await page.locator('[data-import-run]').click()
 
-  // modal FECHA e o resumo vem no toast
   await expect(page.locator('#modal')).toBeHidden()
   await expect(page.locator('.toast').last()).toContainText('2 importada')
 
-  // as crônicas viram cards na timeline (uma por dia importado)
-  await expect(page.locator('[data-dayry-cronica-card]')).toHaveCount(2)
-  await expect(page.locator('.diary-timeline')).toContainText('Primeira crônica importada')
-
-  // reimportar o mesmo dia → pula (1/dia), modal fecha de novo
-  await page.locator('[data-dayry-import]').click()
-  await page.locator('[data-import-text]').fill(`## ${hoje}\n**Hoje**\nconteúdo diferente`)
-  await page.locator('[data-import-run]').click()
-  await expect(page.locator('#modal')).toBeHidden()
-  await expect(page.locator('.toast').last()).toContainText('1 pulada')
-  await expect(page.locator('.toast').last()).toContainText(hoje)
+  // os dois dias viraram NOTAS (título vem do **Negrito**) na timeline
+  await expect(page.locator('[data-note]')).toHaveCount(2)
+  await expect(page.locator('.diary-timeline')).toContainText('Primeira nota importada')
+  const importadas = (await readState(page, 'notes')) as Array<{ title?: string }>
+  expect(importadas.filter((n) => n.title?.trim()).length).toBe(2)
 })
 
-test('diário: crônica salva SEM título e sem IA — o título vira a DATA', async ({ page }) => {
-  await page.goto('/#/diary')
-  await page.locator('[data-dayry-cronica]').first().click()
-  await page.locator('[data-dayry-editor]').fill('Dia comum, sem título na crônica.')
-  await page.locator('[data-dayry-save]').click()
-  const dataTitulo = `${hoje.slice(8, 10)}/${hoje.slice(5, 7)}/${hoje.slice(0, 4)}`
-  await expect.poll(() => readState(page, 'diary.0.title')).toBe(dataTitulo)
-})
 
-test('diário: crônica sem título COM IA ligada — título vira UMA palavra da IA', async ({ page }) => {
-  await page.addInitScript((h) => {
-    localStorage.setItem(
-      'esquizomon-rpg:v1',
-      JSON.stringify({
-        version: 3,
-        tasks: [],
-        character: {
-          nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20,
-          exhausted: false, lastDay: h, cartas: [], invocations: {},
-        },
-        settings: { tema: 'dark', ai: { provider: 'deepseek', model: 'deepseek-chat', apiKey: 'chave-teste', systemPrompt: '' } },
-        log: [],
-        conversations: [],
-        diary: [],
-        notes: [],
-      }),
-    )
-  }, hoje)
-  await page.route('**/api/ia', (rota) => {
-    const body = JSON.parse(rota.request().postData() ?? '{}')
-    if (body.stream === false) {
-      void rota.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ choices: [{ message: { content: 'Vórtice' } }] }),
-      })
-    } else {
-      void rota.fulfill({ status: 200, contentType: 'text/event-stream', body: 'data: [DONE]\n\n' })
-    }
-  })
-  await page.goto('/#/diary')
-  await page.locator('[data-dayry-cronica]').first().click()
-  await page.locator('[data-dayry-editor]').fill('Acordei tarde, escrevi, atendi.')
-  await page.locator('[data-dayry-save]').click()
-  await expect.poll(() => readState(page, 'diary.0.title')).toBe('Vórtice')
-  // feedback do título sugerido
-  await expect(page.locator('.toast').last()).toContainText('Título sugerido')
-})
 
-test('diário: botão "gerar título com IA" VISÍVEL com IA ligada — clicar gera e salva o título', async ({ page }) => {
+
+
+test('diário: botão "gerar título com IA" VISÍVEL com IA ligada — gera e salva o título da NOTA', async ({ page }) => {
   await page.addInitScript((h) => {
     localStorage.setItem(
       'esquizomon-rpg:v1',
@@ -264,21 +177,24 @@ test('diário: botão "gerar título com IA" VISÍVEL com IA ligada — clicar g
     }
   })
   await page.goto('/#/diary')
-  await page.locator('[data-dayry-cronica]').first().click()
-  const btn = page.locator('[data-dayry-title-ai]')
-  await expect(btn).toBeVisible()
-  await page.locator('[data-dayry-editor]').fill('Texto do dia que recebe um título gerado sob demanda.')
-  await btn.click()
-  // a IA preenche o campo e salva a crônica com o título gerado
-  await expect(page.locator('[data-dayry-title]')).toHaveValue('Vórtice')
-  await expect.poll(() => readState(page, 'diary.0.title')).toBe('Vórtice')
+  await page.locator('[data-note-input]').fill('Texto do dia que recebe um título gerado sob demanda.')
+  await page.locator('[data-note-input]').press('Enter')
+  await page.locator('[data-note]').first().click()
+  await expect(page.locator('[data-note-title-ai]')).toBeVisible()
+  await page.locator('[data-note-title-ai]').click()
+  // a IA preenche o campo de título e salva na nota
+  await expect(page.locator('[data-note-title]')).toHaveValue('Vórtice')
+  await page.locator('[data-note-save]').click()
+  await expect.poll(() => readState(page, 'notes.0.title')).toBe('Vórtice')
   await expect(page.locator('.toast').last()).toContainText('Título sugerido')
 })
 
 test('diário: botão "gerar título com IA" INVISÍVEL sem a IA (BYOK) ligada', async ({ page }) => {
   await page.goto('/#/diary')
-  await page.locator('[data-dayry-cronica]').first().click()
-  await expect(page.locator('[data-dayry-title-ai]')).toHaveCount(0)
+  await page.locator('[data-note-input]').fill('sem IA aqui')
+  await page.locator('[data-note-input]').press('Enter')
+  await page.locator('[data-note]').first().click()
+  await expect(page.locator('[data-note-title-ai]')).toHaveCount(0)
 })
 
 test('diário: botão "gerar título com IA" mostra o MOTIVO real quando a IA falha (não o genérico)', async ({ page }) => {
@@ -300,60 +216,22 @@ test('diário: botão "gerar título com IA" mostra o MOTIVO real quando a IA fa
       }),
     )
   }, hoje)
-  // upstream devolve 401 → o AiError carrega "Falha na chamada (HTTP 401)"
+  // upstream devolve 401 → o AiError carrega a mensagem do upstream
   await page.route('**/api/ia', (rota) => {
     void rota.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Invalid Authentication' } }) })
   })
   await page.goto('/#/diary')
-  await page.locator('[data-dayry-cronica]').first().click()
-  await page.locator('[data-dayry-editor]').fill('Um texto cujo título a IA não consegue gerar por chave inválida.')
-  await page.locator('[data-dayry-title-ai]').click()
-  // o toast mostra o motivo real do upstream (Não mostra genérico)
-  await expect(page.locator('.toast').first()).toContainText('Invalid Authentication')
+  await page.locator('[data-note-input]').fill('Um texto cujo título a IA não consegue gerar por chave inválida.')
+  await page.locator('[data-note-input]').press('Enter')
+  await page.locator('[data-note]').first().click()
+  await page.locator('[data-note-title-ai]').click()
+  // o toast mostra o motivo real do upstream (não o genérico)
+  await expect(page.locator('.toast').last()).toContainText('Invalid Authentication')
 })
 
-test('diário: crônica sem título COM IA mas falha na resposta — título vira a DATA', async ({ page }) => {
-  await page.addInitScript((h) => {
-    localStorage.setItem(
-      'esquizomon-rpg:v1',
-      JSON.stringify({
-        version: 3,
-        tasks: [],
-        character: {
-          nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20,
-          exhausted: false, lastDay: h, cartas: [], invocations: {},
-        },
-        settings: { tema: 'dark', ai: { provider: 'deepseek', model: 'deepseek-chat', apiKey: 'chave-teste', systemPrompt: '' } },
-        log: [],
-        conversations: [],
-        diary: [],
-        notes: [],
-      }),
-    )
-  }, hoje)
-  await page.route('**/api/ia', (rota) => {
-    void rota.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: { message: 'boom' } }) })
-  })
-  await page.goto('/#/diary')
-  await page.locator('[data-dayry-cronica]').first().click()
-  await page.locator('[data-dayry-editor]').fill('Texto que vai receber a data como título.')
-  await page.locator('[data-dayry-save]').click()
-  const dataTitulo = `${hoje.slice(8, 10)}/${hoje.slice(5, 7)}/${hoje.slice(0, 4)}`
-  await expect.poll(() => readState(page, 'diary.0.title')).toBe(dataTitulo)
-})
 
-test('diário: caret do editor de crônica NÃO pula pro início após autosave/re-render (bug 2026-09-27)', async ({ page }) => {
-  await page.goto('/#/diary')
-  await page.locator('[data-dayry-cronica]').first().click()
-  const editor = page.locator('[data-dayry-editor]')
-  await editor.click()
-  await page.keyboard.type('xyz')
-  await expect.poll(() => editor.evaluate((t) => (t as HTMLTextAreaElement).selectionStart)).toBe(3)
-  // espera o autosave (800ms) + re-render
-  await page.waitForTimeout(1600)
-  await expect.poll(() => editor.evaluate((t) => (t as HTMLTextAreaElement).selectionStart)).toBe(3)
-  await expect.poll(() => editor.evaluate((t) => (t as HTMLTextAreaElement).value)).toBe('xyz')
-})
+
+
 
 test('diário: o campo de captura mantém o foco e o valor através de um re-render COM dados novos (bug 2026-09-09)', async ({ page }) => {
   await page.goto('/#/diary')
@@ -461,88 +339,65 @@ test('diário: nota sem cidade — abrir o sheet PRÉ-PREENDE com a cidade atual
   await expect.poll(() => readState(page, 'notes.0.cidade')).toBe('Porto Alegre')
 })
 
-test('diário: editar a cidade da crônica pelo modal', async ({ page }) => {
-  await page.goto('/#/diary')
-  await page.locator('[data-dayry-cronica]').first().click()
-  await page.locator('[data-dayry-editor]').fill('Crônica do dia com cidade registrada.')
-  await expect(page.locator('[data-dayry-city]')).toHaveValue('')
-  await page.locator('[data-dayry-city]').fill('Canoas')
-  await page.locator('[data-dayry-save]').click()
 
-  await expect.poll(() => readState(page, 'diary.0.cidade')).toBe('Canoas')
-  await expect(page.locator('.note-card--cronica .note-cidade')).toContainText('Canoas')
-  // o título digitado também persiste (campo já existente)
-  await page.locator('[data-dayry-cronica]').first().click()
-  await page.locator('[data-dayry-title]').fill('Dia marcante')
-  await page.locator('[data-dayry-save]').click()
-  await expect.poll(() => readState(page, 'diary.0.title')).toBe('Dia marcante')
-})
 
-test('diário: editar sobre o título AUTOMÁTICO substitui — não concatena (bug 2026-09-28)', async ({ page }) => {
-  await page.goto('/#/diary')
-  // crônica de HOJE sem título digitado → o título automático (data) preenche
-  await page.locator('[data-dayry-cronica]').first().click()
-  await page.locator('[data-dayry-editor]').fill('crônica que ganha título automático (data)')
-  await expect.poll(() => readState(page, 'diary.0.title')).not.toBe('')
-  await page.locator('[data-dayry-save]').click()
-  // reabre e edita por cima do título automático
-  await page.locator('[data-dayry-cronica]').first().click()
-  const titulo = page.locator('[data-dayry-title]')
-  await expect(titulo).not.toHaveValue('')
-  await titulo.click()
-  await page.waitForTimeout(120) // deixa o rAF re-selecionar (WebKit coloca o caret depois)
-  // a seleção cobre o título inteiro
-  const sel = await titulo.evaluate((el: HTMLInputElement) => [el.selectionStart, el.selectionEnd, el.value.length] as const)
-  expect(sel[0]).toBe(0)
-  expect(sel[1]).toBe(sel[2])
-  // digitar por cima SUBSTITUI — SEM o prefixo da data
-  await page.keyboard.type('Encontro do grupo')
-  await page.locator('[data-dayry-save]').click()
-  await expect.poll(() => readState(page, 'diary.0.title')).toBe('Encontro do grupo')
-})
 
-test('diário: excluir a ÚLTIMA crônica NÃO a recria — autosave pendente não ressuscita (bug 2026-09-28)', async ({ page }) => {
-  await page.goto('/#/diary')
-  // cria a crônica de hoje (save + fecha) — delete só existe se a entrada existia ao abrir
-  await page.locator('[data-dayry-cronica]').first().click()
-  await page.locator('[data-dayry-editor]').fill('crônica que será excluída')
-  await page.locator('[data-dayry-save]').click()
-  await expect.poll(() => readState(page, 'diary.0.date')).toBe(hoje)
-  // reabre (entrada existe → botão de excluir) e agenda UM autosave NOVO
-  await page.locator('[data-dayry-cronica]').first().click()
-  await page.locator('[data-dayry-editor]').type(' mais uma palavra')
-  // exclui ANTES de o autosave (800ms) disparar
-  await page.locator('[data-dayry-delete]').click()
-  await page.locator('[data-modal-confirm]').click()
-  await expect.poll(() => readState(page, 'diary')).toHaveLength(0)
-  // espera passar o debounce do autosave pendente — a crônica NÃO pode voltar
-  await page.waitForTimeout(2000)
-  await expect.poll(() => readState(page, 'diary')).toHaveLength(0)
-})
 
-test('diário: excluir crônica e nota cria TOMBSTONE de sync (registros removidos do estado)', async ({ page }) => {
+
+
+test('diário: excluir uma NOTA cria TOMBSTONE de sync (registro remove do estado)', async ({ page }) => {
   await page.goto('/#/diary')
-  // cria uma crônica e uma nota
-  await page.locator('[data-dayry-cronica]').first().click()
-  await page.locator('[data-dayry-editor]').fill('crônica p/ teste de tombstone')
-  await page.locator('[data-dayry-save]').click()
   await page.locator('[data-note-input]').fill('nota p/ teste de tombstone')
   await page.locator('[data-note-input]').press('Enter')
-  await expect.poll(() => readState(page, 'diary.0.date')).toBe(hoje)
   await expect.poll(() => readState(page, 'notes.0.text')).toContain('tombstone')
   // apaga a nota (sheet → excluir)
   await page.locator('[data-note]').first().click()
   await page.locator('[data-note-delete]').click()
   await page.locator('[data-modal-confirm]').click()
-  // apaga a crônica (modal → excluir)
-  await page.locator('[data-dayry-cronica]').first().click()
-  await page.locator('[data-dayry-delete]').click()
-  await page.locator('[data-modal-confirm]').click()
-  // registros removidos + tombstone criado (o merge não pode ressuscitar)
-  await expect.poll(() => readState(page, 'diary')).toHaveLength(0)
+  // registro removido + tombstone criado (o merge não pode ressuscitar)
   await expect.poll(() => readState(page, 'notes')).toHaveLength(0)
-  await expect.poll(async () => Object.keys((await readState(page, 'deletedDiaryEntries')) ?? {}).length).toBeGreaterThan(0)
   await expect.poll(async () => Object.keys((await readState(page, 'deletedNotes')) ?? {}).length).toBeGreaterThan(0)
+})
+
+test('diário: dá um TÍTULO a uma nota pela sheet e o card mostra (união 2026-09-28)', async ({ page }) => {
+  await page.goto('/#/diary')
+  await page.locator('[data-note-input]').fill('sem título ainda')
+  await page.locator('[data-note-input]').press('Enter')
+  await page.locator('[data-note]').first().click()
+  await expect(page.locator('[data-note-title]')).toBeVisible()
+  await page.locator('[data-note-title]').fill('Encontro do grupo')
+  await page.locator('[data-note-save]').click()
+  await expect(page.locator('#modal')).toBeHidden()
+  // o título persiste e aparece no card
+  await expect.poll(() => readState(page, 'notes.0.title')).toBe('Encontro do grupo')
+  await expect(page.locator('[data-note]').first()).toContainText('Encontro do grupo')
+})
+
+test('diário: MIGRAÇÃO — crônica antiga (diary) vira NOTA com título preservado (2026-09-28)', async ({ page }) => {
+  await page.addInitScript((h) => {
+    localStorage.setItem(
+      'esquizomon-rpg:v1',
+      JSON.stringify({
+        version: 3,
+        tasks: [],
+        character: {
+          nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20,
+          exhausted: false, lastDay: h, cartas: [], invocations: {},
+        },
+        settings: { tema: 'dark' },
+        log: [],
+        conversations: [],
+        diary: [{ id: 'c1', date: h, title: 'Meu dia', text: 'reflexão antiga', createdAt: `${h}T12:30:00Z` }],
+        notes: [],
+      }),
+    )
+  }, hoje)
+  await page.goto('/#/diary')
+  // virou nota, com o título da antiga crônica preservado; diary limpo
+  await expect.poll(() => readState(page, 'notes.0.title')).toBe('Meu dia')
+  await expect.poll(() => readState(page, 'notes.0.text')).toBe('reflexão antiga')
+  await expect.poll(() => readState(page, 'diary')).toHaveLength(0)
+  await expect(page.locator('.diary-timeline')).toContainText('Meu dia')
 })
 
 test('diário desktop: timeline mais larga (920px) e notas em GRADE — mobile mantém coluna única', async ({ page }) => {

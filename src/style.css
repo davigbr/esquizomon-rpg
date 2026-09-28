@@ -3552,6 +3552,16 @@ body.fable-open .container {
   min-width: 0;
 }
 
+/* Título da nota (opcional) — 2026-09-28: tudo é nota, cada uma pode ter título */
+.note-title {
+  margin: 0 0 2px;
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--accent-gold);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
 /* --- card da crônica (destaque do dia) --- */
 .note-card--cronica {
   flex-direction: column;

@@ -2,7 +2,7 @@
  *  `buildDiaryContext(dados)` feeds the `{diario}` placeholder (persona);
  *  `buildContext(dados)` is the game state (always injected after the persona). */
 
-import type { AppData, DiaryEntry, DiaryNote } from '../core/tipos'
+import type { AppData, DiaryNote } from '../core/tipos'
 import { appStore } from '../stores/app'
 import { todayISO } from '../core/jogo'
 import type { Card } from '../core/baralho'
@@ -15,20 +15,16 @@ const deck = deckData as Card[]
  *  IN FULL (no truncation — the user's decision: the Fable really reads the diary). */
 const RECENT_DIARY_IN_CONTEXT = 5
 
-/** Last N diary days as text ({diario} placeholder) — in full. The chronicle
- *  and the quick notes of the same day are grouped together. */
+/** Last N diary days as text ({diario} placeholder) — in full. After the
+ *  2026-09-28 unification EVERYTHING is a note (with optional title); the day
+ *  groups its notes by capture time. */
 export function buildDiaryContext(): string {
   const d = appStore.get()
-  const byDate = new Map<string, { chronicle?: DiaryEntry; notes: DiaryNote[] }>()
-  for (const e of d.diary ?? []) {
-    const g = byDate.get(e.date) ?? { notes: [] }
-    g.chronicle = e
-    byDate.set(e.date, g)
-  }
+  const byDate = new Map<string, DiaryNote[]>()
   for (const n of d.notes ?? []) {
-    const g = byDate.get(n.date) ?? { notes: [] }
-    g.notes.push(n)
-    byDate.set(n.date, g)
+    const arr = byDate.get(n.date) ?? []
+    arr.push(n)
+    byDate.set(n.date, arr)
   }
   const dates = [...byDate.keys()].sort().reverse().slice(0, RECENT_DIARY_IN_CONTEXT)
 
@@ -40,19 +36,16 @@ O diário tem mais entradas além das ${RECENT_DIARY_IN_CONTEXT} mostradas acima
 
   const recentDiary = dates
     .map((date) => {
-      const g = byDate.get(date)!
-      const parts: string[] = []
-      if (g.chronicle) {
-        const title = g.chronicle.title ? ` — ${g.chronicle.title}` : ''
-        const cidade = g.chronicle.cidade ? ` (em ${g.chronicle.cidade})` : ''
-        parts.push(`Crônica:${title}${cidade}\n${g.chronicle.text}`)
-      }
-      const noteLines = g.notes
+      const notes = (byDate.get(date) ?? [])
         .slice()
         .sort((a, b) => a.time.localeCompare(b.time))
-        .map((n) => `- (${n.time})${n.cidade ? ` em ${n.cidade}` : ''} ${n.text}`)
-      if (noteLines.length > 0) parts.push(`Notas do dia:\n${noteLines.join('\n')}`)
-      return `[${date}]\n${parts.join('\n\n')}`
+      const lines = notes.map((n) => {
+        const titulo = n.title ? ` ${n.title}` : ''
+        const cidade = n.cidade ? ` em ${n.cidade}` : ''
+        const hora = n.time ? `(${n.time})` : ''
+        return `- ${hora}${titulo}${cidade} ${n.text}`
+      })
+      return `[${date}]\n${lines.join('\n')}`
     })
     .join('\n\n')
 

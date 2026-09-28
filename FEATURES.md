@@ -23,15 +23,13 @@
 - Galeria (desbloqueadas primeiro, bloqueadas com cadeado + nome), modal com invocação por mana, custo crescente por re-invocação
 
 ### Diário (Fase 3 + timeline 2026-09-27)
-- **Timeline de notas rápidas** (múltiplas por dia): campo de captura no topo (Enter/Done salva), cards com hora, edição/exclusão por sheet (modal); a seção de HOJE sempre aparece
-- **Crônica diária** (1/dia, opcional): card destacado no dia + editor markdown em modal (autosave, Ver/Editar, excluir); import em massa continua (só crônicas)
-- XP: +5 POR REGISTRO (cada nota e cada crônica rendem; várias por dia); editar o mesmo registro não re-rende; menção de carta +10 no save (dedup por dia)
-- Crônica salva SEM título: com IA ligada, a IA escolhe UMA palavra como título (toast "Título sugerido pela IA"); com IA desligada ou falha, o título vira a DATA (dd/mm/aaaa). Título digitado pelo usuário sempre prevalece.
-- **Localização (cidade)**: ao registrar nota ou crônica, o browser pede permissão UMA vez e o app grava só o NOME da cidade (geolocalização + reverse-geocode BigDataCloud, sem chave, pt-BR). Coordenadas jamais persistem; se a permissão for negada ou o serviço cair → sem cidade, silencioso (sem prompt repetido na sessão). Cidade aparece nos cards e entra no contexto da Fábula ("em {cidade}"). Import em lote NÃO preenche localização. A cidade é EDITÁVEL (nota no sheet, crônica no modal) e dá pra limpar (campo vazio).
-- Título da crônica editável; quando é título AUTOMÁTICO (data ou palavra da IA), tocar no campo seleciona tudo — digitar SUBSTITUI em vez de concatenar (bug 2026-09-28; no iOS o cursor entraria no fim). Botão "gerar título com IA" (📝 wand) ao lado direito do campo do título, visível APENAS com a IA (BYOK) ligada — gera UMA palavra do texto atual sob demanda e salva de imediato. Se a IA falha, o toast mostra o MOTIVO real (HTTP/chave/modelo/timeout), não um genérico; timeout do título é 40s (modelos de raciocínio — bug 2026-09-28).
-- Fábula lê os últimos 5 dias (crônica + notas agrupadas) na íntegra
+- **Tudo é NOTA** (união 2026-09-28): múltiplas por dia, cada uma com título (opcional), cidade, data e hora. Campo de captura no topo (Enter/Done salva), cards com hora + título, edição/exclusão por sheet (título + cidade + texto). A "crônica" (1/dia/editor markdown) foi removida; crônicas antigas MIGRAM para notas com o título preservado (v4). Import em massa cria UMA nota por dia (`## AAAA-MM-DD`, título via **Negrito**).
+- XP: +5 POR NOTA (várias por dia); editar o mesmo registro não re-rende; menção de carta +10 no save (dedup por dia)
+- Título da nota editável pela sheet; botão "gerar título com IA" (📝 wand) ao lado direito do campo do título, visível APENAS com a IA (BYOK) ligada — gera UMA palavra do texto atual sob demanda. Se a IA falha, o toast mostra o MOTIVO real (HTTP/chave/modelo/timeout), não um genérico; timeout do título é 40s (modelos de raciocínio).
+- **Localização (cidade)**: ao registrar uma NOTA, o browser pede permissão UMA vez e o app grava só o NOME da cidade (geolocalização + reverse-geocode BigDataCloud, sem chave, pt-BR). Coordenadas jamais persistem; se a permissão for negada ou o serviço cair → sem cidade, silencioso (sem prompt repetido na sessão). Cidade aparece nos cards e entra no contexto da Fábula ("em {cidade}"). Import em lote NÃO preenche localização. A cidade é EDITÁVEL (no sheet da nota) e dá pra limpar (campo vazio).
+- Fábula lê os últimos 5 dias (NOTAS agrupadas, na íntegra, com título/cidade/hora)
 - Layout desktop do diário: timeline mais larga (920px) e notas em GRADE (2 col ≥1100px, 3 col ≥1600px); mobile/tablet mantém coluna única estreita (760px)
-- Dados: `notes[]` (merge por id no sync) + `diary[]` (1/dia, merge por data); status bar escondida na rota diário no mobile (≤900px). Exclusões criam TOMBSTONE de sync (`deletedNotes`/`deletedDiaryEntries`) — crônica/nota excluída nunca volta via nuvem (bug 2026-09-28).
+- Dados: `notes[]` (merge por id no sync; campo `diary` ficou peso-morto p/ não quebrar merge/import); status bar escondida na rota diário no mobile (≤900px). Exclusões criam TOMBSTONE de sync (`deletedNotes`) — nota excluída nunca volta via nuvem.
 
 ### Chat da Fábula (Fase 4)
 - BYOK (DeepSeek / OpenCode Zen Go) via Netlify Function reusada em dev como middleware Vite (mesma URL `/api/ia`)

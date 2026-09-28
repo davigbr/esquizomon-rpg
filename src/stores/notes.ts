@@ -24,7 +24,7 @@ export function localTimeHM(d = new Date()): string {
  *  date/time unless overridden); without, it CREATES a new note (defaults to
  *  today, now). Logging real text yields XP 1×/day (shared dedup with the
  *  chronicle) and card mentions are rewarded on save. */
-export function saveNote(input: { text: string; id?: string; date?: string; time?: string }): DiaryNote {
+export function saveNote(input: { text: string; title?: string; id?: string; date?: string; time?: string }): DiaryNote {
   const data = appStore.get()
   const notes = data.notes ?? []
   const now = new Date().toISOString()
@@ -36,6 +36,7 @@ export function saveNote(input: { text: string; id?: string; date?: string; time
       ...existing,
       text: input.text,
       time: input.time ?? existing.time,
+      title: input.title !== undefined ? (input.title.trim() || undefined) : existing.title,
       updatedAt: now,
     }
     appStore.set({ ...data, notes: notes.map((n) => (n.id === updated.id ? updated : n)) })
@@ -50,6 +51,7 @@ export function saveNote(input: { text: string; id?: string; date?: string; time
     date: input.date ?? todayISO(),
     time: input.time ?? localTimeHM(),
     text: input.text,
+    title: input.title?.trim() || undefined,
     createdAt: now,
   }
   appStore.set({ ...data, notes: [created, ...notes] })
@@ -69,6 +71,41 @@ function attachNoteCity(id: string): void {
     if (!cur || cur.cidade) return
     appStore.set({ ...d, notes: (d.notes ?? []).map((n) => (n.id === id ? { ...n, cidade } : n)) })
   })
+}
+
+/** Imports notes in bulk (markdown import — NO XP, NO card-mention reward,
+ *  matching the old chronicle import). Adds one note per parsed day. Returns
+ *  the summary. Part of the 2026-09-28 unification (chronicle import → notes). */
+export function importNotes(
+  entries: Array<{ date: string; title?: string; text: string }>,
+): { imported: number; skipped: string[]; invalid: string[] } {
+  const data = appStore.get()
+  const now = new Date().toISOString()
+  const imported: DiaryNote[] = []
+  const skipped: string[] = []
+  const invalid: string[] = []
+  for (const e of entries) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(e.date)) {
+      invalid.push(e.date)
+      continue
+    }
+    if (!e.text.trim()) {
+      skipped.push(e.date)
+      continue
+    }
+    imported.push({
+      id: newId(),
+      date: e.date,
+      time: '23:59',
+      text: e.text,
+      title: e.title?.trim() || undefined,
+      createdAt: now,
+    })
+  }
+  if (imported.length > 0) {
+    appStore.set({ ...data, notes: [...imported, ...(data.notes ?? [])] })
+  }
+  return { imported: imported.length, skipped, invalid }
 }
 
 export function deleteNote(id: string): void {

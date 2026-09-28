@@ -357,6 +357,7 @@ function normalizeNote(v: unknown): DiaryNote | null {
     date,
     time,
     text: str(v, 'text', 'texto') ?? '',
+    title: str(v, 'title', 'titulo')?.trim() || undefined,
     createdAt: str(v, 'createdAt', 'criadaEm') ?? new Date(date).toISOString(),
     updatedAt: str(v, 'updatedAt', 'editadaEm'),
     cidade: str(v, 'cidade', 'cidade') || undefined,
@@ -378,6 +379,26 @@ function normalizeNotes(v: unknown): DiaryNote[] {
   return out
 }
 
+/** Converts an OLD daily chronicle (DiaryEntry, 1/day) into a DiaryNote during
+ *  the 2026-09-28 unification. Preserves title, city, timestamps; derives a
+ *  capture hour from createdAt (like the other notes) so it sorts by time. */
+function chronicleToNote(e: DiaryEntry): DiaryNote {
+  const d = new Date(e.createdAt)
+  const time = Number.isNaN(d.getTime())
+    ? '23:59'
+    : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  return {
+    id: e.id,
+    date: e.date,
+    time,
+    text: e.text,
+    title: e.title?.trim() || undefined,
+    createdAt: e.createdAt,
+    updatedAt: e.updatedAt,
+    cidade: e.cidade,
+  }
+}
+
 /** Validates and normalizes raw data (from localStorage or import). Null if irreparable. */
 export function normalizeData(raw: unknown): AppData | null {
   if (!isObject(raw)) return null
@@ -391,7 +412,12 @@ export function normalizeData(raw: unknown): AppData | null {
   const log = normalizeLog(field<unknown>(b, 'log', 'log'))
   const conversations = normalizeConversations(field<unknown>(b, 'conversations', 'conversas'))
   const diary = normalizeDiary(field<unknown>(b, 'diary', 'diario'))
-  const notes = normalizeNotes(field<unknown>(b, 'notes', 'notes'))
+  const notesRaw = normalizeNotes(field<unknown>(b, 'notes', 'notes'))
+  // Migração 2026-09-28 (unificação crônica→nota): antes havia 1 crônica/dia num
+  // array à parte; agora TUDO é nota (cada uma pode ter título). As crônicas
+  // existentes viram notas (título/hora/cidade preservados) e o `diary` é limpo
+  // (virou campo peso-morto). Reexecutar é no-op (diary já vazio).
+  const notes = diary.length > 0 ? [...notesRaw, ...diary.map(chronicleToNote)] : notesRaw
   return {
     version: DATA_VERSION,
     tasks,
@@ -399,7 +425,7 @@ export function normalizeData(raw: unknown): AppData | null {
     settings: normalizeSettings(field<unknown>(b, 'settings', 'configuracao')),
     log,
     conversations,
-    diary,
+    diary: [],
     notes,
     deletedTasks: normalizeStringMap(field<unknown>(b, 'deletedTasks', 'tarefasExcluidas')),
     deletedConversations: normalizeStringMap(field<unknown>(b, 'deletedConversations', 'conversasExcluidas')),

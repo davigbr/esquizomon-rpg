@@ -162,9 +162,6 @@ test('fabula: prompt injeta {resumo}, cartas desbloqueadas e o protocolo de invo
   await page.locator('[data-resumo]').fill('Vivo com a Aline e duas gatas.')
   await page.locator('[data-resumo]').blur()
   await page.goto('/#/diary')
-  await page.locator('[data-dayry-cronica]').first().click()
-  await page.locator('[data-dayry-editor]').fill('Hoje lembrei do Ninho Enclausurado.')
-  await page.locator('[data-dayry-save]').click()
 
   const prompt = await page.evaluate(async () => {
     const { buildSystemPrompt } = await import('/src/ia/prompt')
@@ -204,16 +201,18 @@ test('fabula: marcador [[acao:invocar]] é extraído e removido do texto', async
 test('fabula: as últimas entradas do diário entram NA ÍNTEGRA no prompt (sem truncar)', async ({ page }) => {
   await semear(page)
   await page.goto('/#/diary')
-  await page.locator('[data-dayry-cronica]').first().click()
 
-  // entrada longa (bem acima do antigo corte de 600 chars)
+  // entrada longa (bem acima do antigo corte de 600 chars) — via sheet (sem cap de 500)
   const longo = 'A'.repeat(800) + ' FIM-DO-REGISTRO-INTEGRO'
-  await page.locator('[data-dayry-editor]').fill(longo)
-  await page.locator('[data-dayry-save]').click()
+  await page.locator('[data-note-input]').fill('curta')
+  await page.locator('[data-note-input]').press('Enter')
+  await page.locator('[data-note]').first().click()
+  await page.locator('[data-note-edit]').fill(longo)
+  await page.locator('[data-note-save]').click()
 
   await expect
     .poll(() =>
-      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.diary?.[0]?.text ?? '')),
+      page.evaluate(() => (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? 'null')?.notes?.[0]?.text ?? '')),
     )
     .toBe(longo)
 

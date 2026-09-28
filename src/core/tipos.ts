@@ -198,6 +198,8 @@ export interface DiaryNote {
   time: string
   /** Note text (plain, may be short). */
   text: string
+  /** Optional short title (each note may have its own). */
+  title?: string
   /** ISO creation timestamp. */
   createdAt: string
   /** ISO of last edit (undefined if never edited). */
@@ -207,7 +209,7 @@ export interface DiaryNote {
   cidade?: string
 }
 
-export const DATA_VERSION = 3
+export const DATA_VERSION = 4
 
 /** Diary entry. One per day (key = date YYYY-MM-DD). */
 export interface DiaryEntry {

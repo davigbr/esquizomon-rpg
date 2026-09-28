@@ -56,9 +56,11 @@ test('mobile: swipe NÃO navega com modal aberto, com a Fábula aberta ou em ges
   await page.click('[data-fable-close]')
   await expect(page.locator('#fabula-panel')).not.toHaveClass(/open/)
   await page.waitForTimeout(400)
-  // modal aberto (diário → crônica) → swipe não navega
+  // modal aberto (diário → sheet da nota) → swipe não navega
   await page.goto('/#/diary')
-  await page.locator('[data-dayry-cronica]').first().click()
+  await page.locator('[data-note-input]').fill('nota de guarda')
+  await page.locator('[data-note-input]').press('Enter')
+  await page.locator('[data-note]').first().click()
   await expect(page.locator('#modal')).toBeVisible()
   await swipe(-200)
   await expect(page).toHaveURL(/#\/diary$/)
