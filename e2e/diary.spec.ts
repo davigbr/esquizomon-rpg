@@ -330,6 +330,78 @@ test('diário: localização negada → registro fica sem cidade (sem prompt rep
   await expect.poll(() => readState(page, 'notes.0.cidade')).toBe(undefined)
 })
 
+test('diário: editar a cidade de uma nota pelo sheet (e editar o texto NÂO apaga a cidade)', async ({ page }) => {
+  await page.goto('/#/diary')
+  await page.context().grantPermissions(['geolocation'], { origin: new URL(page.url()).origin })
+  await page.context().setGeolocation({ latitude: -30.0346, longitude: -51.2177 })
+  await page.route('**/reverse-geocode-client*', (rota) =>
+    rota.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ city: 'Porto Alegre' }) }),
+  )
+  const input = page.locator('[data-note-input]')
+  await input.fill('nota com cidade automática')
+  await input.press('Enter')
+  await expect.poll(() => readState(page, 'notes.0.cidade')).toBe('Porto Alegre')
+
+  // abre o sheet e edita a cidade + o texto
+  await page.locator('[data-note]').first().click()
+  const city = page.locator('[data-note-city]')
+  await expect(city).toHaveValue('Porto Alegre')
+  await city.fill('Gravataí')
+  await page.locator('[data-note-edit]').fill('nota editada (texto novo, cidade mantida)')
+  await page.locator('[data-note-save]').click()
+
+  // texto editado PRESERVA a cidade (regressão do spread ...existing)
+  await expect.poll(() => readState(page, 'notes.0.cidade')).toBe('Gravataí')
+  expect(await readState(page, 'notes.0.text')).toContain('texto novo')
+  await expect(page.locator('[data-note]').first().locator('.note-cidade')).toContainText('Gravataí')
+
+  // limpar a cidade também é possível (vira undefined)
+  await page.locator('[data-note]').first().click()
+  await page.locator('[data-note-city]').fill('')
+  await page.locator('[data-note-save]').click()
+  await expect.poll(() => readState(page, 'notes.0.cidade')).toBe(undefined)
+})
+
+test('diário: editar a cidade da crônica pelo modal', async ({ page }) => {
+  await page.goto('/#/diary')
+  await page.locator('[data-dayry-cronica]').first().click()
+  await page.locator('[data-dayry-editor]').fill('Crônica do dia com cidade registrada.')
+  await expect(page.locator('[data-dayry-city]')).toHaveValue('')
+  await page.locator('[data-dayry-city]').fill('Canoas')
+  await page.locator('[data-dayry-save]').click()
+
+  await expect.poll(() => readState(page, 'diary.0.cidade')).toBe('Canoas')
+  await expect(page.locator('.note-card--cronica .note-cidade')).toContainText('Canoas')
+  // o título digitado também persiste (campo já existente)
+  await page.locator('[data-dayry-cronica]').first().click()
+  await page.locator('[data-dayry-title]').fill('Dia marcante')
+  await page.locator('[data-dayry-save]').click()
+  await expect.poll(() => readState(page, 'diary.0.title')).toBe('Dia marcante')
+})
+
+test('diário: editar sobre o título AUTOMÁTICO substitui — não concatena (bug 2026-09-28)', async ({ page }) => {
+  await page.goto('/#/diary')
+  // crônica de HOJE sem título digitado → o título automático (data) preenche
+  await page.locator('[data-dayry-cronica]').first().click()
+  await page.locator('[data-dayry-editor]').fill('crônica que ganha título automático (data)')
+  await expect.poll(() => readState(page, 'diary.0.title')).not.toBe('')
+  await page.locator('[data-dayry-save]').click()
+  // reabre e edita por cima do título automático
+  await page.locator('[data-dayry-cronica]').first().click()
+  const titulo = page.locator('[data-dayry-title]')
+  await expect(titulo).not.toHaveValue('')
+  await titulo.click()
+  await page.waitForTimeout(120) // deixa o rAF re-selecionar (WebKit coloca o caret depois)
+  // a seleção cobre o título inteiro
+  const sel = await titulo.evaluate((el: HTMLInputElement) => [el.selectionStart, el.selectionEnd, el.value.length] as const)
+  expect(sel[0]).toBe(0)
+  expect(sel[1]).toBe(sel[2])
+  // digitar por cima SUBSTITUI — SEM o prefixo da data
+  await page.keyboard.type('Encontro do grupo')
+  await page.locator('[data-dayry-save]').click()
+  await expect.poll(() => readState(page, 'diary.0.title')).toBe('Encontro do grupo')
+})
+
 test('re-render NÃO acontece com appStore.set no-op — só quando há dados novos (bug 2026-09-09)', async ({ page }) => {
   await page.goto('/#/today')
   const mesmaInstancia = await page.evaluate(async () => {

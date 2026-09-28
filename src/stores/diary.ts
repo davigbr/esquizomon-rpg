@@ -69,6 +69,16 @@ export function deleteEntry(id: string): void {
   saveDiary(currentDiary().filter((e) => e.id !== id))
 }
 
+/** Sets (or clears, with empty/whitespace) the city of the day's chronicle.
+ *  Metadata edit — no XP, does not bump updatedAt. */
+export function setEntryCidade(date: string, cidade: string | undefined): void {
+  const d = appStore.get()
+  const diary = d.diary ?? []
+  if (!diary.some((e) => e.date === date)) return
+  const clean = cidade?.trim() || undefined
+  saveDiary(diary.map((e) => (e.date === date ? { ...e, cidade: clean } : e)))
+}
+
 /** Moves an entry to another date (respecting 1/day). Returns result. */
 export function moveEntry(id: string, newDate: string): Result {
   const entry = currentDiary().find((e) => e.id === id)

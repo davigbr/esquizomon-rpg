@@ -74,3 +74,13 @@ export function deleteNote(id: string): void {
   const data = appStore.get()
   appStore.set({ ...data, notes: (data.notes ?? []).filter((n) => n.id !== id) })
 }
+
+/** Sets (or clears, with empty/whitespace) the city of a note. Metadata edit —
+ *  no XP, no text change. Preserves date/time. */
+export function setNoteCidade(id: string, cidade: string | undefined): void {
+  const data = appStore.get()
+  const notes = data.notes ?? []
+  if (!notes.some((n) => n.id === id)) return
+  const clean = cidade?.trim() || undefined
+  appStore.set({ ...data, notes: notes.map((n) => (n.id === id ? { ...n, cidade: clean } : n)) })
+}

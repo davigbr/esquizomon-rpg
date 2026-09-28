@@ -7,7 +7,7 @@
 
 import type { AppData, DiaryEntry, DiaryNote } from '../../core/tipos'
 import { addDays, formatLongDate, todayISO } from '../../core/jogo'
-import { appStore, deleteEntry, deleteNote, importDiary, saveEntry, saveNote } from '../../stores/app'
+import { appStore, deleteEntry, deleteNote, importDiary, saveEntry, saveNote, setEntryCidade, setNoteCidade } from '../../stores/app'
 import { closeModal, confirm, modalBody, openModal } from '../modal'
 import { notify } from '../toast'
 import { escapeHtml } from '../util'
@@ -21,6 +21,11 @@ const AUTOSAVE_MS = 800
 
 /** Dates whose chronicle title is being suggested (avoid parallel calls). */
 const pendingTitles = new Set<string>()
+
+/** Dates whose chronicle title was set automatically (AI one-word or date
+ *  fallback) — focusing the title field then selects all, so retyping
+ *  REPLACES instead of concatenating over the auto-title. */
+const autoTitled = new Set<string>()
 
 interface DayGroup {
   date: string
@@ -177,6 +182,13 @@ function openNoteSheet(note: DiaryNote): void {
   openModal(`
     <h2>${t('diary.editNote')}</h2>
     <p class="diary-sheet-meta">${escapeHtml(note.time)} · ${escapeHtml(formatLongDate(note.date))}</p>
+    <div class="form-group">
+      <label for="diary-city-note">${t('diary.city')}</label>
+      <input id="diary-city-note" class="diary-city-input" data-note-city type="text"
+        value="${escapeHtml(note.cidade ?? '')}" placeholder="${t('diary.cityPlaceholder')}"
+        maxlength="60" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done"
+        aria-label="${t('diary.city')}" />
+    </div>
     <textarea class="diary-sheet-textarea" data-note-edit rows="5" spellcheck="true"
       placeholder="${t('diary.capturePlaceholder')}" aria-label="${t('diary.editNote')}">${escapeHtml(note.text)}</textarea>
     <div class="form-actions">
@@ -193,7 +205,9 @@ function openNoteSheet(note: DiaryNote): void {
       notify(t('diary.noteEmpty'), 'erro')
       return
     }
+    const cityEl = modalBody.querySelector<HTMLInputElement>('[data-note-city]')
     saveNote({ id: note.id, text })
+    setNoteCidade(note.id, cityEl?.value)
     closeModal()
   })
   modalBody.querySelector('[data-note-delete]')?.addEventListener('click', () => {
@@ -234,6 +248,9 @@ function openChronicle(date: string): void {
     <div class="diary-chronicle">
       <input class="diary-title" data-dayry-title type="text" placeholder="${t('diary.chronicleTitle')}" maxlength="120"
         value="${escapeHtml(title)}" autocomplete="off" aria-label="${t('diary.chronicleTitle')}" />
+      <input class="diary-city-input" data-dayry-city type="text" value="${escapeHtml(entry?.cidade ?? '')}"
+        placeholder="${t('diary.cityPlaceholder')}" maxlength="60" autocomplete="off" autocapitalize="words"
+        spellcheck="false" enterkeyhint="done" aria-label="${t('diary.city')}" />
       <div class="diary-editor-actions">
         <button class="btn btn-pequeno" data-dayry-toggle title="${t('diary.toggle')}">${t('diary.view')}</button>
         <span class="diary-status" data-cronica-status></span>
@@ -255,6 +272,7 @@ function openChronicle(date: string): void {
 
   const areaEl = modalBody.querySelector<HTMLTextAreaElement>('[data-dayry-editor]')
   const titleEl = modalBody.querySelector<HTMLInputElement>('[data-dayry-title]')
+  const cityEl = modalBody.querySelector<HTMLInputElement>('[data-dayry-city]')
   const previewEl = modalBody.querySelector<HTMLElement>('[data-dayry-preview]')
   const statusEl = modalBody.querySelector<HTMLElement>('[data-cronica-status]')
   let isPreview = false
@@ -277,13 +295,22 @@ function openChronicle(date: string): void {
     // título existente nunca é apagado por um input vazio (a IA/garantia de
     // data pode ter preenchido o título entre o autosave e o save do usuário)
     const titleToSave = titleEl.value ? titleEl.value : currentTitle
-    if (areaEl.value === (current?.text ?? '') && titleToSave === currentTitle) return
-    if (areaEl.value.trim() || titleToSave.trim()) {
-      saveEntry(date, { title: titleToSave, text: areaEl.value })
-      if (statusEl) statusEl.textContent = t('diary.saved', { hora: horaLocal() })
-      // sem título fornecido → sugere um (IA: 1 palavra; sem IA: a data)
-      if (!titleEl.value.trim() && !currentTitle.trim() && areaEl.value.trim()) void ensureTitle()
+    const textChanged = areaEl.value !== (current?.text ?? '')
+    const titleChanged = titleToSave !== currentTitle
+    const cityToSave = cityEl?.value.trim() || undefined
+    const cityChanged = (cityToSave ?? null) !== ((current?.cidade ?? undefined) ?? null)
+
+    if (!textChanged && !titleChanged && !cityChanged) return
+    if (textChanged || titleChanged) {
+      if (areaEl.value.trim() || titleToSave.trim()) {
+        saveEntry(date, { title: titleToSave, text: areaEl.value })
+        if (statusEl) statusEl.textContent = t('diary.saved', { hora: horaLocal() })
+        // sem título fornecido → sugere um (IA: 1 palavra; sem IA: a data)
+        if (!titleEl.value.trim() && !currentTitle.trim() && areaEl.value.trim()) void ensureTitle()
+      }
     }
+    // cidade é metadado — salva à parte, sem tocar em XP/updatedAt
+    if (cityChanged) setEntryCidade(date, cityToSave)
   }
 
   /** Titles an untitled chronicle — one word from the AI, or the date when the
@@ -305,7 +332,9 @@ function openChronicle(date: string): void {
     if (titleEl.value.trim()) return // digitou enquanto a IA pensava — prevalece
     const finalTitle = word ?? `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`
     saveEntry(date, { title: finalTitle, text: cur.text })
+    autoTitled.add(date)
     titleEl.value = finalTitle
+    if (document.activeElement === titleEl) titleEl.select()
     if (word) notify(t('diary.titleSuggested', { titulo: word }))
   }
 
@@ -329,6 +358,30 @@ function openChronicle(date: string): void {
     if (timer) clearTimeout(timer)
     timer = setTimeout(saveNow, AUTOSAVE_MS)
   })
+  // Título automático (data dd/mm/aaaa ou palavra única da IA): seleciona tudo
+  // ao focar/tocar, para que digitar por cima SUBSTITUA (no iOS o cursor entra
+  // no fim e retyping concatenaria "28/09/2026Meu título"). Bug 2026-09-28.
+  // O openModal JÁ foca o título ao abrir (sem disparar 'focus' num 2º toque) —
+  // então o gancho confiável é o pointerup, que ocorre após o caret ser colocado.
+  if (titleEl) {
+    const titleInput = titleEl
+    const selectAllIfAutoTitle = () => {
+      const v = titleInput.value.trim()
+      if (!v || !(autoTitled.has(date) || /^\d{2}\/\d{2}\/\d{4}$/.test(v) || /^\S+$/.test(v))) return
+      titleInput.select()
+      // WebKit ainda está colocando o caret quando o pointerup dispara — salvo
+      // a seleção no próximo frame, se o campo continuar focado (não atrapalha
+      // edição posterior já iniciada).
+      requestAnimationFrame(() =>
+        setTimeout(() => {
+          if (document.activeElement === titleInput) titleInput.select()
+        }, 0),
+      )
+    }
+    titleInput.addEventListener('focus', selectAllIfAutoTitle)
+    titleInput.addEventListener('pointerup', selectAllIfAutoTitle)
+    titleInput.addEventListener('touchend', selectAllIfAutoTitle)
+  }
   modalBody.querySelector('[data-dayry-save]')?.addEventListener('click', () => {
     saveNow()
     closeModal()

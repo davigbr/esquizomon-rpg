@@ -3640,6 +3640,28 @@ body.fable-open .container {
   font-weight: 400;
 }
 
+/* Campo de cidade (notas e crônicas) — metadado, linha curta */
+.diary-city-input {
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  padding: 5px 2px;
+  font-size: 14px;
+  font-weight: 400;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+.diary-city-input:focus {
+  outline: none;
+  border-bottom-color: var(--accent-gold);
+}
+.diary-city-input::placeholder {
+  color: var(--text-muted);
+}
+
 /* --- área de edição (textarea + preview) --- */
 .diary-editor-area {
   flex: 1;
