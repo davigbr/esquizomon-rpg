@@ -291,6 +291,45 @@ test('diário: o campo de captura mantém o foco e o valor através de um re-ren
   await expect(input).toHaveValue('rascunho sendo digitado…')
 })
 
+test('diário: nota captura a cidade via geolocalização do browser (granted)', async ({ page }) => {
+  await page.goto('/#/diary')
+  const origin = new URL(page.url()).origin
+  await page.context().grantPermissions(['geolocation'], { origin })
+  await page.context().setGeolocation({ latitude: -30.0346, longitude: -51.2177 }) // Porto Alegre
+  // geocodificação reversa simulada (BigDataCloud)
+  await page.route('**/reverse-geocode-client*', (rota) =>
+    rota.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ city: 'Porto Alegre' }) }),
+  )
+
+  const input = page.locator('[data-note-input]')
+  await input.fill('Reunião com o grupo')
+  await input.press('Enter')
+
+  // cidade anexada ao estado e renderizada no card
+  await expect.poll(() => readState(page, 'notes.0.cidade')).toBe('Porto Alegre')
+  await expect(page.locator('[data-note]').first().locator('.note-cidade')).toContainText('Porto Alegre')
+  // só a cidade é guardada — coordenadas NÃO ficam no estado
+  const e = (await readState(page, 'notes.0')) as Record<string, unknown>
+  expect('latitude' in e).toBe(false)
+  expect('longitude' in e).toBe(false)
+})
+
+test('diário: localização negada → registro fica sem cidade (sem prompt repetido)', async ({ page }) => {
+  await page.goto('/#/diary')
+  // geocodificação disponível, mas SEM permissão concedida → getCurrentPosition
+  // dispara PERMISSION_DENIED e o app não consulta nada, nem repete o prompt
+  await page.route('**/reverse-geocode-client*', (rota) =>
+    rota.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ city: 'Porto Alegre' }) }),
+  )
+  const input = page.locator('[data-note-input]')
+  await input.fill('Sem permissão de localização')
+  await input.press('Enter')
+
+  await expect(page.locator('[data-note]').first()).toContainText('Sem permissão de localização')
+  await expect(page.locator('[data-note]').first().locator('.note-cidade')).toHaveCount(0)
+  await expect.poll(() => readState(page, 'notes.0.cidade')).toBe(undefined)
+})
+
 test('re-render NÃO acontece com appStore.set no-op — só quando há dados novos (bug 2026-09-09)', async ({ page }) => {
   await page.goto('/#/today')
   const mesmaInstancia = await page.evaluate(async () => {

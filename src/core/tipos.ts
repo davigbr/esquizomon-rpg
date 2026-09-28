@@ -194,6 +194,9 @@ export interface DiaryNote {
   createdAt: string
   /** ISO of last edit (undefined if never edited). */
   updatedAt?: string
+  /** City where the note was captured (browser geolocation + reverse geocode).
+   *  ONLY the city name is kept — coordinates never persist. */
+  cidade?: string
 }
 
 export const DATA_VERSION = 3
@@ -211,6 +214,9 @@ export interface DiaryEntry {
   createdAt: string
   /** ISO of last edit (undefined if never edited). */
   updatedAt?: string
+  /** City where the record was made (browser geolocation + reverse geocode).
+   *  ONLY the city name is kept — coordinates never persist. */
+  cidade?: string
 }
 export const STORAGE_KEY = 'esquizomon-rpg:v1'
 export const THEME_KEY = 'esquizomon-rpg:tema'

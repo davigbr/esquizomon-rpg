@@ -319,6 +319,7 @@ function normalizeDiaryEntry(v: unknown): DiaryEntry | null {
     text: str(v, 'text', 'texto') ?? '',
     createdAt: str(v, 'createdAt', 'criadaEm') ?? new Date(date).toISOString(),
     updatedAt: str(v, 'updatedAt', 'editadaEm'),
+    cidade: str(v, 'cidade', 'cidade') || undefined,
   }
 }
 
@@ -358,6 +359,7 @@ function normalizeNote(v: unknown): DiaryNote | null {
     text: str(v, 'text', 'texto') ?? '',
     createdAt: str(v, 'createdAt', 'criadaEm') ?? new Date(date).toISOString(),
     updatedAt: str(v, 'updatedAt', 'editadaEm'),
+    cidade: str(v, 'cidade', 'cidade') || undefined,
   }
 }
 

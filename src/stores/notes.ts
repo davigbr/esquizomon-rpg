@@ -2,6 +2,7 @@
 
 import type { DiaryNote } from '../core/tipos'
 import { newId, todayISO } from '../core/jogo'
+import { getCity } from '../core/localizacao'
 import { appStore } from './base'
 import { rewardCardMentions, rewardDiaryLog } from './diaryRewards'
 
@@ -39,6 +40,7 @@ export function saveNote(input: { text: string; id?: string; date?: string; time
     appStore.set({ ...data, notes: notes.map((n) => (n.id === updated.id ? updated : n)) })
     rewardDiaryLog(`nota:${existing.id}`, realText)
     rewardCardMentions()
+    if (!existing.cidade) void attachNoteCity(existing.id)
     return updated
   }
 
@@ -52,7 +54,20 @@ export function saveNote(input: { text: string; id?: string; date?: string; time
   appStore.set({ ...data, notes: [created, ...notes] })
   rewardDiaryLog(`nota:${created.id}`, realText)
   rewardCardMentions()
+  void attachNoteCity(created.id)
   return created
+}
+
+/** Attaches the city name (geolocation + reverse geocode) to a note when the
+ *  browser allows it. Only the city string is kept; never blocks the save. */
+function attachNoteCity(id: string): void {
+  void getCity().then((cidade) => {
+    if (!cidade) return
+    const d = appStore.get()
+    const cur = (d.notes ?? []).find((n) => n.id === id)
+    if (!cur || cur.cidade) return
+    appStore.set({ ...d, notes: (d.notes ?? []).map((n) => (n.id === id ? { ...n, cidade } : n)) })
+  })
 }
 
 export function deleteNote(id: string): void {

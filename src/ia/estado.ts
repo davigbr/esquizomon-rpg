@@ -44,12 +44,13 @@ O diário tem mais entradas além das ${RECENT_DIARY_IN_CONTEXT} mostradas acima
       const parts: string[] = []
       if (g.chronicle) {
         const title = g.chronicle.title ? ` — ${g.chronicle.title}` : ''
-        parts.push(`Crônica:${title}\n${g.chronicle.text}`)
+        const cidade = g.chronicle.cidade ? ` (em ${g.chronicle.cidade})` : ''
+        parts.push(`Crônica:${title}${cidade}\n${g.chronicle.text}`)
       }
       const noteLines = g.notes
         .slice()
         .sort((a, b) => a.time.localeCompare(b.time))
-        .map((n) => `- (${n.time}) ${n.text}`)
+        .map((n) => `- (${n.time})${n.cidade ? ` em ${n.cidade}` : ''} ${n.text}`)
       if (noteLines.length > 0) parts.push(`Notas do dia:\n${noteLines.join('\n')}`)
       return `[${date}]\n${parts.join('\n\n')}`
     })

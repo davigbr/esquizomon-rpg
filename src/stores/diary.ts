@@ -2,6 +2,7 @@
 
 import type { DiaryEntry } from '../core/tipos'
 import { newId } from '../core/jogo'
+import { getCity } from '../core/localizacao'
 import { appStore } from './base'
 import { rewardCardMentions, rewardDiaryLog } from './diaryRewards'
 import type { Result } from './base'
@@ -34,6 +35,7 @@ export function saveEntry(date: string, fields: { title?: string; text: string }
     saveDiary(currentDiary().map((e) => (e.id === current.id ? updated : e)))
     rewardDiaryLog(`cronica:${date}`, realText)
     rewardCardMentions()
+    if (!current.cidade) void attachEntryCity(date)
     return updated
   }
   const created: DiaryEntry = {
@@ -46,7 +48,21 @@ export function saveEntry(date: string, fields: { title?: string; text: string }
   saveDiary([created, ...currentDiary()])
   rewardDiaryLog(`cronica:${date}`, realText)
   rewardCardMentions()
+  void attachEntryCity(date)
   return created
+}
+
+/** Attaches the city name (geolocation + reverse geocode) to the chronicle of
+ *  the day when the browser allows it. Only the city string is kept; never
+ *  blocks the save (import em lote não passa por aqui). */
+function attachEntryCity(date: string): void {
+  void getCity().then((cidade) => {
+    if (!cidade) return
+    const d = appStore.get()
+    const cur = d.diary?.find((e) => e.date === date)
+    if (!cur || cur.cidade) return
+    saveDiary((d.diary ?? []).map((e) => (e.date === date ? { ...e, cidade } : e)))
+  })
 }
 
 export function deleteEntry(id: string): void {

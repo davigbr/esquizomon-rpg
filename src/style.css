@@ -3494,6 +3494,28 @@ body.fable-open .container {
   padding-top: 2px;
   min-width: 40px;
 }
+.note-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.note-cidade {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--font-body);
+  font-weight: 400;
+}
+.note-cidade i {
+  font-size: 10px;
+  color: var(--accent-gold);
+}
 .note-text {
   margin: 0;
   font-size: 14.5px;

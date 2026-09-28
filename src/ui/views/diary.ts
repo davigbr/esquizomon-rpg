@@ -99,7 +99,7 @@ function dayHtml(g: DayGroup): string {
   const chronicleCard = g.chronicle
     ? `
       <article class="note-card note-card--cronica" data-dayry-cronica-card="${escapeHtml(g.date)}" role="button" tabindex="0">
-        <header class="note-cronica-label"><i class="fa-solid fa-scroll" aria-hidden="true"></i>${t('diary.chronicle')}${g.chronicle.title ? ` — ${escapeHtml(g.chronicle.title)}` : ''}</header>
+        <header class="note-cronica-label"><i class="fa-solid fa-scroll" aria-hidden="true"></i>${t('diary.chronicle')}${g.chronicle.title ? ` — ${escapeHtml(g.chronicle.title)}` : ''}${cidadeHtml(g.chronicle.cidade)}</header>
         ${g.chronicle.text.trim() ? `<p class="note-cronica-snippet">${escapeHtml(chronicleSnippet(g.chronicle.text))}</p>` : `<p class="note-cronica-snippet note-cronica-snippet--vazio">${t('diary.chronicleEmpty')}</p>`}
       </article>`
     : ''
@@ -125,9 +125,19 @@ function noteHtml(n: DiaryNote): string {
   return `
     <article class="note-card" data-note="${escapeHtml(n.id)}" data-note-date="${escapeHtml(n.date)}" role="button" tabindex="0">
       <time class="note-time">${escapeHtml(n.time)}</time>
-      <p class="note-text">${escapeHtml(n.text)}</p>
+      <div class="note-body">
+        <p class="note-text">${escapeHtml(n.text)}</p>
+        ${cidadeHtml(n.cidade)}
+      </div>
     </article>
   `
+}
+
+/** Small city label (geolocation) — empty string when there's no city. */
+function cidadeHtml(cidade?: string): string {
+  return cidade
+    ? `<span class="note-cidade" title="${t('diary.cityLabel')}"><i class="fa-solid fa-location-dot" aria-hidden="true"></i>${escapeHtml(cidade)}</span>`
+    : ''
 }
 
 /** Capture: Enter/Done or + saves a TODAY note and keeps the field focused for
