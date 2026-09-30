@@ -3441,6 +3441,7 @@ body.fable-open .container {
 
   .diary-cal {
     display: block;
+    align-self: stretch; /* o painel estica até o fim da coluna: o sticky inner fica colado ao rolar muito */
   }
 }
 
@@ -3557,8 +3558,10 @@ body.fable-open .container {
 }
 
 .cel.hoje {
-  outline: 2px solid var(--accent-gold);
-  outline-offset: 1px;
+  /* inset (não outline): desenha o anel PARA DENTRO da célula, sem sobrepor as
+     células vizinhas — o motivo da "borda dourada mais grossa" era o outline
+     fora da caixa colidindo com as células ao lado no hover */
+  box-shadow: inset 0 0 0 2px var(--accent-gold);
 }
 
 .cel.on {
@@ -3577,6 +3580,26 @@ body.fable-open .container {
 
 .cel.on:hover {
   filter: brightness(1.06);
+}
+
+/* botão "ver dias anteriores" da paginação */
+.diary-more {
+  display: block;
+  margin: 10px auto 2px;
+  padding: 11px 20px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.diary-more:hover {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
 }
 
 .diary-cal-legend {

@@ -484,6 +484,41 @@ test('diário desktop: calendário de calor — dias com nota marcados, clique p
   await expect(page.locator('.diary-cal')).toBeHidden()
 })
 
+test('diário: paginação — timeline começa com os dias recentes e "ver anteriores" carrega mais', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.addInitScript(({ hoje }) => {
+    const notes = Array.from({ length: 15 }, (_, i) => {
+      const d = new Date()
+      d.setDate(d.getDate() - (i + 1))
+      const dd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      return { id: `n-${i}`, date: dd, time: '08:00', text: `memo ${i + 1}`, createdAt: dd + 'T08:00:00Z' }
+    })
+    localStorage.setItem(
+      'esquizomon-rpg:v1',
+      JSON.stringify({
+        version: 4,
+        tasks: [],
+        character: { nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20, exhausted: false, lastDay: hoje, cartas: [], invocations: {} },
+        settings: { tema: 'dark', ai: { provider: 'nenhum', apiKey: '', systemPrompt: '' } },
+        log: [], conversations: [], diary: [], notes,
+      }),
+    )
+  }, { hoje })
+
+  await page.goto('/#/diary')
+  // só os 10 dias mais recentes montam + botão "ver dias anteriores"
+  await expect(page.locator('.timeline-day')).toHaveCount(10)
+  await expect(page.locator('[data-diario-mais]')).toBeVisible()
+  const diaAntigo = dataLocal(-11)
+  await expect(page.locator(`.timeline-day[data-day="${diaAntigo}"]`)).toHaveCount(0)
+
+  // "ver anteriores" carrega o próximo lote (agora inclui o 11º dia)
+  await page.click('[data-diario-mais]')
+  await expect(page.locator(`.timeline-day[data-day="${diaAntigo}"]`)).toHaveCount(1)
+  // todos os 16 dias carregaram → o botão some
+  await expect(page.locator('[data-diario-mais]')).toHaveCount(0)
+})
+
 test('diário desktop: timeline mais larga (920px) e notas em coluna ÚNICA — mobile mantém coluna única', async ({ page }) => {
   // DESKTOP (1440×900)
   await page.setViewportSize({ width: 1440, height: 900 })

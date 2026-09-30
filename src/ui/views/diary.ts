@@ -43,6 +43,10 @@ function dayLabel(date: string): string {
   return `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`
 }
 
+/** Primeiros dias renderizados na timeline e tamanho de cada lote ao paginar. */
+const DIAS_INICIAIS = 10
+const LOTE = 10
+
 export function mountDiary(root: HTMLElement, data: AppData): void {
   const groups = groupDays(data)
 
@@ -84,17 +88,56 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
           </button>
         </form>
 
-        <div class="diary-timeline">
-          ${groups.map((g) => dayHtml(g)).join('')}
-        </div>
+        <div class="diary-timeline" data-diario-timeline></div>
       </div>
     </div>
   `
 
   installCapture(root)
-  installNotes(root)
   installImport(root)
-  installCalendario(root, data)
+
+  // --- paginação: timeline monta os DIAS_INICIAIS mais recentes + botão ---
+  const timelineEl = root.querySelector<HTMLElement>('[data-diario-timeline]')!
+  let limite = DIAS_INICIAIS
+
+  const renderTimeline = (goto?: string): void => {
+    const visiveis = groups.slice(0, limite)
+    const haMais = groups.length > limite
+    timelineEl.innerHTML =
+      visiveis.map((g) => dayHtml(g)).join('') +
+      (haMais
+        ? `<button class="btn diary-more" data-diario-mais type="button">${t('diary.loadMore')}</button>`
+        : '')
+    installNotes(root) // os cards foram recriados → religa o clique da nota
+    if (goto) {
+      root.querySelector(`.timeline-day[data-day="${goto}"]`)?.scrollIntoView({ behavior: 'auto', block: 'start' })
+    }
+  }
+
+  // clique num dia do calendário: se ainda não está carregado, expande até ele
+  const irParaDia = (data: string): void => {
+    if (!groups.some((g) => g.date === data)) {
+      notify(t('diary.noNotesOnDate'))
+      return
+    }
+    const idx = groups.findIndex((g) => g.date === data)
+    if (idx >= limite) {
+      limite = idx + 1
+      renderTimeline(data)
+    }
+    destacarDia(root, data)
+  }
+
+  // botão "ver dias anteriores" (delegado — sobrevive ao re-render do lote)
+  timelineEl.addEventListener('click', (e) => {
+    if (!(e.target as HTMLElement).closest('[data-diario-mais]')) return
+    const alvo = groups[limite]?.date
+    limite += LOTE
+    renderTimeline(alvo)
+  })
+
+  renderTimeline()
+  installCalendario(root, data, irParaDia)
 }
 
 /** Destaca o dia na timeline e rola até ele; se não existe (sem nota), avisa. */
@@ -173,7 +216,7 @@ function calMesHtml(mes: Mes, sel: string, hoje: string, ocupados: Set<string>, 
   return `<div class="cal-mes"><div class="cal-mes-head">${NOMES_MES[mes.m - 1]} ${mes.y}</div><div class="grades">${cab}${cells.join('')}</div></div>`
 }
 
-function installCalendario(root: HTMLElement, data: AppData): void {
+function installCalendario(root: HTMLElement, data: AppData, onPick: (d: string) => void): void {
   const aside = root.querySelector('.diary-cal')
   const cont = root.querySelector<HTMLElement>('[data-cal-meses]')
   const mesLabel = root.querySelector<HTMLElement>('[data-cal-mes]')
@@ -212,7 +255,7 @@ function installCalendario(root: HTMLElement, data: AppData): void {
     const d = cel.getAttribute('data-cal-day') ?? ''
     sel = d
     render()
-    destacarDia(root, d)
+    onPick(d)
   })
 
   cont.addEventListener('keydown', (e) => {
@@ -222,7 +265,7 @@ function installCalendario(root: HTMLElement, data: AppData): void {
       const d = t.getAttribute('data-cal-day') ?? ''
       sel = d
       render()
-      destacarDia(root, d)
+      onPick(d)
     }
   })
 
