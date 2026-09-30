@@ -3660,6 +3660,52 @@ body.fable-open .container {
   border-bottom-color: var(--accent-gold);
 }
 
+/* Pulo rápido para datas antigas — só desktop (2026-09-28) */
+.diary-jump-v {
+  display: none;
+}
+
+@media (min-width: 901px) {
+  .diary-jump-v {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .diary-jump {
+    background: transparent;
+    color: var(--text-primary);
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 0;
+    padding: 4px 6px;
+    font-family: inherit;
+    font-size: 13px;
+    color-scheme: dark light;
+  }
+
+  .diary-jump:focus {
+    outline: none;
+    border-bottom-color: var(--accent-gold);
+  }
+}
+
+/* Dia destacado pelo "ir para data" */
+.timeline-day.is-active {
+  animation: diary-day-pulse 1.6s ease;
+  border-radius: 10px;
+  outline: 2px solid var(--accent-gold);
+  outline-offset: 2px;
+}
+
+@keyframes diary-day-pulse {
+  0% {
+    background: color-mix(in srgb, var(--accent-gold) 22%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
 /* --- card da crônica (destaque do dia) --- */
 .note-card--cronica {
   flex-direction: column;

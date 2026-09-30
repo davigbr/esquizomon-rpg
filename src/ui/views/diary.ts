@@ -50,6 +50,9 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
     <header class="view-header">
       <h1>${t('diary.title')}</h1>
       <div class="view-header-actions">
+        <span class="diary-jump-v" title="${t('diary.jumpTo')}">
+          <input class="diary-jump" data-dayry-jump type="date" aria-label="${t('diary.jumpTo')}" max="${escapeHtml(todayISO())}" />
+        </span>
         <button class="btn btn-icon diary-import" data-dayry-import title="${t('diary.importTitle')}" aria-label="${t('diary.importTitle')}">
           <i class="fa-solid fa-file-import" aria-hidden="true"></i>
         </button>
@@ -73,6 +76,22 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
   installCapture(root)
   installNotes(root)
   installImport(root)
+  // Pulo rápido para datas antigas (só desktop): seleciona a data e rola até o
+  // grupo daquele dia; se o dia não tem nota, avisa (timeline não renderiza dia vazio).
+  root.querySelector('[data-dayry-jump]')?.addEventListener('change', (ev) => {
+    const v = ((ev.currentTarget as HTMLInputElement).value || '').trim()
+    if (!v) return
+    // limpa o destaque anterior e marca o dia visitado
+    root.querySelectorAll('.timeline-day.is-active').forEach((d) => d.classList.remove('is-active'))
+    const el = root.querySelector(`.timeline-day[data-day="${v}"]`) as HTMLElement | null
+    if (el) {
+      el.classList.add('is-active')
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } else {
+      notify(t('diary.noNotesOnDate'))
+    }
+    ;(ev.currentTarget as HTMLInputElement).value = ''
+  })
 }
 
 function dayHtml(g: DayGroup): string {

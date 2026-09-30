@@ -434,6 +434,48 @@ test('diário: markdown da nota é renderizado no card (negrito, itálico, lista
   await expect.poll(() => readState(page, 'notes.0.text')).toBe('**negrito** e *itálico*\n\n- item um\n- item dois\n\n`código`')
 })
 
+test('diário desktop: "ir para data" rola até datas antigas — controle só no desktop', async ({ page }) => {
+  const antiga = dataLocal(-12)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.addInitScript(({ hoje, antiga }) => {
+    // 12 dias antigos com nota → timeline alta de verdade (pra o scroll ter o que mover)
+    const notes = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date()
+      d.setDate(d.getDate() - (i + 2))
+      const dd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      return { id: `n-old-${i}`, date: dd, time: '08:00', text: `nota antiga ${i + 1}`, createdAt: dd + 'T08:00:00Z' }
+    })
+    notes.push({ id: 'n-sim', date: hoje, time: '10:00', text: 'nota de hoje', createdAt: hoje + 'T10:00:00Z' })
+    localStorage.setItem(
+      'esquizomon-rpg:v1',
+      JSON.stringify({
+        version: 4,
+        tasks: [],
+        character: { nivel: 1, xp: 0, xpProximo: 80, hp: 50, hpMax: 50, mana: 20, manaMax: 20, exhausted: false, lastDay: hoje, cartas: [], invocations: {} },
+        settings: { tema: 'dark', ai: { provider: 'nenhum', apiKey: '', systemPrompt: '' } },
+        log: [],
+        conversations: [],
+        diary: [],
+        notes,
+      }),
+    )
+  }, { hoje, antiga })
+
+  await page.goto('/#/diary')
+  // controle visível no desktop
+  await expect(page.locator('[data-dayry-jump]')).toBeVisible()
+  // pula para a data antiga → dia marcado como destino (is-active)
+  await page.locator('[data-dayry-jump]').fill(antiga)
+  await page.locator('[data-dayry-jump]').evaluate((el) => el.dispatchEvent(new Event('change', { bubbles: true })))
+  await expect(page.locator(`.timeline-day[data-day="${antiga}"].is-active`)).toHaveCount(1)
+
+  // dia SEM nota → toast em vez de rolar
+  const sem = page.locator('[data-dayry-jump]')
+  await sem.fill(dataLocal(-90))
+  await sem.evaluate((el) => el.dispatchEvent(new Event('change', { bubbles: true })))
+  await expect(page.locator('.toast').last()).toContainText('Sem notas nesse dia.')
+})
+
 test('diário desktop: timeline mais larga (920px) e notas em coluna ÚNICA — mobile mantém coluna única', async ({ page }) => {
   // DESKTOP (1440×900)
   await page.setViewportSize({ width: 1440, height: 900 })
