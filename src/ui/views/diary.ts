@@ -86,7 +86,9 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
     const el = root.querySelector(`.timeline-day[data-day="${v}"]`) as HTMLElement | null
     if (el) {
       el.classList.add('is-active')
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      // auto (não smooth): animação sutil é melhor em tela, mas smooth não anima de
+      // forma confiável em browsers headless/controlados; auto funciona em toda parte
+      el.scrollIntoView({ behavior: 'auto', block: 'start' })
     } else {
       notify(t('diary.noNotesOnDate'))
     }
