@@ -434,11 +434,10 @@ test('diário: markdown da nota é renderizado no card (negrito, itálico, lista
   await expect.poll(() => readState(page, 'notes.0.text')).toBe('**negrito** e *itálico*\n\n- item um\n- item dois\n\n`código`')
 })
 
-test('diário desktop: "ir para data" rola até datas antigas — controle só no desktop', async ({ page }) => {
+test('diário desktop: calendário de calor — dias com nota marcados, clique posiciona, escondido no mobile', async ({ page }) => {
   const antiga = dataLocal(-12)
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.addInitScript(({ hoje, antiga }) => {
-    // 12 dias antigos com nota → timeline alta de verdade (pra o scroll ter o que mover)
     const notes = Array.from({ length: 12 }, (_, i) => {
       const d = new Date()
       d.setDate(d.getDate() - (i + 2))
@@ -446,6 +445,8 @@ test('diário desktop: "ir para data" rola até datas antigas — controle só n
       return { id: `n-old-${i}`, date: dd, time: '08:00', text: `nota antiga ${i + 1}`, createdAt: dd + 'T08:00:00Z' }
     })
     notes.push({ id: 'n-sim', date: hoje, time: '10:00', text: 'nota de hoje', createdAt: hoje + 'T10:00:00Z' })
+    // dia antigo com MUITAS notas (>=5) → ponto cheio
+    for (let i = 0; i < 5; i++) notes.push({ id: `n-full-${i}`, date: antiga, time: `09:${i}0`, text: 'x', createdAt: antiga + 'T09:00:00Z' })
     localStorage.setItem(
       'esquizomon-rpg:v1',
       JSON.stringify({
@@ -462,18 +463,25 @@ test('diário desktop: "ir para data" rola até datas antigas — controle só n
   }, { hoje, antiga })
 
   await page.goto('/#/diary')
-  // controle visível no desktop
-  await expect(page.locator('[data-dayry-jump]')).toBeVisible()
-  // pula para a data antiga → dia marcado como destino (is-active)
-  await page.locator('[data-dayry-jump]').fill(antiga)
-  await page.locator('[data-dayry-jump]').evaluate((el) => el.dispatchEvent(new Event('change', { bubbles: true })))
+  // desktop (>=1100): calendário visível; o dia antigo com nota tem marcador (has),
+  // hoje tem anel (hoje), dia sem nota não (31 do do mês corrente, sem nota)
+  await expect(page.locator('.diary-cal')).toBeVisible()
+  await expect(page.locator(`.cel[data-cal-day="${antiga}"]`)).toHaveClass(/has|forte/)
+  await expect(page.locator(`.cel[data-cal-day="${hoje}"]`)).toHaveClass(/hoje/)
+  // clique num dia antigo → timeline destaca aquele dia
+  await page.locator(`.cel[data-cal-day="${antiga}"]`).click()
   await expect(page.locator(`.timeline-day[data-day="${antiga}"].is-active`)).toHaveCount(1)
-
-  // dia SEM nota → toast em vez de rolar
-  const sem = page.locator('[data-dayry-jump]')
-  await sem.fill(dataLocal(-90))
-  await sem.evaluate((el) => el.dispatchEvent(new Event('change', { bubbles: true })))
+  // dia sem nota → toast
+  await page.locator(`.cel[data-cal-day="${dataLocal(-1)}"]`).click()
   await expect(page.locator('.toast').last()).toContainText('Sem notas nesse dia.')
+  // navegação de mês muda o rótulo
+  await page.locator('[data-cal-next]').click()
+  await expect(page.locator('[data-cal-mes]')).toContainText('Outubro')
+
+  // mobile/tablet: calendário escondido (coluna única permanece)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload()
+  await expect(page.locator('.diary-cal')).toBeHidden()
 })
 
 test('diário desktop: timeline mais larga (920px) e notas em coluna ÚNICA — mobile mantém coluna única', async ({ page }) => {

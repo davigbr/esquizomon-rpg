@@ -50,50 +50,192 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
     <header class="view-header">
       <h1>${t('diary.title')}</h1>
       <div class="view-header-actions">
-        <span class="diary-jump-v" title="${t('diary.jumpTo')}">
-          <input class="diary-jump" data-dayry-jump type="date" aria-label="${t('diary.jumpTo')}" max="${escapeHtml(todayISO())}" />
-        </span>
         <button class="btn btn-icon diary-import" data-dayry-import title="${t('diary.importTitle')}" aria-label="${t('diary.importTitle')}">
           <i class="fa-solid fa-file-import" aria-hidden="true"></i>
         </button>
       </div>
     </header>
 
-    <form class="diary-capture" data-note-capture autocomplete="off">
-      <input class="diary-capture-input" data-note-input type="text"
-        placeholder="${t('diary.capturePlaceholder')}" enterkeyhint="done" maxlength="500"
-        aria-label="${t('diary.capturePlaceholder')}" />
-      <button class="btn btn-icon diary-capture-btn" type="submit" title="${t('diary.saveNote')}" aria-label="${t('diary.saveNote')}">
-        <i class="fa-solid fa-plus" aria-hidden="true"></i>
-      </button>
-    </form>
+    <div class="diary-layout">
+      <aside class="diary-cal" aria-label="${t('diary.calendar')}">
+        <div class="diary-cal-inner">
+          <h4 class="diary-cal-title">${t('diary.calendar')}</h4>
+          <div class="diary-cal-nav">
+            <button class="diary-cal-arrow" data-cal-prev aria-label="${t('diary.calPrev')}">‹</button>
+            <span class="diary-cal-mes" data-cal-mes></span>
+            <button class="diary-cal-arrow" data-cal-next aria-label="${t('diary.calNext')}">›</button>
+          </div>
+          <div class="diary-cal-meses" data-cal-meses></div>
+          <div class="diary-cal-legend">
+            <span><i class="dot"></i>${t('diary.calHasNote')}</span>
+            <span><i class="dot dot-full"></i>${t('diary.calMany')}</span>
+            <span><i class="dot ring"></i>${t('diary.calToday')}</span>
+          </div>
+        </div>
+      </aside>
 
-    <div class="diary-timeline">
-      ${groups.map((g) => dayHtml(g)).join('')}
+      <div class="diary-col">
+        <form class="diary-capture" data-note-capture autocomplete="off">
+          <input class="diary-capture-input" data-note-input type="text"
+            placeholder="${t('diary.capturePlaceholder')}" enterkeyhint="done" maxlength="500"
+            aria-label="${t('diary.capturePlaceholder')}" />
+          <button class="btn btn-icon diary-capture-btn" type="submit" title="${t('diary.saveNote')}" aria-label="${t('diary.saveNote')}">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i>
+          </button>
+        </form>
+
+        <div class="diary-timeline">
+          ${groups.map((g) => dayHtml(g)).join('')}
+        </div>
+      </div>
     </div>
   `
 
   installCapture(root)
   installNotes(root)
   installImport(root)
-  // Pulo rápido para datas antigas (só desktop): seleciona a data e rola até o
-  // grupo daquele dia; se o dia não tem nota, avisa (timeline não renderiza dia vazio).
-  root.querySelector('[data-dayry-jump]')?.addEventListener('change', (ev) => {
-    const v = ((ev.currentTarget as HTMLInputElement).value || '').trim()
-    if (!v) return
-    // limpa o destaque anterior e marca o dia visitado
-    root.querySelectorAll('.timeline-day.is-active').forEach((d) => d.classList.remove('is-active'))
-    const el = root.querySelector(`.timeline-day[data-day="${v}"]`) as HTMLElement | null
-    if (el) {
-      el.classList.add('is-active')
-      // auto (não smooth): animação sutil é melhor em tela, mas smooth não anima de
-      // forma confiável em browsers headless/controlados; auto funciona em toda parte
-      el.scrollIntoView({ behavior: 'auto', block: 'start' })
-    } else {
-      notify(t('diary.noNotesOnDate'))
-    }
-    ;(ev.currentTarget as HTMLInputElement).value = ''
+  installCalendario(root, data)
+}
+
+/** Destaca o dia na timeline e rola até ele; se não existe (sem nota), avisa. */
+function destacarDia(root: HTMLElement, data: string): boolean {
+  root.querySelectorAll('.timeline-day.is-active').forEach((d) => d.classList.remove('is-active'))
+  const el = root.querySelector(`.timeline-day[data-day="${data}"]`) as HTMLElement | null
+  if (el) {
+    el.classList.add('is-active')
+    // auto (não smooth): animação sutil é melhor em tela, mas smooth não anima de
+    // forma confiável em browsers headless/controlados; auto funciona em toda parte
+    el.scrollIntoView({ behavior: 'auto', block: 'start' })
+    return true
+  }
+  notify(t('diary.noNotesOnDate'))
+  return false
+}
+
+type Mes = { y: number; m: number } // m = 1..12
+
+function isoLocal(y: number, m: number, d: number): string {
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
+function mesAnterior(x: Mes): Mes {
+  return x.m === 1 ? { y: x.y - 1, m: 12 } : { y: x.y, m: x.m - 1 }
+}
+
+function mesProximo(x: Mes): Mes {
+  return x.m === 12 ? { y: x.y + 1, m: 1 } : { y: x.y, m: x.m + 1 }
+}
+
+const NOMES_MES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+]
+
+/** Uma célula do calendário de calor. */
+function calCel(cfg: {
+  d: string | null; dia: number | null; ocupado: boolean; muitas: boolean;
+  hoje: boolean; sel: boolean; fora: boolean;
+}): string {
+  if (cfg.d === null) return `<span class="cel none"></span>`
+  const cls = ['cel']
+  if (cfg.fora) cls.push('fora')
+  if (cfg.ocupado) cls.push('has')
+  if (cfg.muitas) cls.push('forte')
+  if (cfg.hoje) cls.push('hoje')
+  if (cfg.sel) cls.push('on')
+  return `<span class="${cls.join(' ')}" data-cal-day="${cfg.d}" role="button" tabindex="0">${cfg.dia ?? ''}</span>`
+}
+
+/** Cabeçalho da semana (D S T Q Q S S). */
+const DIA_CAB = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
+
+/** Renderiza um mês. */
+function calMesHtml(mes: Mes, sel: string, hoje: string, ocupados: Set<string>, muitos: Set<string>): string {
+  const first = new Date(mes.y, mes.m - 1, 1).getDay() // 0=domingo
+  const total = new Date(mes.y, mes.m, 0).getDate()
+  const cells: string[] = []
+  const cab = DIA_CAB.map((c) => `<span class="dq">${c}</span>`).join('')
+  for (let i = 0; i < first; i++) cells.push(calCel({ d: null, dia: null, ocupado: false, muitas: false, hoje: false, sel: false, fora: false }))
+  for (let d = 1; d <= total; d++) {
+    const dd = isoLocal(mes.y, mes.m, d)
+    cells.push(
+      calCel({
+        d: dd,
+        dia: d,
+        ocupado: ocupados.has(dd),
+        muitas: muitos.has(dd),
+        hoje: dd === hoje,
+        sel: dd === sel,
+        fora: false,
+      }),
+    )
+  }
+  return `<div class="cal-mes"><div class="cal-mes-head">${NOMES_MES[mes.m - 1]} ${mes.y}</div><div class="grades">${cab}${cells.join('')}</div></div>`
+}
+
+function installCalendario(root: HTMLElement, data: AppData): void {
+  const aside = root.querySelector('.diary-cal')
+  const cont = root.querySelector<HTMLElement>('[data-cal-meses]')
+  const mesLabel = root.querySelector<HTMLElement>('[data-cal-mes]')
+  if (!aside || !cont || !mesLabel) return
+
+  const hoje = todayISO()
+  const hojeD = new Date()
+  // ou mês da nota mais recente
+  let mesFocal: Mes = { y: hojeD.getFullYear(), m: hojeD.getMonth() + 1 }
+  let sel = hoje
+
+  // mapa de datas com nota + conjunto de datas "cheias"
+  const ocupados = new Set<string>()
+  const muitos = new Set<string>()
+  const contagem = new Map<string, number>()
+  ;(data.notes ?? []).forEach((n) => {
+    if (!n.date) return
+    ocupados.add(n.date)
+    contagem.set(n.date, (contagem.get(n.date) ?? 0) + 1)
   })
+  contagem.forEach((c, d) => {
+    if (c >= 5) muitos.add(d)
+  })
+
+  const render = (): void => {
+    const a = calMesHtml(mesFocal, sel, hoje, ocupados, muitos)
+    const b = calMesHtml(mesProximo(mesFocal), sel, hoje, ocupados, muitos)
+    const f = mesFocal
+    mesLabel.textContent = `${NOMES_MES[f.m - 1]} ${f.y}`
+    cont.innerHTML = a + b
+  }
+
+  cont.addEventListener('click', (e) => {
+    const cel = (e.target as HTMLElement).closest('[data-cal-day]')
+    if (!cel) return
+    const d = cel.getAttribute('data-cal-day') ?? ''
+    sel = d
+    render()
+    destacarDia(root, d)
+  })
+
+  cont.addEventListener('keydown', (e) => {
+    const t = e.target as HTMLElement
+    if (t.matches('[data-cal-day]') && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault()
+      const d = t.getAttribute('data-cal-day') ?? ''
+      sel = d
+      render()
+      destacarDia(root, d)
+    }
+  })
+
+  const nav = aside.querySelector<HTMLElement>('.diary-cal-nav')
+  nav?.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement
+    if (t.closest('[data-cal-prev]')) mesFocal = mesAnterior(mesFocal)
+    else if (t.closest('[data-cal-next]')) mesFocal = mesProximo(mesFocal)
+    else return
+    render()
+  })
+
+  render()
 }
 
 function dayHtml(g: DayGroup): string {

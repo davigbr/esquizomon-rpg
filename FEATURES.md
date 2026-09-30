@@ -29,7 +29,7 @@
 - **Localização (cidade)**: ao registrar uma NOTA, o browser pede permissão UMA vez e o app grava só o NOME da cidade (geolocalização + reverse-geocode BigDataCloud, sem chave, pt-BR). Coordenadas jamais persistem; se a permissão for negada ou o serviço cair → sem cidade, silencioso (sem prompt repetido na sessão). Cidade aparece nos cards e entra no contexto da Fábula ("em {cidade}"). Import em lote NÃO preenche localização. A cidade é EDITÁVEL (no sheet da nota) e dá pra limpar (campo vazio).
 - Fábula lê os últimos 5 dias (NOTAS agrupadas, na íntegra, com título/cidade/hora)
 - Layout desktop do diário: timeline mais larga (920px) e notas em coluna única (grade removida — preferência do usuário); mobile/tablet mantém coluna única estreita (760px)
-- **Navegação para datas antigas (desktop)**: seletor "Ir para data" no cabeçalho do diário (só ≥901px) — escolhe a data e rola até o grupo daquele dia, marcando-o com um destaque dourado; dia sem nota mostra toast "Sem notas nesse dia.". Constrói em cima das âncoras `data-day="AAAA-MM-DD"` já existentes (sem custo de storage)
+- **Navegação para datas antigas (desktop)**: **calendário de calor** fixo à esquerda (≥1100px) — mini-calendários por mês (setas ‹ › navegando), dias com nota marcados com ponto dourado (ponto cheio = ≥5 notas), hoje com anel. Clique num dia rola até aquele grupo da timeline e o destaca (is-active dourado); dia sem nota mostra toast "Sem notas nesse dia.". Escondido no mobile (coluna única preservada)
 - Dados: `notes[]` (merge por id no sync; campo `diary` ficou peso-morto p/ não quebrar merge/import); status bar escondida na rota diário no mobile (≤900px). Exclusões criam TOMBSTONE de sync (`deletedNotes`) — nota excluída nunca volta via nuvem.
 
 ### Chat da Fábula (Fase 4)
