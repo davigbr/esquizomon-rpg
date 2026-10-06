@@ -125,8 +125,11 @@ test('agenda: seções por janela de data, sem hábitos e sem repetir item', asy
   await expect(page.locator('[data-sec="semana"]')).toContainText('Tarefa da semana')
   await expect(page.locator('[data-sec="mes"] h2')).toContainText('Março 2030')
   await expect(page.locator('[data-sec="mes"]')).toContainText('Tarefa do mês')
-  await expect(page.locator('[data-sec="m1"] h2')).toContainText('Abril 2030')
-  await expect(page.locator('[data-sec="m2"] h2')).toContainText('Maio 2030')
+  // mês+1 / mês+2 são rotulados como deslocamento (o mês vai no subtítulo)
+  await expect(page.locator('[data-sec="m1"] h2')).toContainText('Mês Atual + 1')
+  await expect(page.locator('[data-sec="m1"] .agenda-sec-sub')).toContainText('Abril 2030')
+  await expect(page.locator('[data-sec="m2"] h2')).toContainText('Mês Atual + 2')
+  await expect(page.locator('[data-sec="m2"] .agenda-sec-sub')).toContainText('Maio 2030')
 
   // semestre (resto do semestre civil) e ano (resto do ano)
   await expect(page.locator('[data-sec="semestre"]')).toContainText('Tarefa junho')
@@ -252,6 +255,43 @@ test('agenda: remover coluna não perde nenhuma seção (invariante preservado)'
   const planas = (await layoutSalvo(page)).flatMap((c) => c.sections)
   expect(planas.length).toBe(9)
   expect(new Set(planas).size).toBe(9)
+})
+
+test('agenda: reordenar uma seção DENTRO da mesma coluna', async ({ page }) => {
+  await seed(page, TODAS)
+  await abrirAgenda(page)
+  await page.locator('[data-agenda-edit]').click()
+  // coluna 1 nasce como [Atrasadas, Hoje, Próximas Ações] (ordem inicial no DOM)
+  await expect(page.locator('.agenda-col').first().locator('.agenda-sec h2')).toHaveText([
+    'Atrasadas',
+    'Hoje',
+    'Próximas Ações',
+  ])
+
+  // arrasta "atrasadas" para a METADE INFERIOR de "hoje" → deve cair depois dele
+  await page.evaluate(() => {
+    const col = document.querySelector('.agenda-col') as HTMLElement
+    const origem = col.querySelector('.agenda-sec[data-sec="atrasadas"]') as HTMLElement
+    const alvo = col.querySelector('.agenda-sec[data-sec="hoje"]') as HTMLElement
+    const dt = new DataTransfer()
+    const r = alvo.getBoundingClientRect()
+    const x = r.left + 20
+    const y = r.top + r.height * 0.85 // metade inferior
+    origem.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }))
+    col.dispatchEvent(new DragEvent('dragover', { bubbles: true, dataTransfer: dt, clientX: x, clientY: y }))
+    col.dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer: dt, clientX: x, clientY: y }))
+  })
+  await expect.poll(async () => (await layoutSalvo(page))[0]?.sections ?? []).toEqual([
+    'hoje',
+    'atrasadas',
+    'proximas',
+  ])
+  // e a tela reflete a nova ordem
+  await expect(page.locator('.agenda-col').first().locator('.agenda-sec h2')).toHaveText([
+    'Hoje',
+    'Atrasadas',
+    'Próximas Ações',
+  ])
 })
 
 test('agenda: sair da personalização funciona repetidamente (bug 2026-10-01)', async ({ page }) => {

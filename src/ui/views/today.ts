@@ -255,12 +255,28 @@ export function mountToday(root: HTMLElement, data: AppData): void {
     board.addEventListener('dragend', () => {
       arrastando = null
       board.querySelectorAll('.dragging, .drag-target').forEach((el) => el.classList.remove('dragging', 'drag-target'))
+      board.querySelectorAll('.agenda-drop-line').forEach((el) => el.remove())
     })
     board.addEventListener('dragover', (e) => {
       e.preventDefault()
       const col = (e.target as HTMLElement).closest<HTMLElement>('.agenda-col')
       board.querySelectorAll('.drag-target').forEach((el) => el.classList.remove('drag-target'))
-      if (col && arrastando) col.classList.add('drag-target')
+      board.querySelectorAll('.agenda-drop-line').forEach((el) => el.remove())
+      if (!col || !arrastando) return
+      col.classList.add('drag-target')
+      // linha indicando ONDE a seção vai cair: antes da 1ª seção cujo meio está
+      // abaixo do cursor (a própria seção arrastada é ignorada)
+      const linha = document.createElement('div')
+      linha.className = 'agenda-drop-line'
+      const secs = Array.from(col.querySelectorAll<HTMLElement>('.agenda-sec[data-sec]')).filter(
+        (s) => s.dataset.sec !== arrastando,
+      )
+      const alvo = secs.find((s) => {
+        const r = s.getBoundingClientRect()
+        return e.clientY < r.top + r.height / 2
+      })
+      if (alvo) col.insertBefore(linha, alvo)
+      else col.appendChild(linha)
     })
     board.addEventListener('drop', (e) => {
       e.preventDefault()
@@ -268,10 +284,13 @@ export function mountToday(root: HTMLElement, data: AppData): void {
       if (!colEl || !arrastando) return
       const destino = agendaColunas.find((c) => c.id === colEl.dataset.colId)
       if (!destino) return
-      const alvoSec = (e.target as HTMLElement).closest<HTMLElement>('.agenda-sec[data-sec]')
+      // a posição é dada pela linha de inserção; sem linha, vai para o fim
+      const linha = board.querySelector('.agenda-drop-line')
+      const prox = linha?.nextElementSibling as HTMLElement | null
+      const secAlvo = prox && prox.matches('.agenda-sec[data-sec]') ? (prox.dataset.sec as AgendaSection) : null
       const movida = arrastando
       for (const c of agendaColunas) c.sections = c.sections.filter((s) => s !== movida)
-      const idx = alvoSec ? destino.sections.indexOf(alvoSec.dataset.sec as AgendaSection) : -1
+      const idx = secAlvo ? destino.sections.indexOf(secAlvo) : -1
       if (idx >= 0) destino.sections.splice(idx, 0, movida)
       else destino.sections.push(movida)
       arrastando = null
@@ -614,8 +633,8 @@ function agendaHtml(data: AppData, hoje: string, passes: (t: Task) => boolean, m
     { key: 'proximas', title: t('today.secNext'), cls: 'proximas', sempre: true, add: true },
     { key: 'semana', title: t('today.secWeek'), sub: t('today.until', { date: curto(fimSemana) }), cls: 'semana' },
     { key: 'mes', title: `${MESES[M - 1]} ${Y}`, cls: 'mes' },
-    { key: 'm1', title: `${MESES[m1m - 1]} ${m1y}`, cls: 'mes' },
-    { key: 'm2', title: `${MESES[m2m - 1]} ${m2y}`, cls: 'mes' },
+    { key: 'm1', title: t('today.monthPlus1'), sub: `${MESES[m1m - 1]} ${m1y}`, cls: 'mes' },
+    { key: 'm2', title: t('today.monthPlus2'), sub: `${MESES[m2m - 1]} ${m2y}`, cls: 'mes' },
     { key: 'semestre', title: t('today.secSemester'), sub: faixa(S.semestre), cls: 'mes' },
     { key: 'ano', title: t('today.secYear'), sub: faixa(S.ano), cls: 'mes' },
   ]

@@ -1511,6 +1511,13 @@ select.field {
   border-radius: 14px;
 }
 
+/* linha que marca ONDE a seção arrastada vai cair (dentro da coluna) */
+.agenda-drop-line {
+  height: 0;
+  border-top: 2px dashed var(--accent-gold);
+  margin: 5px 0;
+}
+
 .agenda-col {
   display: flex;
   flex-direction: column;
