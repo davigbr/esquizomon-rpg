@@ -600,8 +600,13 @@ function agendaHtml(data: AppData, hoje: string, passes: (t: Task) => boolean, m
     if (t.type === 'habito') continue
     if (!passes(t)) continue
     if (t.type === 'recorrente') {
+      // MESMA regra da tela de Colunas: o card só existe se `recurrenceDue` (a
+      // ocorrência está aberta). `recurrenceOverdue` é só o BADGE de atraso — ele
+      // dá true mesmo quando a ocorrência já foi concluída no ciclo (bug
+      // 2026-10-01: uma semanal já feita aparecia em "Atrasadas" na Agenda).
+      if (!recurrenceDue(t, hoje)) continue
       if (recurrenceOverdue(t, hoje)) S.atrasadas.push(t)
-      else if (recurrenceDue(t, hoje)) S.hoje.push(t)
+      else S.hoje.push(t)
       continue
     }
     if (t.done && !mostrarConcluidas) continue
@@ -630,7 +635,7 @@ function agendaHtml(data: AppData, hoje: string, passes: (t: Task) => boolean, m
   const defs: Array<{ key: string; title: string; sub?: string; cls: string; sempre?: boolean; add?: boolean }> = [
     { key: 'atrasadas', title: t('today.secOverdue'), cls: 'atrasadas' },
     { key: 'hoje', title: t('today.today'), cls: 'hoje', sempre: true },
-    { key: 'proximas', title: t('today.secNext'), cls: 'proximas', sempre: true, add: true },
+    { key: 'proximas', title: t('today.secNext'), cls: 'proximas', sempre: true },
     { key: 'semana', title: t('today.secWeek'), sub: t('today.until', { date: curto(fimSemana) }), cls: 'semana' },
     { key: 'mes', title: `${MESES[M - 1]} ${Y}`, cls: 'mes' },
     { key: 'm1', title: `${MESES[m1m - 1]} ${m1y}`, cls: 'mes' },
@@ -700,6 +705,10 @@ function agendaHtml(data: AppData, hoje: string, passes: (t: Task) => boolean, m
     <div class="agenda-wrap">
       ${toolbar}
       <div class="agenda-board${editando ? ' is-editing' : ''}" style="--cols:${agendaColunas.length}">${colunasHtml}</div>
+      <button type="button" class="agenda-fab" data-new-type="unica"
+        aria-label="${t('today.newTask')}" title="${t('today.newTask')}">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+      </button>
     </div>
   `
 }

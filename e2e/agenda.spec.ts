@@ -329,6 +329,48 @@ test('agenda: edições continuam valendo depois da config já salva (re-render)
   await expect(page.locator('.agenda-col')).toHaveCount(3)
 })
 
+test('agenda: recorrente JÁ concluída no ciclo não aparece como atrasada (bug 2026-10-01)', async ({ page }) => {
+  await seed(page, [
+    // semanal agendada para ontem e CONCLUÍDA no dia agendado → não aparece em lugar nenhum
+    { id: 'r-ok', title: 'Semanal feita', difficulty: 'media', type: 'recorrente', agenda: { days: [ontemWD] }, history: [ontem], createdAt: add(HOJE, -30) },
+    // semanal agendada para ontem e NÃO concluída → atrasada
+    { id: 'r-late', title: 'Semanal atrasada', difficulty: 'media', type: 'recorrente', agenda: { days: [ontemWD] }, history: [], createdAt: add(HOJE, -30) },
+  ])
+  await abrirAgenda(page)
+
+  await expect(page.locator('.task-card', { hasText: 'Semanal feita' })).toHaveCount(0)
+  await expect(page.locator('[data-sec="atrasadas"]')).toContainText('Semanal atrasada')
+  await expect(page.locator('.task-card', { hasText: 'Semanal atrasada' })).toHaveCount(1)
+})
+
+test('agenda: botão flutuante (+) no canto inferior direito (substitui o + de Próximas Ações)', async ({ page }) => {
+  await seed(page, TODAS)
+  await abrirAgenda(page)
+
+  // o "+" saiu da seção Próximas Ações
+  await expect(page.locator('[data-sec="proximas"] [data-new-type]')).toHaveCount(0)
+
+  // FAB existe, é fixo e fica no canto inferior direito
+  const fab = page.locator('.agenda-fab')
+  await expect(fab).toBeVisible()
+  const box = await fab.evaluate((el) => {
+    const s = getComputedStyle(el)
+    const r = el.getBoundingClientRect()
+    return {
+      pos: s.position,
+      distDireita: Math.round(window.innerWidth - r.right),
+      distBaixo: Math.round(window.innerHeight - r.bottom),
+    }
+  })
+  expect(box.pos).toBe('fixed')
+  expect(box.distDireita).toBeGreaterThan(0)
+  expect(box.distBaixo).toBeGreaterThan(0)
+
+  // clicar abre o formulário de nova tarefa
+  await fab.click()
+  await expect(page.locator('input[name="title"]')).toBeVisible()
+})
+
 test('agenda: config incompleta é normalizada (nada some da tela)', async ({ page }) => {
   await seed(page, TODAS)
   // grava uma config antiga com UMA coluna e só "atrasadas" e recarrega: as outras

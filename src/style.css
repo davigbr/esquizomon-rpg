@@ -1518,6 +1518,31 @@ select.field {
   margin: 5px 0;
 }
 
+/* botão flutuante de adicionar (+), canto inferior direito da Agenda */
+.agenda-fab {
+  position: fixed;
+  right: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  width: 54px;
+  height: 54px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  color: #1a1509;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agenda-fab:hover {
+  filter: brightness(1.08);
+}
+
 .agenda-col {
   display: flex;
   flex-direction: column;
