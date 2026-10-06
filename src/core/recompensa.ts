@@ -12,6 +12,7 @@
 import { appStore } from '../stores/base'
 import { gainXP } from '../stores/personagem'
 import { allCards } from './baralho'
+import { scaleXp } from './jogo'
 
 /** XP per card mention in the diary (per entry/day). */
 export const XP_PER_MENTION = 10
@@ -72,6 +73,8 @@ export function processDiaryMentions(): MentionResult {
 
   // persists the record BEFORE (gainXp re-sets the store preserving this field)
   appStore.set({ ...d, diaryXp: newAlready })
-  const r = gainXP(total)
-  return { names: detected, xp: total, leveledUp: r.leveledUp, newCards: r.newCards }
+  // progression speed applies to card mentions too (same rule as every gain)
+  const xp = scaleXp(total, d.settings.xpSpeed)
+  const r = gainXP(xp)
+  return { names: detected, xp, leveledUp: r.leveledUp, newCards: r.newCards }
 }

@@ -238,6 +238,8 @@ function normalizeSettings(v: unknown): Settings {
   if (agenda) out.agenda = agenda
   const todayView = isObject(v) ? field(v, 'todayView', 'modoHoje') : undefined
   if (todayView === 'agenda' || todayView === 'colunas') out.todayView = todayView
+  const xpSpeed = isObject(v) ? field(v, 'xpSpeed', 'velocidadeXp') : undefined
+  if (xpSpeed === 'slow' || xpSpeed === 'normal' || xpSpeed === 'fast') out.xpSpeed = xpSpeed
   return out
 }
 

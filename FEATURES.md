@@ -16,6 +16,7 @@
 
 ### Jogo (Fase 2)
 - XP/nível (nível×80), HP + dano diário e de hábitos negativos, morte não-destrutiva (perde 1 carta)
+- **Velocidade de progressão do XP** (Configurações → Jogo, 2026-10-01): **Lento (÷2) · Normal · Rápido (×2)** — multiplica **todos os ganhos** de XP (tarefa única, recorrente marcada, hábito positivo, nota/crônica do diário, menção de carta). Não muda a fórmula de nível, **não é retroativo** (o já ganho fica) e **não afeta dano/HP** (hábito negativo fica fora — decisão do usuário). Sempre **arredonda para baixo** (÷2 de 5 = 2), então o Lento nunca infla. A tela **Jogo** mostra a tabela de XP já escalada, a linha "Velocidade de progressão: …" e a regra do diário interpolada. Vive em `settings.xpSpeed` (persiste e **sincroniza**); o snapshot de reversão (`task.rewards[date].xp`) guarda o valor **já escalado**, para desmarcar devolver exatamente o que foi dado
 - Mana, modo relaxado
 - Barra de status global, gráficos de progressão SVG, tabelas XP/Dano, página Histórico
 

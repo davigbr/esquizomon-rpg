@@ -1,6 +1,6 @@
 /** Config view — theme, game, AI, data export/import and the danger zone. */
 
-import type { AiConfig, AiProvider, AppData, Theme } from '../../core/tipos'
+import type { AiConfig, AiProvider, AppData, Theme, XpSpeed } from '../../core/tipos'
 import { defaultModel, MODELS_BY_PROVIDER, testConnection, AiError } from '../../ia/cliente'
 import { DEFAULT_SYSTEM_PROMPT } from '../../ia/prompt'
 import { exportJSON, importJSON, setAvatar, setMonsterName, setSettings, setTheme, wipeAllData } from '../../stores/app'
@@ -43,6 +43,7 @@ function currentAI(data: AppData): AiConfig {
 export function mountSettings(root: HTMLElement, data: AppData): void {
   const theme = data.settings.theme
   const relaxedMode = data.settings.relaxedMode === true
+  const xpSpeed: XpSpeed = data.settings.xpSpeed ?? 'normal'
   const sound = data.settings.sound !== false
   const summary = data.settings.summary ?? ''
   const avatar = data.character.avatar
@@ -129,6 +130,17 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
           <option value="off" ${sound === false ? 'selected' : ''}>${t('settings.offPlural')}</option>
         </select>
       </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">${t('settings.xpSpeed')}</div>
+          <div class="settings-hint">${t('settings.xpSpeedHint')}</div>
+        </div>
+        <select class="filter-select" data-xp-speed>
+          <option value="slow" ${xpSpeed === 'slow' ? 'selected' : ''}>${t('settings.xpSpeedSlow')}</option>
+          <option value="normal" ${xpSpeed === 'normal' ? 'selected' : ''}>${t('settings.xpSpeedNormal')}</option>
+          <option value="fast" ${xpSpeed === 'fast' ? 'selected' : ''}>${t('settings.xpSpeedFast')}</option>
+        </select>
+      </div>
     </div>
 
     <div class="settings-section">
@@ -188,6 +200,14 @@ export function mountSettings(root: HTMLElement, data: AppData): void {
     const enabled = (e.target as HTMLSelectElement).value === 'on'
     setSettings({ sound: enabled })
     notify(enabled ? t('settings.soundsOn') : t('settings.soundsOff'))
+  })
+
+  root.querySelector('[data-xp-speed]')!.addEventListener('change', (e) => {
+    const sel = e.target as HTMLSelectElement
+    const value = sel.value as XpSpeed
+    setSettings({ xpSpeed: value })
+    // the label of the chosen option is the clearest notice ("Lento (÷2)")
+    notify(t('settings.xpSpeedSet', { v: sel.options[sel.selectedIndex].text }))
   })
 
   root.querySelector('[data-lang-select]')!.addEventListener('change', (e) => {

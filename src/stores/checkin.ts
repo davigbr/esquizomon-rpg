@@ -1,7 +1,7 @@
 /** Daily cycle domain: day renewal and check-in (Habitica style). */
 
 import type { Task } from '../core/tipos'
-import { damageFor, dayOfWeek, dayOfMonth, todayISO, HP_REGEN_PER_DAY, addDays, xpFor } from '../core/jogo'
+import { damageFor, dayOfWeek, dayOfMonth, todayISO, HP_REGEN_PER_DAY, addDays, xpFor, scaleXp } from '../core/jogo'
 import { appStore, addLog } from './base'
 import { applyDamage, gainXP } from './personagem'
 import { storeReward } from './tasks'
@@ -120,10 +120,11 @@ export function finishCheckin(markedIds: string[]): void {
   for (const id of markedIds) {
     const t = appStore.get().tasks.find((x) => x.id === id)
     if (!t) continue
-    addLog('tarefa', `Check-in: ${t.title} concluída em ${pending.date} (+${xpFor(t.difficulty)} XP)`)
+    const xp = scaleXp(xpFor(t.difficulty), appStore.get().settings.xpSpeed)
+    addLog('tarefa', `Check-in: ${t.title} concluída em ${pending.date} (+${xp} XP)`)
     const before = appStore.get().character
-    const added = gainXP(xpFor(t.difficulty)).newCards
-    storeReward(t.id, pending.date, before, added)
+    const added = gainXP(xp).newCards
+    storeReward(t.id, pending.date, before, added, xp)
   }
   if (markedIds.length > 0) playSound('tarefa')
 

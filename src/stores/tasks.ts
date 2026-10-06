@@ -1,7 +1,7 @@
 /** Task domain: CRUD, toggling (XP/rewards) and habits. */
 
 import type { AppData, Character, CompletionReward, Task, TaskType } from '../core/tipos'
-import { damageFor, todayISO, newId, xpFor } from '../core/jogo'
+import { damageFor, todayISO, newId, xpFor, scaleXp } from '../core/jogo'
 import { HP_PER_POSITIVE_HABIT } from '../core/jogo'
 import { xpNextFor, hpMaxFor, manaMaxFor } from '../core/jogo'
 import { appStore, addLog, taskById } from './base'
@@ -136,11 +136,12 @@ export function toggleRecurringToday(id: string, date: string = todayISO()): str
   if (task) {
     const marked = task.history.includes(date)
     if (marked) {
-      addLog('tarefa', `Concluiu recorrente: ${task.title} (+${xpFor(task.difficulty)} XP)`)
+      const xp = scaleXp(xpFor(task.difficulty), appStore.get().settings.xpSpeed)
+      addLog('tarefa', `Concluiu recorrente: ${task.title} (+${xp} XP)`)
       const before = appStore.get().character
-      const added = gainXP(xpFor(task.difficulty)).newCards
+      const added = gainXP(xp).newCards
       playSound('tarefa')
-      storeReward(task.id, date, before, added)
+      storeReward(task.id, date, before, added, xp)
       return added
     }
     addLog('tarefa', `Desfez recorrente: ${task.title} (XP revertido)`)
@@ -175,11 +176,12 @@ export function toggleOneOff(id: string, date: string = todayISO()): string[] {
   appStore.set({ ...appStore.get(), tasks })
   const task = tasks.find((t) => t.id === id)
   if (task && task.done) {
-    addLog('tarefa', `Concluiu: ${task.title} (+${xpFor(task.difficulty)} XP)`)
+    const xp = scaleXp(xpFor(task.difficulty), appStore.get().settings.xpSpeed)
+    addLog('tarefa', `Concluiu: ${task.title} (+${xp} XP)`)
     const before = appStore.get().character
-    const added = gainXP(xpFor(task.difficulty)).newCards
+    const added = gainXP(xp).newCards
     playSound('tarefa')
-    storeReward(task.id, date, before, added)
+    storeReward(task.id, date, before, added, xp)
     return added
   }
   if (task) addLog('tarefa', `Desfez conclusão: ${task.title} (XP revertido)`)
@@ -197,12 +199,13 @@ function withoutReward(rec: Record<string, CompletionReward> | undefined, date: 
 
 /** Stores on the task the snapshot of the just-granted reward: state BEFORE the
  *  gain (restored when unmarking) + POST-gain level (reversal guard).
+ *  `xp` is the ALREADY-SCALED amount that was granted (progression speed), so
+ *  unmarking reverts exactly what was added.
  *  Exported for the check-in (retroactive completion also records reward). */
-export function storeReward(id: string, date: string, before: Character, newCards: string[]): void {
+export function storeReward(id: string, date: string, before: Character, newCards: string[], xp: number): void {
   const p = appStore.get().character
   const tasks = appStore.get().tasks.map((t) => {
     if (t.id !== id) return t
-    const xp = xpFor(t.difficulty)
     const reward: CompletionReward = {
       xp,
       leveledUp: p.level > before.level,
@@ -307,8 +310,9 @@ export function recordHabit(id: string, sign: 'positivo' | 'negativo', date: str
       return []
     }
     if (sign === 'positivo') {
-      addLog('habito', `Hábito positivo: ${task.title} (+${xpFor(task.difficulty)} XP, +${HP_PER_POSITIVE_HABIT} vida)`)
-      const added = gainXP(xpFor(task.difficulty)).newCards
+      const xp = scaleXp(xpFor(task.difficulty), appStore.get().settings.xpSpeed)
+      addLog('habito', `Hábito positivo: ${task.title} (+${xp} XP, +${HP_PER_POSITIVE_HABIT} vida)`)
+      const added = gainXP(xp).newCards
       heal(HP_PER_POSITIVE_HABIT)
       playSound('habito-pos')
       return added

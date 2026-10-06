@@ -4,7 +4,7 @@
  *  (dedup per entity key, not per date). */
 
 import { appStore, addLog } from './base'
-import { XP_PER_LOG } from '../core/jogo'
+import { XP_PER_LOG, scaleXp } from '../core/jogo'
 import { gainXP } from './personagem'
 import { processDiaryMentions } from '../core/recompensa'
 import { notify } from '../ui/toast'
@@ -18,9 +18,10 @@ export function rewardDiaryLog(entityKey: string, realText: string): void {
   const d = appStore.get()
   if (d.diaryLogXp?.[entityKey]) return
   appStore.set({ ...d, diaryLogXp: { ...(d.diaryLogXp ?? {}), [entityKey]: true } })
-  gainXP(XP_PER_LOG)
-  addLog('sistema', `Registrou o diário (+${XP_PER_LOG} XP)`)
-  notify(`Diário registrado! +${XP_PER_LOG} XP`)
+  const xp = scaleXp(XP_PER_LOG, d.settings.xpSpeed)
+  gainXP(xp)
+  addLog('sistema', `Registrou o diário (+${xp} XP)`)
+  notify(`Diário registrado! +${xp} XP`)
 }
 
 /** Card mentions grant XP immediately on save (bug 2026-08-30: before, the

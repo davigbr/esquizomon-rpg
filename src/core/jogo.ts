@@ -1,6 +1,6 @@
 /** Game constants — difficulty, multipliers (Habitica reference) and dates. */
 
-import type { Agenda, Difficulty, Task } from './tipos'
+import type { Agenda, Difficulty, Task, XpSpeed } from './tipos'
 import { t, LOCALE, getLang } from '../i18n'
 
 export const DIFFICULTIES: ReadonlyArray<{
@@ -18,9 +18,23 @@ export function difficultyMeta(id: Difficulty) {
   return { ...d, label: t(`diff.${d.id}`) }
 }
 
-/** XP granted per completion, by difficulty (base 10 × multiplier). */
+/** DIFFICULTY-based base XP: 10 per unit of multiplier. */
 export function xpFor(difficulty: Difficulty): number {
   return Math.round(10 * difficultyMeta(difficulty).multiplier)
+}
+
+/** Multiplier of the XP progression speed (settings). 'normal'/undefined = 1. */
+export function xpSpeedMultiplier(speed: XpSpeed | undefined): number {
+  if (speed === 'slow') return 0.5
+  if (speed === 'fast') return 2
+  return 1
+}
+
+/** Applies the progression speed to a RAW xp amount. ALWAYS rounds down, so
+ *  Slow never inflates by rounding (÷2 of 5 = 2). Only XP gains go through
+ *  here — habit DAMAGE and HP are out of scope (decision 2026-10-01). */
+export function scaleXp(raw: number, speed: XpSpeed | undefined): number {
+  return Math.floor(raw * xpSpeedMultiplier(speed))
 }
 
 /** Damage dealt by a recurring task missed at reset, by difficulty. */

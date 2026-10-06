@@ -1,7 +1,8 @@
 /** Game view — how the game works, progression and deck progress. */
 
-import type { AppData } from '../../core/tipos'
-import { damageFor, DIFFICULTIES, difficultyMeta, fullDeckLevel, hpMaxFor, manaMaxFor, xpFor, xpNextFor } from '../../core/jogo'
+import type { AppData, XpSpeed } from '../../core/tipos'
+import { damageFor, DIFFICULTIES, difficultyMeta, fullDeckLevel, hpMaxFor, manaMaxFor, scaleXp, xpFor, xpNextFor, XP_PER_LOG } from '../../core/jogo'
+import { XP_PER_MENTION } from '../../core/recompensa'
 import { progressionChart } from '../graficos'
 import { t } from '../../i18n'
 
@@ -12,6 +13,13 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
   const char = data.character
   const collectionPct = Math.round((char.cards.length / 65) * 100)
   const relaxedMode = data.settings.relaxedMode === true
+  const xpSpeed: XpSpeed = data.settings.xpSpeed ?? 'normal'
+  const speedLabel =
+    xpSpeed === 'slow'
+      ? t('settings.xpSpeedSlow')
+      : xpSpeed === 'fast'
+        ? t('settings.xpSpeedFast')
+        : t('settings.xpSpeedNormal')
 
   const levels = Array.from({ length: MAX_LEVEL_CHART }, (_, i) => i + 1)
   const xpPerLevel = levels.map((n) => xpNextFor(n))
@@ -32,7 +40,7 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
         <li>${t('sheet.rule2')}</li>
         <li>${t('sheet.rule3')}</li>
         <li>${t('sheet.rule4')}</li>
-        <li>${t('sheet.rule5')}</li>
+        <li>${t('sheet.rule5', { log: scaleXp(XP_PER_LOG, xpSpeed), mention: scaleXp(XP_PER_MENTION, xpSpeed) })}</li>
         <li>${t('sheet.rule6')}</li>
         <li>${t('sheet.rule7')}</li>
         <li><b>${t('sheet.relaxedMode')}${relaxedMode ? t('sheet.activated') : ''}:</b> ${t('sheet.rule8')}</li>
@@ -40,7 +48,7 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
     </div>
 
     <div class="game-tables-grid">
-      <div class="settings-section">
+      <div class="settings-section" data-xp-table>
         <h3>${t('sheet.xpEarned')}</h3>
         <p>${t('sheet.xpEarnedSub')}</p>
         <table class="game-table">
@@ -56,11 +64,12 @@ export function mountSheet(root: HTMLElement, data: AppData): void {
               <tr>
                 <th scope="row">${difficultyMeta(d.id).label}</th>
                 <td>×${d.multiplier}</td>
-                <td><b>+${xpFor(d.id)}</b></td>
+                <td><b>+${scaleXp(xpFor(d.id), xpSpeed)}</b></td>
               </tr>
             `).join('')}
           </tbody>
         </table>
+        <p class="settings-hint" data-xp-speed-line>${t('sheet.xpSpeedLine', { v: speedLabel })}</p>
         <p class="settings-hint">${t('sheet.levelUpHint')}</p>
       </div>
 

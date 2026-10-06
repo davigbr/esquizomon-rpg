@@ -109,7 +109,13 @@ export interface Settings {
   agenda?: AgendaColumn[]
   /** Last view mode of the today screen. Synced with the account. */
   todayView?: TodayView
+  /** XP progression speed: halves/keeps/doubles every XP GAIN (levels and the
+   *  level formula don't change; not retroactive). Synced with the account. */
+  xpSpeed?: XpSpeed
 }
+
+/** XP progression speed options (settings). Each multiplies every XP gain. */
+export type XpSpeed = 'slow' | 'normal' | 'fast'
 
 /** View modes of the today screen: classic columns or the Agenda (planning). */
 export type TodayView = 'colunas' | 'agenda'
