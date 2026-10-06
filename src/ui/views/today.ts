@@ -633,8 +633,8 @@ function agendaHtml(data: AppData, hoje: string, passes: (t: Task) => boolean, m
     { key: 'proximas', title: t('today.secNext'), cls: 'proximas', sempre: true, add: true },
     { key: 'semana', title: t('today.secWeek'), sub: t('today.until', { date: curto(fimSemana) }), cls: 'semana' },
     { key: 'mes', title: `${MESES[M - 1]} ${Y}`, cls: 'mes' },
-    { key: 'm1', title: t('today.monthPlus1'), sub: `${MESES[m1m - 1]} ${m1y}`, cls: 'mes' },
-    { key: 'm2', title: t('today.monthPlus2'), sub: `${MESES[m2m - 1]} ${m2y}`, cls: 'mes' },
+    { key: 'm1', title: `${MESES[m1m - 1]} ${m1y}`, cls: 'mes' },
+    { key: 'm2', title: `${MESES[m2m - 1]} ${m2y}`, cls: 'mes' },
     { key: 'semestre', title: t('today.secSemester'), sub: faixa(S.semestre), cls: 'mes' },
     { key: 'ano', title: t('today.secYear'), sub: faixa(S.ano), cls: 'mes' },
   ]

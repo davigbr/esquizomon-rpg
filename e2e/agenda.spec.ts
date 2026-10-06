@@ -125,11 +125,9 @@ test('agenda: seções por janela de data, sem hábitos e sem repetir item', asy
   await expect(page.locator('[data-sec="semana"]')).toContainText('Tarefa da semana')
   await expect(page.locator('[data-sec="mes"] h2')).toContainText('Março 2030')
   await expect(page.locator('[data-sec="mes"]')).toContainText('Tarefa do mês')
-  // mês+1 / mês+2 são rotulados como deslocamento (o mês vai no subtítulo)
-  await expect(page.locator('[data-sec="m1"] h2')).toContainText('Mês Atual + 1')
-  await expect(page.locator('[data-sec="m1"] .agenda-sec-sub')).toContainText('Abril 2030')
-  await expect(page.locator('[data-sec="m2"] h2')).toContainText('Mês Atual + 2')
-  await expect(page.locator('[data-sec="m2"] .agenda-sec-sub')).toContainText('Maio 2030')
+  // o mês (e o +1/+2) aparece pelo NOME — os rótulos são dinâmicos
+  await expect(page.locator('[data-sec="m1"] h2')).toContainText('Abril 2030')
+  await expect(page.locator('[data-sec="m2"] h2')).toContainText('Maio 2030')
 
   // semestre (resto do semestre civil) e ano (resto do ano)
   await expect(page.locator('[data-sec="semestre"]')).toContainText('Tarefa junho')
