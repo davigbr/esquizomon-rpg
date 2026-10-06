@@ -32,6 +32,19 @@ let showDone = false
 let visibleDate = todayISO()
 let clickHandler: ((e: Event) => void) | null = null
 
+/** Visualization mode of the "today" screen: the classic columns or the Agenda
+ *  (planning) view. Persisted in a UI-only localStorage key (like the chat panel). */
+type ViewMode = 'colunas' | 'agenda'
+const VIEW_KEY = 'esquizomon-rpg:hoje-view'
+function readViewMode(): ViewMode {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'agenda' ? 'agenda' : 'colunas'
+  } catch {
+    return 'colunas'
+  }
+}
+let viewMode: ViewMode = readViewMode()
+
 export function mountToday(root: HTMLElement, data: AppData): void {
   const todayReal = todayISO()
   const isToday = visibleDate === todayReal
@@ -53,36 +66,10 @@ export function mountToday(root: HTMLElement, data: AppData): void {
 
   const filterActive = filterTag !== null || filterDifficulty !== ''
   const char = data.character
+  const isAgenda = viewMode === 'agenda'
 
-  root.innerHTML = `
-    <header class="view-header">
-      <div class="view-header-navigation">
-        <button class="btn btn-icon" data-prev-day aria-label="${t('today.prevDay')}"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
-        <h1>${escapeHtml(label)}</h1>
-        <button class="btn btn-icon" data-next-day aria-label="${t('today.nextDay')}" ${isToday ? 'disabled' : ''}><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
-        <button class="btn btn-heal" data-heal aria-label="${t('today.healLabel', { mana: HEAL_MANA_COST })}" title="${t('today.healTitle', { mana: HEAL_MANA_COST })}" ${char.hp >= char.hpMax || char.mana < HEAL_MANA_COST ? 'disabled' : ''}><i class="fa-solid fa-heart-pulse" aria-hidden="true"></i><span class="heal-cost">${HEAL_MANA_COST}⚡</span></button>
-      </div>
-      <p class="view-sub">${escapeHtml(formatLongDate(visibleDate))}</p>
-    </header>
-
-    ${char.exhausted ? `<div class="sheet-depleted"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> ${t('today.exhausted')}</div>` : ''}
-
-    <div class="filters">
-      ${tags.length > 0
-        ? `<span class="filters-label">${t('today.tag')}</span>${tags
-            .map((tag) => `<button class="filter-chip${filterTag === tag ? ' active' : ''}" data-filter-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`)
-            .join('')}`
-        : ''}
-      <select class="filter-select" data-filter-difficulty>
-        <option value="">${t('today.allDifficulties')}</option>
-        ${(['facil', 'media', 'dificil', 'extrema'] as Difficulty[])
-          .map((d) => `<option value="${d}" ${filterDifficulty === d ? 'selected' : ''}>${difficultyMeta(d).label}</option>`)
-          .join('')}
-      </select>
-      <button class="filter-chip${showDone ? ' active' : ''}" data-filter-done><i class="fa-solid fa-check" aria-hidden="true"></i> ${t('today.done')}</button>
-      ${filterActive ? `<button class="btn btn-icon" data-clear-filters aria-label="${t('today.clear')}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>` : ''}
-    </div>
-
+  /* Colunas (visão clássica) — mantidas como estavam. */
+  const colunasHtml = `
     <div class="columns">
       <section class="column">
         <header class="column-header">
@@ -121,12 +108,64 @@ export function mountToday(root: HTMLElement, data: AppData): void {
     </div>
   `
 
-  /* ---------- date navigation ---------- */
-  root.querySelector('[data-prev-day]')!.addEventListener('click', () => {
+  root.innerHTML = `
+    <header class="view-header">
+      <div class="view-header-navigation">
+        ${isAgenda ? '' : `<button class="btn btn-icon" data-prev-day aria-label="${t('today.prevDay')}"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>`}
+        <h1>${escapeHtml(isAgenda ? t('today.today') : label)}</h1>
+        ${isAgenda ? '' : `<button class="btn btn-icon" data-next-day aria-label="${t('today.nextDay')}" ${isToday ? 'disabled' : ''}><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>`}
+        <button class="btn btn-heal" data-heal aria-label="${t('today.healLabel', { mana: HEAL_MANA_COST })}" title="${t('today.healTitle', { mana: HEAL_MANA_COST })}" ${char.hp >= char.hpMax || char.mana < HEAL_MANA_COST ? 'disabled' : ''}><i class="fa-solid fa-heart-pulse" aria-hidden="true"></i><span class="heal-cost">${HEAL_MANA_COST}⚡</span></button>
+        <div class="view-mode-toggle" role="tablist" aria-label="${t('today.viewMode')}">
+          <button type="button" class="view-mode-btn${isAgenda ? '' : ' active'}" data-view-mode="colunas" role="tab" aria-selected="${!isAgenda}">${t('today.viewColumns')}</button>
+          <button type="button" class="view-mode-btn${isAgenda ? ' active' : ''}" data-view-mode="agenda" role="tab" aria-selected="${isAgenda}">${t('today.viewAgenda')}</button>
+        </div>
+      </div>
+      <p class="view-sub">${escapeHtml(formatLongDate(visibleDate))}</p>
+    </header>
+
+    ${char.exhausted ? `<div class="sheet-depleted"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> ${t('today.exhausted')}</div>` : ''}
+
+    <div class="filters">
+      ${tags.length > 0
+        ? `<span class="filters-label">${t('today.tag')}</span>${tags
+            .map((tag) => `<button class="filter-chip${filterTag === tag ? ' active' : ''}" data-filter-tag="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`)
+            .join('')}`
+        : ''}
+      <select class="filter-select" data-filter-difficulty>
+        <option value="">${t('today.allDifficulties')}</option>
+        ${(['facil', 'media', 'dificil', 'extrema'] as Difficulty[])
+          .map((d) => `<option value="${d}" ${filterDifficulty === d ? 'selected' : ''}>${difficultyMeta(d).label}</option>`)
+          .join('')}
+      </select>
+      <button class="filter-chip${showDone ? ' active' : ''}" data-filter-done><i class="fa-solid fa-check" aria-hidden="true"></i> ${t('today.done')}</button>
+      ${filterActive ? `<button class="btn btn-icon" data-clear-filters aria-label="${t('today.clear')}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>` : ''}
+    </div>
+
+    ${isAgenda ? agendaHtml(data, todayReal, passes, showDone) : colunasHtml}
+  `
+
+  /* ---------- view mode toggle (Colunas | Agenda) ---------- */
+  root.querySelectorAll('[data-view-mode]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const m = el.getAttribute('data-view-mode')
+      if (m !== 'colunas' && m !== 'agenda') return
+      viewMode = m
+      if (m === 'agenda') visibleDate = todayReal // a Agenda ancora sempre no dia atual
+      try {
+        localStorage.setItem(VIEW_KEY, viewMode)
+      } catch {
+        /* ignore */
+      }
+      mountToday(root, appStore.get())
+    })
+  })
+
+  /* ---------- date navigation (só na visão Colunas) ---------- */
+  root.querySelector('[data-prev-day]')?.addEventListener('click', () => {
     visibleDate = addDays(visibleDate, -1)
     mountToday(root, appStore.get())
   })
-  root.querySelector('[data-next-day]')!.addEventListener('click', () => {
+  root.querySelector('[data-next-day]')?.addEventListener('click', () => {
     if (visibleDate < todayReal) {
       visibleDate = addDays(visibleDate, 1)
       mountToday(root, appStore.get())
@@ -389,4 +428,114 @@ function scheduleLabel(t: Task): string {
 
 function emptyColumn(text: string): string {
   return `<div class="empty empty-column"><strong>${escapeHtml(text)}</strong></div>`
+}
+
+/** Nomes de mês (pt) para os títulos de seção da Agenda. */
+const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+
+/** Agenda (planejamento): só recorrentes e tarefas (sem hábitos), em seções por
+ *  janela de data. Cada item aparece UMA única vez. Recorrentes só no dia atual
+ *  (atrasadas se houver ocorrência perdida; senão hoje) — nunca em seções futuras.
+ *  Seções: atrasadas → hoje → próximas ações (sem data) → semana (até sábado) →
+ *  mês corrente → +1 → +2 → semestre (resto do semestre civil) → ano (resto). */
+function agendaHtml(data: AppData, hoje: string, passes: (t: Task) => boolean, mostrarConcluidas: boolean): string {
+  const [Y, M, D] = hoje.split('-').map(Number)
+  const isoOf = (y: number, m: number, d: number): string => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  const diasNoMes = (y: number, m: number): number => new Date(y, m, 0).getDate()
+
+  // fim da semana = sábado (23:59) da semana corrente
+  const sáb = new Date(Y, M - 1, D)
+  sáb.setDate(sáb.getDate() + ((6 - sáb.getDay() + 7) % 7))
+  const fimSemana = isoOf(sáb.getFullYear(), sáb.getMonth() + 1, sáb.getDate())
+  const fimMes = isoOf(Y, M, diasNoMes(Y, M))
+  const m1y = M === 12 ? Y + 1 : Y
+  const m1m = M === 12 ? 1 : M + 1
+  const fimM1 = isoOf(m1y, m1m, diasNoMes(m1y, m1m))
+  const m2y = m1m === 12 ? m1y + 1 : m1y
+  const m2m = m1m === 12 ? 1 : m1m + 1
+  const fimM2 = isoOf(m2y, m2m, diasNoMes(m2y, m2m))
+  const fimSemestre = M <= 6 ? isoOf(Y, 6, 30) : isoOf(Y, 12, 31)
+
+  const bucket = (d: string): string => {
+    if (d < hoje) return 'atrasadas'
+    if (d === hoje) return 'hoje'
+    if (d <= fimSemana) return 'semana'
+    if (d <= fimMes) return 'mes'
+    if (d <= fimM1) return 'm1'
+    if (d <= fimM2) return 'm2'
+    if (d <= fimSemestre) return 'semestre'
+    return 'ano'
+  }
+
+  const S: Record<string, Task[]> = {
+    atrasadas: [], hoje: [], proximas: [], semana: [], mes: [], m1: [], m2: [], semestre: [], ano: [],
+  }
+  for (const t of data.tasks) {
+    if (t.type === 'habito') continue
+    if (!passes(t)) continue
+    if (t.type === 'recorrente') {
+      if (recurrenceOverdue(t, hoje)) S.atrasadas.push(t)
+      else if (recurrenceDue(t, hoje)) S.hoje.push(t)
+      continue
+    }
+    if (t.done && !mostrarConcluidas) continue
+    if (!t.dueDate) S.proximas.push(t)
+    else S[bucket(t.dueDate)].push(t)
+  }
+
+  const porData = (a: Task, b: Task): number =>
+    (a.dueDate ?? '').localeCompare(b.dueDate ?? '') || a.title.localeCompare(b.title)
+  ;(['atrasadas', 'hoje', 'semana', 'mes', 'm1', 'm2', 'semestre', 'ano'] as const).forEach((k) => S[k].sort(porData))
+  S.proximas.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+
+  const curto = (iso: string): string => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
+  const faixa = (arr: Task[]): string => {
+    const ds = arr.map((t) => t.dueDate ?? '').filter(Boolean).sort()
+    if (ds.length === 0) return ''
+    const f = (iso: string): string => {
+      const x = new Date(iso + 'T12:00:00')
+      return MESES[x.getMonth()].slice(0, 3).toLowerCase() + '/' + String(x.getFullYear()).slice(2)
+    }
+    const a = f(ds[0])
+    const b = f(ds[ds.length - 1])
+    return a === b ? a : `${a} – ${b}`
+  }
+
+  const defs: Array<{ key: string; title: string; sub?: string; cls: string; sempre?: boolean; add?: boolean }> = [
+    { key: 'atrasadas', title: t('today.secOverdue'), cls: 'atrasadas' },
+    { key: 'hoje', title: t('today.today'), cls: 'hoje', sempre: true },
+    { key: 'proximas', title: t('today.secNext'), cls: 'proximas', sempre: true, add: true },
+    { key: 'semana', title: t('today.secWeek'), sub: t('today.until', { date: curto(fimSemana) }), cls: 'semana' },
+    { key: 'mes', title: `${MESES[M - 1]} ${Y}`, cls: 'mes' },
+    { key: 'm1', title: `${MESES[m1m - 1]} ${m1y}`, cls: 'mes' },
+    { key: 'm2', title: `${MESES[m2m - 1]} ${m2y}`, cls: 'mes' },
+    { key: 'semestre', title: t('today.secSemester'), sub: faixa(S.semestre), cls: 'mes' },
+    { key: 'ano', title: t('today.secYear'), sub: faixa(S.ano), cls: 'mes' },
+  ]
+
+  const card = (t: Task): string => (t.type === 'recorrente' ? recurringCard(t, hoje) : oneOffCard(t, t.done === true))
+  const vazio: Record<string, string> = { hoje: t('today.emptyToday'), proximas: t('today.emptyNext') }
+
+  const secoes = defs
+    .filter((d) => d.sempre || S[d.key].length > 0)
+    .map((d) => {
+      const itens = S[d.key]
+      return `
+        <section class="agenda-sec agenda-sec--${d.cls}" data-sec="${d.key}">
+          <header class="agenda-sec-head">
+            <span class="agenda-sec-mark" aria-hidden="true"></span>
+            <h2>${escapeHtml(d.title)}</h2>
+            ${d.sub ? `<span class="agenda-sec-sub">${escapeHtml(d.sub)}</span>` : ''}
+            <span class="column-count">${itens.length}</span>
+            ${d.add ? `<button class="btn btn-icon column-add" data-new-type="unica" aria-label="${t('today.newTask')}"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>` : ''}
+          </header>
+          <div class="agenda-sec-cards">
+            ${itens.length === 0 ? emptyColumn(vazio[d.key] ?? t('today.emptyHabit')) : itens.map(card).join('')}
+          </div>
+        </section>
+      `
+    })
+    .join('')
+
+  return `<div class="agenda">${secoes}</div>`
 }

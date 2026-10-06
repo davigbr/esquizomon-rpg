@@ -1357,6 +1357,115 @@ select.field {
   margin: 4px 0 2px;
 }
 
+/* ---------- visualização Agenda (planejamento) ---------- */
+.view-mode-toggle {
+  margin-left: auto;
+  display: flex;
+  gap: 3px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 11px;
+  padding: 3px;
+}
+
+.view-mode-btn {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.view-mode-btn.active {
+  background: var(--accent-gold);
+  color: #1a1509;
+}
+
+.agenda {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.agenda-sec {
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.agenda-sec-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 15px;
+}
+
+.agenda-sec-mark {
+  width: 4px;
+  align-self: stretch;
+  min-height: 18px;
+  border-radius: 3px;
+  background: var(--border-color);
+  flex-shrink: 0;
+}
+
+.agenda-sec-head h2 {
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+.agenda-sec-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.agenda-sec-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 8px 10px;
+}
+
+.agenda-sec--atrasadas .agenda-sec-mark {
+  background: #b06a58;
+}
+
+.agenda-sec--atrasadas .agenda-sec-head h2 {
+  color: #c07a68;
+}
+
+.agenda-sec--hoje .agenda-sec-mark {
+  background: var(--accent-gold);
+}
+
+.agenda-sec--hoje .agenda-sec-head h2 {
+  color: var(--accent-gold);
+}
+
+.agenda-sec--semana .agenda-sec-mark {
+  background: #8f7f52;
+}
+
+.agenda-sec--proximas .agenda-sec-mark {
+  background: #6f7f8f;
+}
+
+.agenda-sec .column-count {
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .view-mode-toggle {
+    margin-left: 0;
+  }
+}
+
 @media (max-width: 900px) {
   .columns {
     grid-template-columns: 1fr;

@@ -435,18 +435,18 @@ test('diário: markdown da nota é renderizado no card (negrito, itálico, lista
 })
 
 test('diário desktop: calendário de calor — dias com nota marcados, clique posiciona, escondido no mobile', async ({ page }) => {
-  const antiga = dataLocal(-12)
+  // dias do MÊS CORRENTE (o calendário abre no mês atual) — robusto à virada de mês:
+  // dois dias distintos de hoje, dentro do mês, para alvo e para "sem nota"
+  const diaHoje = Number(hoje.slice(8, 10))
+  const candidatos = Array.from({ length: 28 }, (_, i) => i + 1).filter((n) => n !== diaHoje)
+  const alvo = `${hoje.slice(0, 8)}${String(candidatos[0]).padStart(2, '0')}`
+  const semNota = `${hoje.slice(0, 8)}${String(candidatos[1]).padStart(2, '0')}`
+
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.addInitScript(({ hoje, antiga }) => {
-    const notes = Array.from({ length: 12 }, (_, i) => {
-      const d = new Date()
-      d.setDate(d.getDate() - (i + 2))
-      const dd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      return { id: `n-old-${i}`, date: dd, time: '08:00', text: `nota antiga ${i + 1}`, createdAt: dd + 'T08:00:00Z' }
-    })
-    notes.push({ id: 'n-sim', date: hoje, time: '10:00', text: 'nota de hoje', createdAt: hoje + 'T10:00:00Z' })
-    // dia antigo com MUITAS notas (>=5) → ponto cheio
-    for (let i = 0; i < 5; i++) notes.push({ id: `n-full-${i}`, date: antiga, time: `09:${i}0`, text: 'x', createdAt: antiga + 'T09:00:00Z' })
+  await page.addInitScript(({ hoje, alvo }) => {
+    const notes = [{ id: 'n-hoje', date: hoje, time: '10:00', text: 'nota de hoje', createdAt: hoje + 'T10:00:00Z' }]
+    // dia com MUITAS notas (>=5) → ponto cheio
+    for (let i = 0; i < 5; i++) notes.push({ id: `n-full-${i}`, date: alvo, time: `09:${i}0`, text: 'x', createdAt: alvo + 'T09:00:00Z' })
     localStorage.setItem(
       'esquizomon-rpg:v1',
       JSON.stringify({
@@ -460,23 +460,23 @@ test('diário desktop: calendário de calor — dias com nota marcados, clique p
         notes,
       }),
     )
-  }, { hoje, antiga })
+  }, { hoje, alvo })
 
   await page.goto('/#/diary')
-  // desktop (>=1100): calendário visível; o dia antigo com nota tem marcador (has),
-  // hoje tem anel (hoje), dia sem nota não (31 do do mês corrente, sem nota)
+  // desktop (>=1100): calendário visível; dia com nota tem marcador, hoje tem anel
   await expect(page.locator('.diary-cal')).toBeVisible()
-  await expect(page.locator(`.cel[data-cal-day="${antiga}"]`)).toHaveClass(/has|forte/)
+  await expect(page.locator(`.cel[data-cal-day="${alvo}"]`)).toHaveClass(/has|forte/)
   await expect(page.locator(`.cel[data-cal-day="${hoje}"]`)).toHaveClass(/hoje/)
-  // clique num dia antigo → timeline destaca aquele dia
-  await page.locator(`.cel[data-cal-day="${antiga}"]`).click()
-  await expect(page.locator(`.timeline-day[data-day="${antiga}"].is-active`)).toHaveCount(1)
+  // clique num dia com nota → timeline destaca aquele dia
+  await page.locator(`.cel[data-cal-day="${alvo}"]`).click()
+  await expect(page.locator(`.timeline-day[data-day="${alvo}"].is-active`)).toHaveCount(1)
   // dia sem nota → toast
-  await page.locator(`.cel[data-cal-day="${dataLocal(-1)}"]`).click()
+  await page.locator(`.cel[data-cal-day="${semNota}"]`).click()
   await expect(page.locator('.toast').last()).toContainText('Sem notas nesse dia.')
-  // navegação de mês muda o rótulo
+  // navegação de mês muda o rótulo (sem depender do mês corrente)
+  const mesInicial = await page.locator('[data-cal-mes]').textContent()
   await page.locator('[data-cal-next]').click()
-  await expect(page.locator('[data-cal-mes]')).toContainText('Outubro')
+  await expect(page.locator('[data-cal-mes]')).not.toHaveText(mesInicial ?? '')
 
   // mobile/tablet: calendário escondido (coluna única permanece)
   await page.setViewportSize({ width: 390, height: 844 })
