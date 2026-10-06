@@ -86,7 +86,7 @@ const TODAS: SeedTask[] = [
 
 async function abrirAgenda(page: import('@playwright/test').Page): Promise<void> {
   await page.locator('[data-view-mode="agenda"]').click()
-  await expect(page.locator('.agenda')).toBeVisible()
+  await expect(page.locator('.agenda-board')).toBeVisible()
 }
 
 test('agenda: seções por janela de data, sem hábitos e sem repetir item', async ({ page }) => {
@@ -94,9 +94,11 @@ test('agenda: seções por janela de data, sem hábitos e sem repetir item', asy
   await abrirAgenda(page)
 
   // hábito NUNCA aparece
-  await expect(page.locator('.agenda')).not.toContainText('Hábito invisível')
+  await expect(page.locator('.agenda-board')).not.toContainText('Hábito invisível')
   // colunas some, agenda entra
   await expect(page.locator('.columns')).toHaveCount(0)
+  // as 9 seções viram 3 colunas por horizonte
+  await expect(page.locator('.agenda-col-title')).toHaveText(['Agora', 'Este mês', 'Futuro'])
 
   // atrasadas: a tarefa vencida + a recorrente perdida (uma ocorrência)
   const atras = page.locator('[data-sec="atrasadas"]')
@@ -166,11 +168,11 @@ test('agenda: toggle persiste e concluir/editar funciona na agenda', async ({ pa
 
   // o modo persiste no reload (localStorage)
   await page.reload()
-  await expect(page.locator('.agenda')).toBeVisible()
+  await expect(page.locator('.agenda-board')).toBeVisible()
   await expect(page.locator('[data-view-mode="agenda"]')).toHaveClass(/active/)
 
   // volta para colunas → botão ativo troca e as colunas aparecem
   await page.locator('[data-view-mode="colunas"]').click()
   await expect(page.locator('.columns')).toBeVisible()
-  await expect(page.locator('.agenda')).toHaveCount(0)
+  await expect(page.locator('.agenda-board')).toHaveCount(0)
 })

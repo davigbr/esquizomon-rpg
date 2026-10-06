@@ -516,26 +516,47 @@ function agendaHtml(data: AppData, hoje: string, passes: (t: Task) => boolean, m
   const card = (t: Task): string => (t.type === 'recorrente' ? recurringCard(t, hoje) : oneOffCard(t, t.done === true))
   const vazio: Record<string, string> = { hoje: t('today.emptyToday'), proximas: t('today.emptyNext') }
 
-  const secoes = defs
-    .filter((d) => d.sempre || S[d.key].length > 0)
-    .map((d) => {
-      const itens = S[d.key]
+  const porChave: Record<string, (typeof defs)[number]> = {}
+  for (const d of defs) porChave[d.key] = d
+
+  const secHtml = (d: (typeof defs)[number]): string => {
+    const itens = S[d.key]
+    return `
+      <section class="agenda-sec agenda-sec--${d.cls}" data-sec="${d.key}">
+        <header class="agenda-sec-head">
+          <span class="agenda-sec-mark" aria-hidden="true"></span>
+          <h2>${escapeHtml(d.title)}</h2>
+          ${d.sub ? `<span class="agenda-sec-sub">${escapeHtml(d.sub)}</span>` : ''}
+          <span class="column-count">${itens.length}</span>
+          ${d.add ? `<button class="btn btn-icon column-add" data-new-type="unica" aria-label="${t('today.newTask')}"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>` : ''}
+        </header>
+        <div class="agenda-sec-cards">
+          ${itens.length === 0 ? emptyColumn(vazio[d.key] ?? t('today.emptyHabit')) : itens.map(card).join('')}
+        </div>
+      </section>
+    `
+  }
+
+  // As 9 seções viram 3 colunas por horizonte de tempo (desktop); no mobile empilham.
+  const colunas: Array<{ titulo: string; chaves: string[] }> = [
+    { titulo: t('today.horizonNow'), chaves: ['atrasadas', 'hoje', 'proximas'] },
+    { titulo: t('today.horizonMonth'), chaves: ['semana', 'mes'] },
+    { titulo: t('today.horizonFuture'), chaves: ['m1', 'm2', 'semestre', 'ano'] },
+  ]
+
+  const board = colunas
+    .map((c) => {
+      const visiveis = c.chaves
+        .map((k) => porChave[k])
+        .filter((d) => d && (d.sempre || S[d.key].length > 0))
       return `
-        <section class="agenda-sec agenda-sec--${d.cls}" data-sec="${d.key}">
-          <header class="agenda-sec-head">
-            <span class="agenda-sec-mark" aria-hidden="true"></span>
-            <h2>${escapeHtml(d.title)}</h2>
-            ${d.sub ? `<span class="agenda-sec-sub">${escapeHtml(d.sub)}</span>` : ''}
-            <span class="column-count">${itens.length}</span>
-            ${d.add ? `<button class="btn btn-icon column-add" data-new-type="unica" aria-label="${t('today.newTask')}"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>` : ''}
-          </header>
-          <div class="agenda-sec-cards">
-            ${itens.length === 0 ? emptyColumn(vazio[d.key] ?? t('today.emptyHabit')) : itens.map(card).join('')}
-          </div>
-        </section>
+        <div class="agenda-col">
+          <div class="agenda-col-title">${escapeHtml(c.titulo)}</div>
+          ${visiveis.length === 0 ? `<p class="agenda-col-empty">${t('today.nothingHere')}</p>` : visiveis.map(secHtml).join('')}
+        </div>
       `
     })
     .join('')
 
-  return `<div class="agenda">${secoes}</div>`
+  return `<div class="agenda-board">${board}</div>`
 }

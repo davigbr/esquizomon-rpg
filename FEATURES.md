@@ -12,7 +12,7 @@
 - Dificuldade (×1/×1.5/×2/×2.5), tags, notas markdown-lite, due date, envelhecimento
 - Filtros (tag/dificuldade/concluídas), drag & drop, navegação de data ◀ ▶
 - Export/import JSON, PWA, tema dark/ouro
-- **Visualização Agenda** (toggle Colunas|Agenda, 2026-10-01): só recorrentes e tarefas (SEM hábitos), em seções por janela de data — atrasadas → hoje → próximas ações (sem data) → esta semana (até sábado 24h) → mês corrente (com nome) → mês+1 → mês+2 → semestre (resto do semestre civil) → ano (resto do ano). Cada item aparece em UMA única seção; recorrentes só no dia atual (atrasadas se houver ocorrência perdida — uma ocorrência —, senão hoje), nunca em seções futuras. Modo persistido em `localStorage` (`esquizomon-rpg:hoje-view`); concluir/editar funcionam na Agenda
+- **Visualização Agenda** (toggle Colunas|Agenda, 2026-10-01): só recorrentes e tarefas (SEM hábitos), em seções por janela de data — atrasadas → hoje → próximas ações (sem data) → esta semana (até sábado 24h) → mês corrente (com nome) → mês+1 → mês+2 → semestre (resto do semestre civil) → ano (resto do ano). Cada item aparece em UMA única seção; recorrentes só no dia atual (atrasadas se houver ocorrência perdida — uma ocorrência —, senão hoje), nunca em seções futuras. Modo persistido em `localStorage` (`esquizomon-rpg:hoje-view`); concluir/editar funcionam na Agenda. No desktop as 9 seções viram **3 colunas por horizonte** — Agora (atrasadas·hoje·próximas ações) · Este mês (semana·mês) · Futuro (+1·+2·semestre·ano); no mobile empilham em coluna única
 
 ### Jogo (Fase 2)
 - XP/nível (nível×80), HP + dano diário e de hábitos negativos, morte não-destrutiva (perde 1 carta)
