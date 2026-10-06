@@ -1428,6 +1428,14 @@ select.field {
   color: #1a1509;
 }
 
+/* no hover, o botão primário mantém o texto escuro — senão fica dourado sobre
+   dourado (bug 2026-10-01) */
+.agenda-btn--primary:hover {
+  color: #1a1509;
+  border-color: var(--accent-gold);
+  filter: brightness(1.07);
+}
+
 .agenda-btn[disabled] {
   opacity: 0.45;
   cursor: default;

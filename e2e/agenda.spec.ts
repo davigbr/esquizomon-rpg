@@ -254,6 +254,43 @@ test('agenda: remover coluna não perde nenhuma seção (invariante preservado)'
   expect(new Set(planas).size).toBe(9)
 })
 
+test('agenda: sair da personalização funciona repetidamente (bug 2026-10-01)', async ({ page }) => {
+  await seed(page, TODAS)
+  await abrirAgenda(page)
+  await page.locator('[data-agenda-edit]').click()
+  // hover do "Concluir": texto NÃO pode ficar da cor do fundo (dourado sobre dourado)
+  const done = page.locator('[data-agenda-done]')
+  await done.hover()
+  const cores = await done.evaluate((el) => {
+    const s = getComputedStyle(el)
+    return { cor: s.color, fundo: s.backgroundColor }
+  })
+  expect(cores.cor).not.toBe(cores.fundo)
+  // entrar/sair 2× — "Concluir" sem edições não pode travar no modo edição
+  for (let i = 0; i < 2; i++) {
+    if (i > 0) await page.locator('[data-agenda-edit]').click()
+    await expect(page.locator('.agenda-col-name')).toHaveCount(3)
+    await page.locator('[data-agenda-done]').click()
+    await expect(page.locator('.agenda-col-name')).toHaveCount(0)
+    await expect(page.locator('.agenda-col-title')).toHaveCount(3)
+  }
+})
+
+test('agenda: edições continuam valendo depois da config já salva (re-render)', async ({ page }) => {
+  await seed(page, TODAS)
+  await abrirAgenda(page)
+  // 1ª gravação: a partir daqui settings.agenda existe (o layout não pode mais
+  // ser a MESMA referência do store, senão o guarda de no-op engole o re-render)
+  await page.locator('[data-agenda-edit]').click()
+  await page.locator('[data-agenda-done]').click()
+  // agora edita de novo: adicionar e remover coluna devem refletir na hora
+  await page.locator('[data-agenda-edit]').click()
+  await page.locator('[data-agenda-addcol]').click()
+  await expect(page.locator('.agenda-col')).toHaveCount(4)
+  await page.locator('[data-agenda-delcol]').last().click()
+  await expect(page.locator('.agenda-col')).toHaveCount(3)
+})
+
 test('agenda: config incompleta é normalizada (nada some da tela)', async ({ page }) => {
   await seed(page, TODAS)
   // grava uma config antiga com UMA coluna e só "atrasadas" e recarrega: as outras

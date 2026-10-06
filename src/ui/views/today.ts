@@ -48,11 +48,16 @@ function agendaColunasPadrao(): AgendaColumn[] {
   ]
 }
 
-/** Effective board layout. `settings.agenda` is already normalized by the storage
- *  layer (invariant: every AGENDA_SECTIONS id in EXACTLY one column). */
+/** Effective board layout — always a DEEP COPY, never the array stored in
+ *  `settings`: the edit handlers mutate it in place, and if it aliased the store
+ *  state the no-op guard (JSON equal) would see no change and skip the re-render
+ *  (bug 2026-10-01: edits after the first save didn't show up). `settings.agenda`
+ *  is already normalized by the storage layer (invariant: every AGENDA_SECTIONS
+ *  id in EXACTLY one column). */
 function layoutAtual(data: AppData): AgendaColumn[] {
   const salvo = data.settings?.agenda
-  return salvo && salvo.length > 0 ? salvo : agendaColunasPadrao()
+  if (!salvo || salvo.length === 0) return agendaColunasPadrao()
+  return salvo.map((c) => ({ id: c.id, name: c.name, sections: [...c.sections] }))
 }
 
 let viewMode: TodayView = 'colunas'
@@ -192,6 +197,9 @@ export function mountToday(root: HTMLElement, data: AppData): void {
   root.querySelector('[data-agenda-done]')?.addEventListener('click', () => {
     agendaEditando = false
     setSettings({ agenda: agendaColunas })
+    // `agendaEditando` é estado de módulo (não do store): re-renderiza mesmo que
+    // o store não mude (senão "Concluir" sem edições não saía do modo edição)
+    mountToday(root, appStore.get())
   })
   root.querySelector('[data-agenda-addcol]')?.addEventListener('click', () => {
     if (agendaColunas.length >= MAX_COLUNAS) return
