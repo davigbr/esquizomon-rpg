@@ -4,7 +4,7 @@
  *  The visible date can be navigated (◀ ▶, max today) — everything reflects
  *  the selected day. */
 
-import type { AppData, Difficulty, Task, TaskType } from '../../core/tipos'
+import type { AgendaColumn, AgendaSection, AppData, Difficulty, Task, TaskType, TodayView } from '../../core/tipos'
 import {
   addDays,
   calcStreak,
@@ -17,7 +17,7 @@ import {
   recurrenceOverdue,
   todayISO,
 } from '../../core/jogo'
-import { appStore, deleteTask, recordHabit, reorderTasks, tagsInUse, toggleOneOff, toggleRecurringToday, healWithMana, HEAL_MANA_COST } from '../../stores/app'
+import { appStore, deleteTask, recordHabit, reorderTasks, setSettings, tagsInUse, toggleOneOff, toggleRecurringToday, healWithMana, HEAL_MANA_COST } from '../../stores/app'
 import { openTaskForm } from '../formTarefa'
 import { escapeHtml } from '../util'
 import { t } from '../../i18n'
@@ -33,19 +33,37 @@ let visibleDate = todayISO()
 let clickHandler: ((e: Event) => void) | null = null
 
 /** Visualization mode of the "today" screen: the classic columns or the Agenda
- *  (planning) view. Persisted in a UI-only localStorage key (like the chat panel). */
-type ViewMode = 'colunas' | 'agenda'
-const VIEW_KEY = 'esquizomon-rpg:hoje-view'
-function readViewMode(): ViewMode {
-  try {
-    return localStorage.getItem(VIEW_KEY) === 'agenda' ? 'agenda' : 'colunas'
-  } catch {
-    return 'colunas'
-  }
+ *  (planning) view. Stored in `settings.todayView` → persisted AND synced. */
+
+/** View mode + Agenda layout live inside `settings` (part of AppData): they are
+ *  persisted with the app AND synced with the account (settings merges LWW). */
+const MAX_COLUNAS = 6
+
+/** Default board: 3 horizon columns (names from the i18n labels). */
+function agendaColunasPadrao(): AgendaColumn[] {
+  return [
+    { id: 'c1', name: t('today.horizonNow'), sections: ['atrasadas', 'hoje', 'proximas'] },
+    { id: 'c2', name: t('today.horizonMonth'), sections: ['semana', 'mes'] },
+    { id: 'c3', name: t('today.horizonFuture'), sections: ['m1', 'm2', 'semestre', 'ano'] },
+  ]
 }
-let viewMode: ViewMode = readViewMode()
+
+/** Effective board layout. `settings.agenda` is already normalized by the storage
+ *  layer (invariant: every AGENDA_SECTIONS id in EXACTLY one column). */
+function layoutAtual(data: AppData): AgendaColumn[] {
+  const salvo = data.settings?.agenda
+  return salvo && salvo.length > 0 ? salvo : agendaColunasPadrao()
+}
+
+let viewMode: TodayView = 'colunas'
+let agendaColunas: AgendaColumn[] = agendaColunasPadrao()
+/** Edit mode of the board (rename/drag/columns). Transient — not persisted. */
+let agendaEditando = false
 
 export function mountToday(root: HTMLElement, data: AppData): void {
+  // modo + layout vêm do store (settings) — persistidos e sincronizados
+  viewMode = data.settings?.todayView === 'agenda' ? 'agenda' : 'colunas'
+  agendaColunas = layoutAtual(data)
   const todayReal = todayISO()
   const isToday = visibleDate === todayReal
   const isYesterday = visibleDate === addDays(todayReal, -1)
@@ -149,14 +167,8 @@ export function mountToday(root: HTMLElement, data: AppData): void {
     el.addEventListener('click', () => {
       const m = el.getAttribute('data-view-mode')
       if (m !== 'colunas' && m !== 'agenda') return
-      viewMode = m
       if (m === 'agenda') visibleDate = todayReal // a Agenda ancora sempre no dia atual
-      try {
-        localStorage.setItem(VIEW_KEY, viewMode)
-      } catch {
-        /* ignore */
-      }
-      mountToday(root, appStore.get())
+      setSettings({ todayView: m }) // persiste no save + sincroniza (store re-renderiza)
     })
   })
 
@@ -171,6 +183,93 @@ export function mountToday(root: HTMLElement, data: AppData): void {
       mountToday(root, appStore.get())
     }
   })
+
+  /* ---------- Agenda: personalização (colunas, nomes, arrastar) ---------- */
+  root.querySelector('[data-agenda-edit]')?.addEventListener('click', () => {
+    agendaEditando = true
+    mountToday(root, appStore.get())
+  })
+  root.querySelector('[data-agenda-done]')?.addEventListener('click', () => {
+    agendaEditando = false
+    setSettings({ agenda: agendaColunas })
+  })
+  root.querySelector('[data-agenda-addcol]')?.addEventListener('click', () => {
+    if (agendaColunas.length >= MAX_COLUNAS) return
+    agendaColunas.push({
+      id: `c${Date.now().toString(36)}`,
+      name: `${t('today.columnName')} ${agendaColunas.length + 1}`,
+      sections: [],
+    })
+    setSettings({ agenda: agendaColunas })
+  })
+  root.querySelectorAll('[data-agenda-delcol]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const id = el.getAttribute('data-agenda-delcol')
+      const i = agendaColunas.findIndex((c) => c.id === id)
+      if (i === -1 || agendaColunas.length <= 1) return
+      const [removida] = agendaColunas.splice(i, 1)
+      // nenhuma seção se perde: as órfãs vão para a coluna anterior (ou a primeira)
+      const destino = agendaColunas[Math.max(0, i - 1)]
+      destino.sections.push(...removida.sections)
+      setSettings({ agenda: agendaColunas })
+    })
+  })
+  root.querySelectorAll('[data-agenda-colname]').forEach((el) => {
+    const input = el as HTMLInputElement
+    const col = agendaColunas.find((c) => c.id === input.getAttribute('data-agenda-colname'))
+    if (!col) return
+    // digitação atualiza só em memória (sem re-render por tecla); salva ao sair
+    input.addEventListener('input', () => {
+      col.name = input.value
+    })
+    input.addEventListener('blur', () => {
+      col.name = input.value.trim() || col.name
+      input.value = col.name
+      setSettings({ agenda: agendaColunas })
+    })
+  })
+
+  /* drag & drop das seções entre colunas (só no modo edição) */
+  const board = root.querySelector<HTMLElement>('.agenda-board')
+  if (board && agendaEditando) {
+    let arrastando: AgendaSection | null = null
+    board.addEventListener('dragstart', (e) => {
+      const sec = (e.target as HTMLElement).closest<HTMLElement>('.agenda-sec[data-sec]')
+      if (!sec) return
+      arrastando = (sec.dataset.sec as AgendaSection) ?? null
+      sec.classList.add('dragging')
+      const dt = (e as DragEvent).dataTransfer
+      if (dt) {
+        dt.setData('text/plain', arrastando ?? '')
+        dt.effectAllowed = 'move'
+      }
+    })
+    board.addEventListener('dragend', () => {
+      arrastando = null
+      board.querySelectorAll('.dragging, .drag-target').forEach((el) => el.classList.remove('dragging', 'drag-target'))
+    })
+    board.addEventListener('dragover', (e) => {
+      e.preventDefault()
+      const col = (e.target as HTMLElement).closest<HTMLElement>('.agenda-col')
+      board.querySelectorAll('.drag-target').forEach((el) => el.classList.remove('drag-target'))
+      if (col && arrastando) col.classList.add('drag-target')
+    })
+    board.addEventListener('drop', (e) => {
+      e.preventDefault()
+      const colEl = (e.target as HTMLElement).closest<HTMLElement>('.agenda-col')
+      if (!colEl || !arrastando) return
+      const destino = agendaColunas.find((c) => c.id === colEl.dataset.colId)
+      if (!destino) return
+      const alvoSec = (e.target as HTMLElement).closest<HTMLElement>('.agenda-sec[data-sec]')
+      const movida = arrastando
+      for (const c of agendaColunas) c.sections = c.sections.filter((s) => s !== movida)
+      const idx = alvoSec ? destino.sections.indexOf(alvoSec.dataset.sec as AgendaSection) : -1
+      if (idx >= 0) destino.sections.splice(idx, 0, movida)
+      else destino.sections.push(movida)
+      arrastando = null
+      setSettings({ agenda: agendaColunas })
+    })
+  }
 
   /* ---------- add per column ---------- */
   root.querySelectorAll('[data-new-type]').forEach((el) => {
@@ -519,16 +618,18 @@ function agendaHtml(data: AppData, hoje: string, passes: (t: Task) => boolean, m
   const porChave: Record<string, (typeof defs)[number]> = {}
   for (const d of defs) porChave[d.key] = d
 
+  const editando = agendaEditando
+
   const secHtml = (d: (typeof defs)[number]): string => {
     const itens = S[d.key]
     return `
-      <section class="agenda-sec agenda-sec--${d.cls}" data-sec="${d.key}">
+      <section class="agenda-sec agenda-sec--${d.cls}" data-sec="${d.key}"${editando ? ' draggable="true"' : ''}>
         <header class="agenda-sec-head">
           <span class="agenda-sec-mark" aria-hidden="true"></span>
           <h2>${escapeHtml(d.title)}</h2>
           ${d.sub ? `<span class="agenda-sec-sub">${escapeHtml(d.sub)}</span>` : ''}
           <span class="column-count">${itens.length}</span>
-          ${d.add ? `<button class="btn btn-icon column-add" data-new-type="unica" aria-label="${t('today.newTask')}"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>` : ''}
+          ${d.add && !editando ? `<button class="btn btn-icon column-add" data-new-type="unica" aria-label="${t('today.newTask')}"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>` : ''}
         </header>
         <div class="agenda-sec-cards">
           ${itens.length === 0 ? emptyColumn(vazio[d.key] ?? t('today.emptyHabit')) : itens.map(card).join('')}
@@ -537,26 +638,41 @@ function agendaHtml(data: AppData, hoje: string, passes: (t: Task) => boolean, m
     `
   }
 
-  // As 9 seções viram 3 colunas por horizonte de tempo (desktop); no mobile empilham.
-  const colunas: Array<{ titulo: string; chaves: string[] }> = [
-    { titulo: t('today.horizonNow'), chaves: ['atrasadas', 'hoje', 'proximas'] },
-    { titulo: t('today.horizonMonth'), chaves: ['semana', 'mes'] },
-    { titulo: t('today.horizonFuture'), chaves: ['m1', 'm2', 'semestre', 'ano'] },
-  ]
-
-  const board = colunas
+  // Board personalizável: colunas (nome + seções) vêm de `agendaColunas`.
+  const colunasHtml = agendaColunas
     .map((c) => {
-      const visiveis = c.chaves
+      const visiveis = c.sections
         .map((k) => porChave[k])
-        .filter((d) => d && (d.sempre || S[d.key].length > 0))
+        .filter((d) => d && (editando || d.sempre || S[d.key].length > 0))
+      const head = editando
+        ? `<input class="agenda-col-name" data-agenda-colname="${c.id}" value="${escapeHtml(c.name)}"
+             aria-label="${t('today.columnName')}" maxlength="40" placeholder="${t('today.columnName')}" />
+           <button class="agenda-col-del" data-agenda-delcol="${c.id}" aria-label="${t('today.removeColumn')}"
+             title="${t('today.removeColumn')}" ${agendaColunas.length <= 1 ? 'disabled' : ''}>×</button>`
+        : `<div class="agenda-col-title">${escapeHtml(c.name)}</div>`
       return `
-        <div class="agenda-col">
-          <div class="agenda-col-title">${escapeHtml(c.titulo)}</div>
+        <div class="agenda-col" data-col-id="${c.id}">
+          <div class="agenda-col-head">${head}</div>
           ${visiveis.length === 0 ? `<p class="agenda-col-empty">${t('today.nothingHere')}</p>` : visiveis.map(secHtml).join('')}
         </div>
       `
     })
     .join('')
 
-  return `<div class="agenda-board">${board}</div>`
+  const toolbar = `
+    <div class="agenda-toolbar">
+      ${editando
+        ? `<span class="agenda-hint">${t('today.agendaHint')}</span>
+           <button type="button" class="agenda-btn" data-agenda-addcol ${agendaColunas.length >= MAX_COLUNAS ? 'disabled' : ''}>+ ${t('today.addColumn')}</button>
+           <button type="button" class="agenda-btn agenda-btn--primary" data-agenda-done>${t('today.agendaDone')}</button>`
+        : `<button type="button" class="agenda-btn" data-agenda-edit>${t('today.agendaCustomize')}</button>`}
+    </div>
+  `
+
+  return `
+    <div class="agenda-wrap">
+      ${toolbar}
+      <div class="agenda-board${editando ? ' is-editing' : ''}" style="--cols:${agendaColunas.length}">${colunasHtml}</div>
+    </div>
+  `
 }

@@ -1385,12 +1385,122 @@ select.field {
   color: #1a1509;
 }
 
-/* board de 3 colunas por horizonte (desktop); empilha no mobile */
+/* board personalizável: nº de colunas vem da config (--cols); empilha no mobile */
+.agenda-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agenda-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.agenda-hint {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.agenda-btn {
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.agenda-btn:hover {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.agenda-btn--primary {
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+  color: #1a1509;
+}
+
+.agenda-btn[disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .agenda-board {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
   gap: 16px;
   align-items: start;
+}
+
+.agenda-col-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agenda-col-name {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 8px;
+}
+
+.agenda-col-name:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+}
+
+.agenda-col-del {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.agenda-col-del:hover {
+  color: #c07a68;
+  border-color: #5a3630;
+}
+
+.agenda-col-del[disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.agenda-board.is-editing .agenda-sec {
+  cursor: grab;
+}
+
+.agenda-sec.dragging {
+  opacity: 0.45;
+}
+
+.agenda-col.drag-target {
+  outline: 2px dashed var(--accent-gold);
+  outline-offset: 4px;
+  border-radius: 14px;
 }
 
 .agenda-col {
@@ -1475,6 +1585,12 @@ select.field {
 
 .agenda-sec--atrasadas .agenda-sec-head h2 {
   color: #c07a68;
+}
+
+/* Na Agenda, "atrasadas" NÃO usa pontilhado (a dica fica pelo título/marca),
+   nem na seção nem nos cards — decisão do usuário */
+.agenda-board .task-card.overdue {
+  outline: none;
 }
 
 .agenda-sec--hoje .agenda-sec-mark {

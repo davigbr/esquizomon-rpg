@@ -44,6 +44,9 @@ async function seed(page: import('@playwright/test').Page, tasks: SeedTask[]): P
   }))
   await page.addInitScript(
     ({ hoje, tasks }) => {
+      // idempotente: em reloads NÃO re-semeia (senão apagaria o que o app salvou —
+      // ex.: o layout/modo da Agenda persistido em settings)
+      if (localStorage.getItem('esquizomon-rpg:v1')) return
       localStorage.setItem(
         'esquizomon-rpg:v1',
         JSON.stringify({
@@ -104,6 +107,11 @@ test('agenda: seções por janela de data, sem hábitos e sem repetir item', asy
   const atras = page.locator('[data-sec="atrasadas"]')
   await expect(atras).toContainText('Tarefa atrasada')
   await expect(atras).toContainText('Recorrente perdida')
+  // SEM pontilhado nas atrasadas (nem na seção, nem no card) — decisão do usuário
+  expect(await atras.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe('none')
+  expect(
+    await atras.locator('.task-card.overdue').first().evaluate((el) => getComputedStyle(el).outlineStyle),
+  ).toBe('none')
 
   // hoje: a tarefa de hoje + a recorrente diária
   const hoje = page.locator('[data-sec="hoje"]')
@@ -175,4 +183,92 @@ test('agenda: toggle persiste e concluir/editar funciona na agenda', async ({ pa
   await page.locator('[data-view-mode="colunas"]').click()
   await expect(page.locator('.columns')).toBeVisible()
   await expect(page.locator('.agenda-board')).toHaveCount(0)
+})
+
+/** Layout salvo no blob do app (é o que persiste E sincroniza com a conta). */
+const layoutSalvo = (p: import('@playwright/test').Page) =>
+  p.evaluate(
+    () =>
+      (JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}') as {
+        settings?: { agenda?: Array<{ name: string; sections: string[] }> }
+      }).settings?.agenda ?? [],
+  )
+
+test('agenda: personalizar — renomear, colunas e arrastar seção (persiste em settings/sync)', async ({ page }) => {
+  await seed(page, TODAS)
+  await abrirAgenda(page)
+
+  // modo edição: campos de nome + TODAS as 9 seções visíveis (para arrastar)
+  await page.locator('[data-agenda-edit]').click()
+  await expect(page.locator('.agenda-col-name')).toHaveCount(3)
+  await expect(page.locator('.agenda-sec')).toHaveCount(9)
+
+  // renomeia a 1ª coluna
+  const nome1 = page.locator('[data-agenda-colname]').first()
+  await nome1.fill('Bomba')
+  await nome1.blur()
+  await expect.poll(async () => (await layoutSalvo(page))[0]?.name ?? null).toBe('Bomba')
+
+  // adiciona uma coluna (4)
+  await page.locator('[data-agenda-addcol]').click()
+  await expect(page.locator('.agenda-col')).toHaveCount(4)
+
+  // arrasta a seção "semana" para a 1ª coluna (DnD HTML5 sintético — o dragTo do
+  // Playwright não dispara os eventos de drag de forma confiável aqui)
+  await page.evaluate(() => {
+    const sec = document.querySelector('.agenda-sec[data-sec="semana"]') as HTMLElement
+    const col = document.querySelector('.agenda-col') as HTMLElement
+    const dt = new DataTransfer()
+    sec.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }))
+    col.dispatchEvent(new DragEvent('dragover', { bubbles: true, dataTransfer: dt }))
+    col.dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer: dt }))
+    sec.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }))
+  })
+  await expect.poll(async () => (await layoutSalvo(page))[0]?.sections ?? []).toContain('semana')
+
+  // INVARIANTE: as 9 seções seguem existindo, cada uma em UMA coluna
+  const planas = (await layoutSalvo(page)).flatMap((c) => c.sections)
+  expect(planas.length).toBe(9)
+  expect(new Set(planas).size).toBe(9)
+
+  // sai do modo edição e recarrega → layout + modo persistem
+  await page.locator('[data-agenda-done]').click()
+  await page.reload()
+  await expect(page.locator('.agenda-board')).toBeVisible()
+  await expect(page.locator('.agenda-col')).toHaveCount(4)
+  await expect(page.locator('.agenda-col-title').first()).toHaveText('Bomba')
+})
+
+test('agenda: remover coluna não perde nenhuma seção (invariante preservado)', async ({ page }) => {
+  await seed(page, TODAS)
+  await abrirAgenda(page)
+  await page.locator('[data-agenda-edit]').click()
+  await expect(page.locator('.agenda-col')).toHaveCount(3)
+
+  // remove a 1ª coluna (as seções vão para a seguinte)
+  await page.locator('[data-agenda-delcol]').first().click()
+  await expect(page.locator('.agenda-col')).toHaveCount(2)
+
+  const planas = (await layoutSalvo(page)).flatMap((c) => c.sections)
+  expect(planas.length).toBe(9)
+  expect(new Set(planas).size).toBe(9)
+})
+
+test('agenda: config incompleta é normalizada (nada some da tela)', async ({ page }) => {
+  await seed(page, TODAS)
+  // grava uma config antiga com UMA coluna e só "atrasadas" e recarrega: as outras
+  // 8 seções devem ser re-anexadas pela normalização do storage ao carregar
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')
+    raw.settings = {
+      theme: 'dark',
+      todayView: 'agenda',
+      agenda: [{ id: 'x', name: 'Só atrasadas', sections: ['atrasadas'] }],
+    }
+    localStorage.setItem('esquizomon-rpg:v1', JSON.stringify(raw))
+  })
+  await page.reload()
+  await expect(page.locator('.agenda-board')).toBeVisible()
+  await page.locator('[data-agenda-edit]').click()
+  await expect(page.locator('.agenda-sec')).toHaveCount(9)
 })

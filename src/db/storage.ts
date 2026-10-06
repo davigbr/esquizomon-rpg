@@ -1,7 +1,7 @@
 /** Versioned persistence + safe wrapper (in-memory fallback when localStorage is blocked). */
 
-import type { AiConfig, AiMessage, AiProvider, AppData, Character, CompletionReward, Conversation, DiaryEntry, DiaryNote, LogEvent, LogType, Settings, Task, Theme } from '../core/tipos'
-import { DATA_VERSION, STORAGE_KEY, THEME_KEY } from '../core/tipos'
+import type { AgendaColumn, AgendaSection, AiConfig, AiMessage, AiProvider, AppData, Character, CompletionReward, Conversation, DiaryEntry, DiaryNote, LogEvent, LogType, Settings, Task, Theme } from '../core/tipos'
+import { AGENDA_SECTIONS, DATA_VERSION, STORAGE_KEY, THEME_KEY } from '../core/tipos'
 import { hpMaxFor, initialCharacter, manaMaxFor, xpNextFor } from '../core/jogo'
 
 const memory = new Map<string, string>()
@@ -234,7 +234,42 @@ function normalizeSettings(v: unknown): Settings {
   if (isObject(v) && typeof summary === 'string' && summary.trim()) out.summary = summary
   const sound = isObject(v) ? field(v, 'sound', 'sons') : undefined
   if (typeof sound === 'boolean') out.sound = sound
+  const agenda = isObject(v) ? normalizeAgenda(field<unknown>(v, 'agenda', 'agendaColunas')) : undefined
+  if (agenda) out.agenda = agenda
+  const todayView = isObject(v) ? field(v, 'todayView', 'modoHoje') : undefined
+  if (todayView === 'agenda' || todayView === 'colunas') out.todayView = todayView
   return out
+}
+
+/** Normalizes the Agenda board layout, ENFORCING the invariant: every section of
+ *  AGENDA_SECTIONS lives in exactly ONE column (unknown/duplicated ids dropped;
+ *  missing ones appended to the last column). So a stale/local-only config never
+ *  makes a section vanish. Returns undefined when there's nothing usable. */
+function normalizeAgenda(v: unknown): AgendaColumn[] | undefined {
+  if (!Array.isArray(v) || v.length === 0) return undefined
+  const vistas = new Set<string>()
+  const cols: AgendaColumn[] = []
+  for (const bruto of v.slice(0, 6)) {
+    const obj = isObject(bruto) ? bruto : {}
+    const secoes: AgendaSection[] = []
+    const rawSec = field<unknown>(obj, 'sections', 'secoes')
+    for (const s of Array.isArray(rawSec) ? rawSec : []) {
+      if (AGENDA_SECTIONS.includes(s as AgendaSection) && !vistas.has(s as string)) {
+        vistas.add(s as string)
+        secoes.push(s as AgendaSection)
+      }
+    }
+    const nome = field<unknown>(obj, 'name', 'nome')
+    const id = field<unknown>(obj, 'id', 'id')
+    cols.push({
+      id: typeof id === 'string' && id ? id : `c${cols.length + 1}`,
+      name: typeof nome === 'string' && nome.trim() ? nome.trim() : `Coluna ${cols.length + 1}`,
+      sections: secoes,
+    })
+  }
+  const faltando = AGENDA_SECTIONS.filter((s) => !vistas.has(s))
+  if (faltando.length > 0) cols[cols.length - 1].sections.push(...faltando)
+  return cols
 }
 
 const PROVIDERS: ReadonlySet<string> = new Set(['nenhum', 'deepseek', 'opencode'])

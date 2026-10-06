@@ -105,6 +105,47 @@ export interface Settings {
   summary?: string
   /** Sound effects (Web Audio, synthesized) — default on. */
   sound?: boolean
+  /** Agenda board layout (columns). Synced with the account (settings is LWW). */
+  agenda?: AgendaColumn[]
+  /** Last view mode of the today screen. Synced with the account. */
+  todayView?: TodayView
+}
+
+/** View modes of the today screen: classic columns or the Agenda (planning). */
+export type TodayView = 'colunas' | 'agenda'
+
+/** Stable ids of the Agenda board sections. */
+export type AgendaSection =
+  | 'atrasadas'
+  | 'hoje'
+  | 'proximas'
+  | 'semana'
+  | 'mes'
+  | 'm1'
+  | 'm2'
+  | 'semestre'
+  | 'ano'
+
+/** Every Agenda section, in the canonical (default) order. */
+export const AGENDA_SECTIONS: readonly AgendaSection[] = [
+  'atrasadas',
+  'hoje',
+  'proximas',
+  'semana',
+  'mes',
+  'm1',
+  'm2',
+  'semestre',
+  'ano',
+]
+
+/** One column of the customizable Agenda board: a name + its sections, in order.
+ *  Invariant (enforced by the storage normalizer): every section of
+ *  AGENDA_SECTIONS appears in EXACTLY ONE column — so nothing ever disappears. */
+export interface AgendaColumn {
+  id: string
+  name: string
+  sections: AgendaSection[]
 }
 
 /** AI provider. MVP: deepseek and opencode Zen Go (both OpenAI-compatible). */
