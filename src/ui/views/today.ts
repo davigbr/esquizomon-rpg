@@ -65,9 +65,19 @@ let agendaColunas: AgendaColumn[] = agendaColunasPadrao()
 /** Edit mode of the board (rename/drag/columns). Transient — not persisted. */
 let agendaEditando = false
 
+/** A Agenda é DESABILITADA no mobile (≤900px — o mesmo breakpoint do layout
+ *  mobile do app, decisão do usuário 2026-10-01): o celular fica SÓ na visão
+ *  Colunas e o toggle nem é renderizado. Importante: NÃO sobrescrevemos
+ *  `settings.todayView` — a preferência é sincronizada, então o desktop segue
+ *  na Agenda e o celular apenas ignora. */
+export function agendaDisponivel(): boolean {
+  return !window.matchMedia('(max-width: 900px)').matches
+}
+
 export function mountToday(root: HTMLElement, data: AppData): void {
   // modo + layout vêm do store (settings) — persistidos e sincronizados
-  viewMode = data.settings?.todayView === 'agenda' ? 'agenda' : 'colunas'
+  const temAgenda = agendaDisponivel()
+  viewMode = data.settings?.todayView === 'agenda' && temAgenda ? 'agenda' : 'colunas'
   agendaColunas = layoutAtual(data)
   const todayReal = todayISO()
   const isToday = visibleDate === todayReal
@@ -138,10 +148,12 @@ export function mountToday(root: HTMLElement, data: AppData): void {
         <h1>${escapeHtml(isAgenda ? t('today.today') : label)}</h1>
         ${isAgenda ? '' : `<button class="btn btn-icon" data-next-day aria-label="${t('today.nextDay')}" ${isToday ? 'disabled' : ''}><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>`}
         <button class="btn btn-heal" data-heal aria-label="${t('today.healLabel', { mana: HEAL_MANA_COST })}" title="${t('today.healTitle', { mana: HEAL_MANA_COST })}" ${char.hp >= char.hpMax || char.mana < HEAL_MANA_COST ? 'disabled' : ''}><i class="fa-solid fa-heart-pulse" aria-hidden="true"></i><span class="heal-cost">${HEAL_MANA_COST}⚡</span></button>
-        <div class="view-mode-toggle" role="tablist" aria-label="${t('today.viewMode')}">
+        ${temAgenda
+          ? `<div class="view-mode-toggle" role="tablist" aria-label="${t('today.viewMode')}">
           <button type="button" class="view-mode-btn${isAgenda ? '' : ' active'}" data-view-mode="colunas" role="tab" aria-selected="${!isAgenda}">${t('today.viewColumns')}</button>
           <button type="button" class="view-mode-btn${isAgenda ? ' active' : ''}" data-view-mode="agenda" role="tab" aria-selected="${isAgenda}">${t('today.viewAgenda')}</button>
-        </div>
+        </div>`
+          : ''}
       </div>
       <p class="view-sub">${escapeHtml(formatLongDate(visibleDate))}</p>
     </header>

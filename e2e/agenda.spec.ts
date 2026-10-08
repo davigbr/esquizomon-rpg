@@ -343,6 +343,39 @@ test('agenda: recorrente JÁ concluída no ciclo não aparece como atrasada (bug
   await expect(page.locator('.task-card', { hasText: 'Semanal atrasada' })).toHaveCount(1)
 })
 
+test('agenda: DESABILITADA no mobile (só Colunas) e sem sobrescrever a preferência salva', async ({ page }) => {
+  await seed(page, TODAS)
+  await abrirAgenda(page)
+  // a escolha fica em settings (é ela que sincroniza com a conta)
+  await expect
+    .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.settings?.todayView ?? null))
+    .toBe('agenda')
+
+  // ---- mobile (390×844): sem toggle, sem Agenda, só a visão Colunas ----
+  // (mesma URL não recarrega: usar reload() p/ a tela re-renderizar no novo viewport)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload()
+  await expect(page.locator('.columns')).toBeVisible()
+  await expect(page.locator('[data-view-mode]')).toHaveCount(0)
+  await expect(page.locator('.agenda-board')).toHaveCount(0)
+  await expect(page.locator('.agenda-fab')).toHaveCount(0)
+  // o celular NÃO sobrescreve a preferência (o desktop continua na Agenda)
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('esquizomon-rpg:v1') ?? '{}')?.settings?.todayView)).toBe('agenda')
+
+  // ---- limites do breakpoint: 900 = mobile, 901 = desktop ----
+  await page.setViewportSize({ width: 900, height: 800 })
+  await page.reload()
+  await expect(page.locator('[data-view-mode]')).toHaveCount(0)
+  await page.setViewportSize({ width: 901, height: 800 })
+  await page.reload()
+  await expect(page.locator('.agenda-board')).toBeVisible()
+
+  // ---- de volta no desktop largo: segue na Agenda ----
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.reload()
+  await expect(page.locator('.agenda-board')).toBeVisible()
+})
+
 test('agenda: botão flutuante (+) no canto inferior direito (substitui o + de Próximas Ações)', async ({ page }) => {
   await seed(page, TODAS)
   await abrirAgenda(page)
