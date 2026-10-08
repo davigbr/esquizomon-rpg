@@ -117,6 +117,13 @@ export interface Settings {
 /** XP progression speed options (settings). Each multiplies every XP gain. */
 export type XpSpeed = 'slow' | 'normal' | 'fast'
 
+/** Manual order of the task list (drag & drop), carrying its own LWW stamp.
+ *  `ids` is the FULL task order of the device that reordered. */
+export interface TaskOrder {
+  ids: string[]
+  updatedAt: string
+}
+
 /** View modes of the today screen: classic columns or the Agenda (planning). */
 export type TodayView = 'colunas' | 'agenda'
 
@@ -205,6 +212,12 @@ export interface LogEvent {
 export interface AppData {
   version: number
   tasks: Task[]
+  /** ORDEM manual da lista de tarefas (drag & drop), com timestamp PRÓPRIO.
+   *  É um valor LWW sincronizado: a reordenação mais recente vence em todos os
+   *  aparelhos. Sem isso, a ordem era só a posição no array — e o merge a
+   *  descartava quando o lado da nuvem era o mais novo (bug 2026-10-01: "depois
+   *  de um tempo as tarefas voltam à ordem anterior"). */
+  tasksOrder?: TaskOrder
   character: Character
   settings: Settings
   /** Extensive action history (most recent first). */

@@ -115,7 +115,14 @@ export function reorderTasks(ids: string[]): void {
   if (!type) return
   const rest = tasks.filter((t) => !set.has(t.id) || t.type !== type)
   const result = [...rest, ...reordered]
-  appStore.set({ ...appStore.get(), tasks: result })
+  // A ordem é gravada como um valor LWW próprio (com timestamp). Só a posição no
+  // array NÃO sobrevive ao merge: quando o lado da nuvem é o mais novo, a ordem
+  // do cloud vencia e a reordenação voltava sozinha (bug 2026-10-01).
+  appStore.set({
+    ...appStore.get(),
+    tasks: result,
+    tasksOrder: { ids: result.map((t) => t.id), updatedAt: new Date().toISOString() },
+  })
 }
 
 /** Recurring: marks/unmarks the day in the history (date = visible day; default today). Returns new cards. */

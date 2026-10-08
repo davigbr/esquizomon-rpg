@@ -1,8 +1,9 @@
 /** Versioned persistence + safe wrapper (in-memory fallback when localStorage is blocked). */
 
-import type { AgendaColumn, AgendaSection, AiConfig, AiMessage, AiProvider, AppData, Character, CompletionReward, Conversation, DiaryEntry, DiaryNote, LogEvent, LogType, Settings, Task, Theme } from '../core/tipos'
+import type { AgendaColumn, AgendaSection, AiConfig, AiMessage, AiProvider, AppData, Character, CompletionReward, Conversation, DiaryEntry, DiaryNote, LogEvent, LogType, Settings, Task, TaskOrder, Theme } from '../core/tipos'
 import { AGENDA_SECTIONS, DATA_VERSION, STORAGE_KEY, THEME_KEY } from '../core/tipos'
 import { hpMaxFor, initialCharacter, manaMaxFor, xpNextFor } from '../core/jogo'
+import { applyTaskOrder } from '../core/syncMerge'
 
 const memory = new Map<string, string>()
 
@@ -243,6 +244,18 @@ function normalizeSettings(v: unknown): Settings {
   return out
 }
 
+/** Valida/normaliza a ordem manual das tarefas (valor LWW com timestamp próprio). */
+function normalizeTaskOrder(v: unknown): TaskOrder | undefined {
+  if (!isObject(v)) return undefined
+  const rawIds = field<unknown>(v, 'ids', 'ids')
+  if (!Array.isArray(rawIds)) return undefined
+  const ids = rawIds.filter((x): x is string => typeof x === 'string' && x.length > 0)
+  const tsRaw = field<unknown>(v, 'updatedAt', 'atualizadoEm')
+  const updatedAt = typeof tsRaw === 'string' ? tsRaw : ''
+  if (ids.length === 0 || !updatedAt) return undefined
+  return { ids, updatedAt }
+}
+
 /** Normalizes the Agenda board layout, ENFORCING the invariant: every section of
  *  AGENDA_SECTIONS lives in exactly ONE column (unknown/duplicated ids dropped;
  *  missing ones appended to the last column). So a stale/local-only config never
@@ -455,9 +468,12 @@ export function normalizeData(raw: unknown): AppData | null {
   // existentes viram notas (título/hora/cidade preservados) e o `diary` é limpo
   // (virou campo peso-morto). Reexecutar é no-op (diary já vazio).
   const notes = diary.length > 0 ? [...notesRaw, ...diary.map(chronicleToNote)] : notesRaw
+  // Ordem manual das tarefas (LWW próprio): materializada no array ao carregar.
+  const tasksOrder = normalizeTaskOrder(field<unknown>(b, 'tasksOrder', 'ordemTarefas'))
   return {
     version: DATA_VERSION,
-    tasks,
+    tasks: applyTaskOrder(tasks, tasksOrder),
+    tasksOrder,
     character: normalizeCharacter(field<unknown>(b, 'character', 'personagem')),
     settings: normalizeSettings(field<unknown>(b, 'settings', 'configuracao')),
     log,

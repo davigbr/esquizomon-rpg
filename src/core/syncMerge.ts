@@ -9,9 +9,28 @@
  *   order only decides character/settings (non-granular objects).
  * - No global overwrite: items from distinct sides never get lost.
  */
-import type { AppData, Task, DiaryEntry, DiaryNote, Conversation, LogEvent, Character } from './tipos'
+import type { AppData, Task, DiaryEntry, DiaryNote, Conversation, LogEvent, Character, TaskOrder } from './tipos'
 
 const tsOf = (x: { updatedAt?: string; createdAt?: string }): string => x.updatedAt ?? x.createdAt ?? ''
+
+/** Winner of two manual orders (LWW). Tie → the BASE side (`a`), same rule as
+ *  `mergeByKey`. Exported so the storage materializes the order on load. */
+export function pickTaskOrder(a?: TaskOrder, b?: TaskOrder): TaskOrder | undefined {
+  if (!a) return b
+  if (!b) return a
+  return (b.updatedAt ?? '') > (a.updatedAt ?? '') ? b : a
+}
+
+/** Reorders `tasks` to follow the manual order. Tasks the order doesn't know
+ *  (created later, or from another device) keep their relative order at the END
+ *  — `sort` is stable. Exported for the storage. */
+export function applyTaskOrder(tasks: Task[], order?: TaskOrder): Task[] {
+  const ids = order?.ids ?? []
+  if (ids.length === 0) return tasks
+  const pos = new Map(ids.map((id, i) => [id, i]))
+  const fim = Number.MAX_SAFE_INTEGER
+  return [...tasks].sort((x, y) => (pos.get(x.id) ?? fim) - (pos.get(y.id) ?? fim))
+}
 
 interface Keyed {
   id?: string
@@ -131,10 +150,17 @@ export function mergeData(local: AppData, cloud: AppData): AppData {
   const deletedNoteIds = new Set(Object.keys(deletedNotes))
   const notesWithDeletion = notes.filter((n) => !deletedNoteIds.has(n.id))
 
+  // Manual task order (2026-10-01): LWW value of its own. Without it, the order
+  // was just the array position, so when the CLOUD side was the merge base the
+  // cloud's order won and a local reorder silently reverted.
+  const tasksOrder = pickTaskOrder(local.tasksOrder, cloud.tasksOrder)
+  const tasksOrdenadas = applyTaskOrder(tasksWithDeletion, tasksOrder)
+
   return {
     ...local,
     character: mergeCharacter(local.character, cloud.character),
-    tasks: tasksWithDeletion,
+    tasks: tasksOrdenadas,
+    tasksOrder,
     diary: diaryWithDeletion,
     notes: notesWithDeletion,
     conversations: conversationsWithDeletion,
