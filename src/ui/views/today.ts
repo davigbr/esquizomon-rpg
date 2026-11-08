@@ -18,6 +18,7 @@ import {
   todayISO,
 } from '../../core/jogo'
 import { appStore, deleteTask, recordHabit, reorderTasks, setSettings, tagsInUse, toggleOneOff, toggleRecurringToday, healWithMana, HEAL_MANA_COST } from '../../stores/app'
+import { loadTodayFilters, saveTodayFilters } from '../../db/storage'
 import { openTaskForm } from '../formTarefa'
 import { escapeHtml } from '../util'
 import { t } from '../../i18n'
@@ -26,9 +27,17 @@ import { confirm } from '../modal'
 import { notify, notifyCards } from '../toast'
 
 /* Module-level filter state — survives the subscribe re-renders. */
-let filterTag: string | null = null
-let filterDifficulty: Difficulty | '' = ''
-let showDone = false
+/** Filtros da tela Hoje — persistidos LOCALMENTE (chave própria, fora do save/sync):
+ *  sobrevivem ao reload sem viajar para o outro aparelho. */
+const filtrosIniciais = loadTodayFilters()
+let filterTag: string | null = filtrosIniciais.tag
+let filterDifficulty: Difficulty | '' = filtrosIniciais.difficulty
+let showDone = filtrosIniciais.done
+
+/** Grava o estado atual dos filtros (chamado a cada mudança). */
+function persistFilters(): void {
+  saveTodayFilters({ tag: filterTag, difficulty: filterDifficulty, done: showDone })
+}
 let visibleDate = todayISO()
 let clickHandler: ((e: Event) => void) | null = null
 
@@ -84,6 +93,12 @@ export function mountToday(root: HTMLElement, data: AppData): void {
   const isYesterday = visibleDate === addDays(todayReal, -1)
   const label = isToday ? t('today.today') : isYesterday ? t('today.yesterday') : formatWeekday(visibleDate)
   const tags = tagsInUse(data)
+  // Um filtro persistido de tag que não existe mais (renomeada/removida) não pode
+  // "esvaziar" a tela sem explicação: descarta e regrava.
+  if (filterTag && !tags.includes(filterTag)) {
+    filterTag = null
+    persistFilters()
+  }
 
   const passes = (t: Task): boolean => {
     if (filterTag && !t.tags.includes(filterTag)) return false
@@ -322,21 +337,25 @@ export function mountToday(root: HTMLElement, data: AppData): void {
     chip.addEventListener('click', () => {
       const tag = chip.getAttribute('data-filter-tag')!
       filterTag = filterTag === tag ? null : tag
+      persistFilters()
       mountToday(root, appStore.get())
     })
   })
   root.querySelector('[data-filter-difficulty]')?.addEventListener('change', (e) => {
     filterDifficulty = (e.target as HTMLSelectElement).value as Difficulty | ''
+    persistFilters()
     mountToday(root, appStore.get())
   })
   root.querySelector('[data-filter-done]')?.addEventListener('click', () => {
     showDone = !showDone
+    persistFilters()
     mountToday(root, appStore.get())
   })
   root.querySelector('[data-clear-filters]')?.addEventListener('click', () => {
     filterTag = null
     filterDifficulty = ''
     showDone = false
+    persistFilters()
     mountToday(root, appStore.get())
   })
 

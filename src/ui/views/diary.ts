@@ -47,6 +47,18 @@ function dayLabel(date: string): string {
 const DIAS_INICIAIS = 10
 const LOTE = 10
 
+/** MODO PRIVACIDADE (2026-10-02) — como apps de banco escondendo as cifras: a
+ *  tela ABRE com todos os registros ocultos (o texto nem vai pro DOM) e o botão
+ *  do header mostra/oculta. O reset é ao SAIR da rota (main.ts), não a cada
+ *  render: assim salvar uma nota (que re-renderiza a view) não re-oculta o que o
+ *  usuário acabou de revelar. */
+let privado = true
+
+/** Chamado pelo router ao entrar em QUALQUER outra rota: o diário reabre oculto. */
+export function resetDiaryPrivacy(): void {
+  privado = true
+}
+
 export function mountDiary(root: HTMLElement, data: AppData): void {
   const groups = groupDays(data)
 
@@ -54,6 +66,11 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
     <header class="view-header">
       <h1>${t('diary.title')}</h1>
       <div class="view-header-actions">
+        <button class="btn btn-icon diary-privacy" data-diary-privacy aria-pressed="${privado}"
+          title="${t(privado ? 'diary.showRecords' : 'diary.hideRecords')}"
+          aria-label="${t(privado ? 'diary.showRecords' : 'diary.hideRecords')}">
+          <i class="fa-solid ${privado ? 'fa-eye' : 'fa-eye-slash'}" aria-hidden="true"></i>
+        </button>
         <button class="btn btn-icon diary-import" data-dayry-import title="${t('diary.importTitle')}" aria-label="${t('diary.importTitle')}">
           <i class="fa-solid fa-file-import" aria-hidden="true"></i>
         </button>
@@ -103,7 +120,11 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
   const renderTimeline = (goto?: string): void => {
     const visiveis = groups.slice(0, limite)
     const haMais = groups.length > limite
+    const aviso = privado
+      ? `<p class="diary-veil-hint"><i class="fa-solid fa-eye-slash" aria-hidden="true"></i> ${t('diary.recordsHidden')}</p>`
+      : ''
     timelineEl.innerHTML =
+      aviso +
       visiveis.map((g) => dayHtml(g)).join('') +
       (haMais
         ? `<button class="btn diary-more" data-diario-mais type="button">${t('diary.loadMore')}</button>`
@@ -138,6 +159,19 @@ export function mountDiary(root: HTMLElement, data: AppData): void {
 
   renderTimeline()
   installCalendario(root, data, irParaDia)
+
+  /* ---------- modo privacidade: ocultar/mostrar TODOS os registros ---------- */
+  const botaoPrivacidade = root.querySelector<HTMLButtonElement>('[data-diary-privacy]')
+  botaoPrivacidade?.addEventListener('click', () => {
+    privado = !privado
+    const rotulo = t(privado ? 'diary.showRecords' : 'diary.hideRecords')
+    botaoPrivacidade.setAttribute('aria-pressed', String(privado))
+    botaoPrivacidade.title = rotulo
+    botaoPrivacidade.setAttribute('aria-label', rotulo)
+    const icone = botaoPrivacidade.querySelector('i')
+    if (icone) icone.className = `fa-solid ${privado ? 'fa-eye' : 'fa-eye-slash'}`
+    renderTimeline() // redesenha os cards: oculto = o texto nem entra no DOM
+  })
 }
 
 /** Destaca o dia na timeline e rola até ele; se não existe (sem nota), avisa. */
@@ -298,6 +332,20 @@ function dayHtml(g: DayGroup): string {
 }
 
 function noteHtml(n: DiaryNote): string {
+  // OCULTO: o texto NÃO é renderizado (não fica no DOM para ninguém espiar) —
+  // só barras de esqueleto; o card também não é clicável/focável.
+  if (privado) {
+    return `
+    <article class="note-card note-card--private" data-note="${escapeHtml(n.id)}" data-note-date="${escapeHtml(n.date)}" aria-hidden="true">
+      <div class="note-body">
+        <div class="note-veil">
+          <span class="note-veil-bar"></span>
+          <span class="note-veil-bar note-veil-bar--short"></span>
+        </div>
+      </div>
+    </article>
+  `
+  }
   return `
     <article class="note-card" data-note="${escapeHtml(n.id)}" data-note-date="${escapeHtml(n.date)}" role="button" tabindex="0">
       <time class="note-time">${escapeHtml(n.time)}</time>
@@ -356,6 +404,7 @@ function installCapture(root: HTMLElement): void {
 
 /** Tap a note → edit sheet (modal). */
 function installNotes(root: HTMLElement): void {
+  if (privado) return // oculto: clicar no card não pode "espiar" abrindo a nota
   root.querySelectorAll<HTMLElement>('[data-note]').forEach((card) => {
     card.addEventListener('click', () => {
       const id = card.dataset.note ?? ''

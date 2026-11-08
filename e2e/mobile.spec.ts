@@ -58,6 +58,7 @@ test('mobile: swipe NÃO navega com modal aberto, com a Fábula aberta ou em ges
   await page.waitForTimeout(400)
   // modal aberto (diário → sheet da nota) → swipe não navega
   await page.goto('/#/diary')
+  await page.locator('[data-diary-privacy]').click() // a tela abre com os registros ocultos
   await page.locator('[data-note-input]').fill('nota de guarda')
   await page.locator('[data-note-input]').press('Enter')
   await page.locator('[data-note]').first().click()

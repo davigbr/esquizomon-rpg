@@ -9,7 +9,7 @@ import { mountSheet } from './ui/views/sheet'
 import { mountCards } from './ui/views/cards'
 import { mountHistory } from './ui/views/history'
 import { mountSettings } from './ui/views/settings'
-import { mountDiary } from './ui/views/diary'
+import { mountDiary, resetDiaryPrivacy } from './ui/views/diary'
 import { toggleChat, mountChat, reactToStoreChange } from './ui/chat'
 import { checkDaily } from './ui/checkin'
 import { initAuth } from './sync/auth'
@@ -38,6 +38,10 @@ function mountRoute(route: Route): void {
   const data = appStore.get()
   // rota diário no mobile esconde a status bar (body.rota-diario → CSS)
   document.body.classList.toggle('rota-diario', route === 'diary')
+  // O diário abre SEMPRE com os registros ocultos (modo privacidade): sair para
+  // qualquer outra rota reseta o estado. Re-renders da MESMA visita (ex.: salvar
+  // uma nota) não resetam — senão re-ocultaria o que o usuário acabou de revelar.
+  if (route !== 'diary') resetDiaryPrivacy()
   switch (route) {
     case 'today':
       mountToday(root, data)

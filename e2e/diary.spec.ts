@@ -24,8 +24,17 @@ function readState(page: import('@playwright/test').Page, path: string): Promise
   }, path)
 }
 
+/** A tela do diário ABRE com o modo privacidade ligado (registros ocultos, texto
+ *  fora do DOM). Testes que leem o conteúdo das notas revelam primeiro. */
+async function revelar(page: import('@playwright/test').Page): Promise<void> {
+  const btn = page.locator('[data-diary-privacy]')
+  if ((await btn.getAttribute('aria-pressed')) === 'true') await btn.click()
+  await expect(btn).toHaveAttribute('aria-pressed', 'false')
+}
+
 test('diário: captura várias notas no mesmo dia (Enter salva, campo limpa e mantém o foco)', async ({ page }) => {
   await page.goto('/#/diary')
+  await revelar(page)
   const input = page.locator('[data-note-input]')
 
   await input.fill('Primeira nota da manhã')
@@ -45,13 +54,15 @@ test('diário: captura várias notas no mesmo dia (Enter salva, campo limpa e ma
   const notaEmHoje = page.locator('.note-card').first().locator('xpath=ancestor::*[@data-day]')
   await expect(notaEmHoje).toHaveAttribute('data-day', hoje)
 
-  // persiste no reload
+  // persiste no reload (o véu volta ligado num contexto novo)
   await page.reload()
+  await revelar(page)
   await expect(page.locator('[data-note]')).toHaveCount(2)
 })
 
 test('diário: XP +5 POR NOTA — múltiplas notas no mesmo dia somam (editar a mesma nota não re-rende)', async ({ page }) => {
   await page.goto('/#/diary')
+  await revelar(page)
   const input = page.locator('[data-note-input]')
 
   await input.fill('nota um')
@@ -79,6 +90,7 @@ test('diário: XP +5 POR NOTA — múltiplas notas no mesmo dia somam (editar a 
 test('diário: menção de carta numa NOTA dá +XP no save (e não dobra no mesmo dia)', async ({ page }) => {
   // aguarda o baralho carregar (main.ts carrega async no boot)
   await page.goto('/#/diary')
+  await revelar(page)
   await expect
     .poll(() => page.evaluate(async () => (await import('/src/core/baralho')).allCards().length))
     .toBeGreaterThan(0)
@@ -99,6 +111,7 @@ test('diário: menção de carta numa NOTA dá +XP no save (e não dobra no mesm
 
 test('diário: edita e exclui uma nota pela sheet', async ({ page }) => {
   await page.goto('/#/diary')
+  await revelar(page)
   await page.locator('[data-note-input]').fill('nota temporária')
   await page.locator('[data-note-input]').press('Enter')
 
@@ -125,6 +138,7 @@ test('diário: edita e exclui uma nota pela sheet', async ({ page }) => {
 
 test('diário: importa registros em massa via markdown (cada dia vira uma NOTA com título)', async ({ page }) => {
   await page.goto('/#/diary')
+  await revelar(page)
 
   await page.locator('[data-dayry-import]').click()
   const markdown = `## ${ontem}\n**Ontem**\nPrimeira nota importada.\n\n## ${hoje}\n**Hoje**\nSegunda nota importada.\n\n- lista\n- markdown`
@@ -177,6 +191,7 @@ test('diário: botão "gerar título com IA" VISÍVEL com IA ligada — gera e s
     }
   })
   await page.goto('/#/diary')
+  await revelar(page)
   await page.locator('[data-note-input]').fill('Texto do dia que recebe um título gerado sob demanda.')
   await page.locator('[data-note-input]').press('Enter')
   await page.locator('[data-note]').first().click()
@@ -191,6 +206,7 @@ test('diário: botão "gerar título com IA" VISÍVEL com IA ligada — gera e s
 
 test('diário: botão "gerar título com IA" INVISÍVEL sem a IA (BYOK) ligada', async ({ page }) => {
   await page.goto('/#/diary')
+  await revelar(page)
   await page.locator('[data-note-input]').fill('sem IA aqui')
   await page.locator('[data-note-input]').press('Enter')
   await page.locator('[data-note]').first().click()
@@ -221,6 +237,7 @@ test('diário: botão "gerar título com IA" mostra o MOTIVO real quando a IA fa
     void rota.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Invalid Authentication' } }) })
   })
   await page.goto('/#/diary')
+  await revelar(page)
   await page.locator('[data-note-input]').fill('Um texto cujo título a IA não consegue gerar por chave inválida.')
   await page.locator('[data-note-input]').press('Enter')
   await page.locator('[data-note]').first().click()
@@ -235,6 +252,7 @@ test('diário: botão "gerar título com IA" mostra o MOTIVO real quando a IA fa
 
 test('diário: o campo de captura mantém o foco e o valor através de um re-render COM dados novos (bug 2026-09-09)', async ({ page }) => {
   await page.goto('/#/diary')
+  await revelar(page)
   const input = page.locator('[data-note-input]')
   await input.fill('rascunho sendo digitado…')
   await expect(input).toBeFocused()
@@ -251,6 +269,7 @@ test('diário: o campo de captura mantém o foco e o valor através de um re-ren
 
 test('diário: nota captura a cidade via geolocalização do browser (granted)', async ({ page }) => {
   await page.goto('/#/diary')
+  await revelar(page)
   const origin = new URL(page.url()).origin
   await page.context().grantPermissions(['geolocation'], { origin })
   await page.context().setGeolocation({ latitude: -30.0346, longitude: -51.2177 }) // Porto Alegre
@@ -274,6 +293,7 @@ test('diário: nota captura a cidade via geolocalização do browser (granted)',
 
 test('diário: localização negada → registro fica sem cidade (sem prompt repetido)', async ({ page }) => {
   await page.goto('/#/diary')
+  await revelar(page)
   // geocodificação disponível, mas SEM permissão concedida → getCurrentPosition
   // dispara PERMISSION_DENIED e o app não consulta nada, nem repete o prompt
   await page.route('**/reverse-geocode-client*', (rota) =>
@@ -290,6 +310,7 @@ test('diário: localização negada → registro fica sem cidade (sem prompt rep
 
 test('diário: editar a cidade de uma nota pelo sheet (e editar o texto NÂO apaga a cidade)', async ({ page }) => {
   await page.goto('/#/diary')
+  await revelar(page)
   await page.context().grantPermissions(['geolocation'], { origin: new URL(page.url()).origin })
   await page.context().setGeolocation({ latitude: -30.0346, longitude: -51.2177 })
   await page.route('**/reverse-geocode-client*', (rota) =>
@@ -328,6 +349,7 @@ test('diário: nota sem cidade — abrir o sheet PRÉ-PREENDE com a cidade atual
     localStorage.setItem(k, JSON.stringify(d))
   }, hoje)
   await page.goto('/#/diary')
+  await revelar(page)
   await page.context().grantPermissions(['geolocation'], { origin: new URL(page.url()).origin })
   await page.context().setGeolocation({ latitude: -30.0346, longitude: -51.2177 })
   await page.route('**/reverse-geocode-client*', (rota) =>
@@ -347,6 +369,7 @@ test('diário: nota sem cidade — abrir o sheet PRÉ-PREENDE com a cidade atual
 
 test('diário: excluir uma NOTA cria TOMBSTONE de sync (registro remove do estado)', async ({ page }) => {
   await page.goto('/#/diary')
+  await revelar(page)
   await page.locator('[data-note-input]').fill('nota p/ teste de tombstone')
   await page.locator('[data-note-input]').press('Enter')
   await expect.poll(() => readState(page, 'notes.0.text')).toContain('tombstone')
@@ -361,6 +384,7 @@ test('diário: excluir uma NOTA cria TOMBSTONE de sync (registro remove do estad
 
 test('diário: dá um TÍTULO a uma nota pela sheet e o card mostra (união 2026-09-28)', async ({ page }) => {
   await page.goto('/#/diary')
+  await revelar(page)
   await page.locator('[data-note-input]').fill('sem título ainda')
   await page.locator('[data-note-input]').press('Enter')
   await page.locator('[data-note]').first().click()
@@ -393,6 +417,7 @@ test('diário: MIGRAÇÃO — crônica antiga (diary) vira NOTA com título pres
     )
   }, hoje)
   await page.goto('/#/diary')
+  await revelar(page)
   // virou nota, com o título da antiga crônica preservado; diary limpo
   await expect.poll(() => readState(page, 'notes.0.title')).toBe('Meu dia')
   await expect.poll(() => readState(page, 'notes.0.text')).toBe('reflexão antiga')
@@ -402,6 +427,7 @@ test('diário: MIGRAÇÃO — crônica antiga (diary) vira NOTA com título pres
 
 test('diário: a DATA e a HORA da nota são editáveis — a nota muda de dia', async ({ page }) => {
   await page.goto('/#/diary')
+  await revelar(page)
   await page.locator('[data-note-input]').fill('nota que vai mudar de dia')
   await page.locator('[data-note-input]').press('Enter')
   await page.locator('[data-note]').first().click()
@@ -419,6 +445,7 @@ test('diário: a DATA e a HORA da nota são editáveis — a nota muda de dia', 
 
 test('diário: markdown da nota é renderizado no card (negrito, itálico, lista)', async ({ page }) => {
   await page.goto('/#/diary')
+  await revelar(page)
   await page.locator('[data-note-input]').fill('nota md')
   await page.locator('[data-note-input]').press('Enter')
   await page.locator('[data-note]').first().click()
@@ -463,6 +490,7 @@ test('diário desktop: calendário de calor — dias com nota marcados, clique p
   }, { hoje, alvo })
 
   await page.goto('/#/diary')
+  await revelar(page)
   // desktop (>=1100): calendário visível; dia com nota tem marcador, hoje tem anel
   await expect(page.locator('.diary-cal')).toBeVisible()
   await expect(page.locator(`.cel[data-cal-day="${alvo}"]`)).toHaveClass(/has|forte/)
@@ -506,6 +534,7 @@ test('diário: paginação — timeline começa com os dias recentes e "ver ante
   }, { hoje })
 
   await page.goto('/#/diary')
+  await revelar(page)
   // só os 10 dias mais recentes montam + botão "ver dias anteriores"
   await expect(page.locator('.timeline-day')).toHaveCount(10)
   await expect(page.locator('[data-diario-mais]')).toBeVisible()
@@ -523,6 +552,7 @@ test('diário desktop: timeline mais larga (920px) e notas em coluna ÚNICA — 
   // DESKTOP (1440×900)
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/#/diary')
+  await revelar(page)
   const input = page.locator('[data-note-input]')
   for (let i = 0; i < 3; i++) {
     await input.fill(`nota desktop ${i + 1}`)

@@ -201,6 +201,7 @@ test('fabula: marcador [[acao:invocar]] é extraído e removido do texto', async
 test('fabula: as últimas entradas do diário entram NA ÍNTEGRA no prompt (sem truncar)', async ({ page }) => {
   await semear(page)
   await page.goto('/#/diary')
+  await page.locator('[data-diary-privacy]').click() // a tela abre com os registros ocultos
 
   // entrada longa (bem acima do antigo corte de 600 chars) — via sheet (sem cap de 500)
   const longo = 'A'.repeat(800) + ' FIM-DO-REGISTRO-INTEGRO'

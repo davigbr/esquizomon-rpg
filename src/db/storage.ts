@@ -1,6 +1,6 @@
 /** Versioned persistence + safe wrapper (in-memory fallback when localStorage is blocked). */
 
-import type { AgendaColumn, AgendaSection, AiConfig, AiMessage, AiProvider, AppData, Character, CompletionReward, Conversation, DiaryEntry, DiaryNote, LogEvent, LogType, Settings, Task, TaskOrder, Theme } from '../core/tipos'
+import type { AgendaColumn, AgendaSection, AiConfig, AiMessage, AiProvider, AppData, Character, CompletionReward, Conversation, DiaryEntry, DiaryNote, Difficulty, LogEvent, LogType, Settings, Task, TaskOrder, Theme } from '../core/tipos'
 import { AGENDA_SECTIONS, DATA_VERSION, STORAGE_KEY, THEME_KEY } from '../core/tipos'
 import { hpMaxFor, initialCharacter, manaMaxFor, xpNextFor } from '../core/jogo'
 import { applyTaskOrder } from '../core/syncMerge'
@@ -66,6 +66,40 @@ export function initialTheme(): Theme {
 
 export function saveTheme(theme: Theme): void {
   storageSet(THEME_KEY, theme)
+}
+
+/* ---------- filtros da tela Hoje (preferência LOCAL) ----------
+ * Persistidos em chave PRÓPRIA (como o tema), fora do blob do app: filtro é
+ * estado de VISÃO, não dado do usuário — não deve viajar no save/sync. Assim
+ * sobrevivem ao reload sem "contaminar" o outro aparelho. */
+
+const TODAY_FILTERS_KEY = 'esquizomon-rpg:today-filters'
+
+export interface TodayFilters {
+  tag: string | null
+  difficulty: Difficulty | ''
+  done: boolean
+}
+
+export function loadTodayFilters(): TodayFilters {
+  const vazio: TodayFilters = { tag: null, difficulty: '', done: false }
+  const raw = storageGet(TODAY_FILTERS_KEY)
+  if (!raw) return vazio
+  try {
+    const v = JSON.parse(raw) as Record<string, unknown>
+    const tag = typeof v.tag === 'string' && v.tag.trim() ? v.tag : null
+    const difficulty =
+      v.difficulty === 'facil' || v.difficulty === 'media' || v.difficulty === 'dificil' || v.difficulty === 'extrema'
+        ? v.difficulty
+        : ''
+    return { tag, difficulty, done: v.done === true }
+  } catch {
+    return vazio
+  }
+}
+
+export function saveTodayFilters(f: TodayFilters): void {
+  storageSet(TODAY_FILTERS_KEY, JSON.stringify({ tag: f.tag, difficulty: f.difficulty, done: f.done }))
 }
 
 /* ---------- validation and normalization ---------- */
